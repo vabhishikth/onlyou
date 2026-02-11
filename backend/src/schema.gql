@@ -1,0 +1,218 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AuthResponse {
+  accessToken: String
+  message: String!
+  refreshToken: String
+  success: Boolean!
+  user: UserType
+}
+
+type ConsultationType {
+  createdAt: DateTime!
+  id: String!
+  status: String!
+  vertical: HealthVertical!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""User gender"""
+enum Gender {
+  FEMALE
+  MALE
+  OTHER
+}
+
+input GetPresignedUrlInput {
+  contentType: String = "image/jpeg"
+  fileType: String!
+}
+
+input GetQuestionnaireInput {
+  version: Int
+  vertical: HealthVertical!
+}
+
+"""Available health treatment verticals"""
+enum HealthVertical {
+  HAIR_LOSS
+  PCOS
+  SEXUAL_HEALTH
+  WEIGHT_MANAGEMENT
+}
+
+type IntakeResponseType {
+  createdAt: DateTime!
+  id: String!
+  isDraft: Boolean!
+  patientProfileId: String!
+  questionnaireTemplateId: String!
+  responses: JSON!
+  submittedAt: DateTime
+  updatedAt: DateTime!
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type Mutation {
+  getPresignedUploadUrl(input: GetPresignedUrlInput!): PresignedUrlResponse!
+  logout(refreshToken: String): RequestOtpResponse!
+  refreshToken(input: RefreshTokenInput!): AuthResponse!
+  requestOtp(input: RequestOtpInput!): RequestOtpResponse!
+  saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
+  submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
+  testS3Connection: S3TestResult!
+  updateProfile(input: UpdateProfileInput!): ProfileUpdateResponse!
+  verifyOtp(input: VerifyOtpInput!): AuthResponse!
+}
+
+type PatientProfileType {
+  addressLine1: String
+  addressLine2: String
+  city: String
+  dateOfBirth: DateTime
+  gender: Gender
+  height: Float
+  id: String!
+  pincode: String
+  state: String
+  weight: Float
+}
+
+input PhotoInput {
+  type: String!
+  url: String!
+}
+
+type PresignedUrlResponse {
+  fileUrl: String!
+  key: String!
+  uploadUrl: String!
+}
+
+type ProfileUpdateResponse {
+  message: String!
+  success: Boolean!
+  user: UserProfileType
+}
+
+type Query {
+  availableVerticals: [VerticalInfo!]!
+  me: UserProfileType
+  myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
+  myIntakes: [IntakeResponseType!]!
+  questionnaireTemplate(input: GetQuestionnaireInput!): QuestionnaireTemplateType!
+}
+
+type QuestionnaireTemplateType {
+  createdAt: DateTime!
+  id: String!
+  isActive: Boolean!
+  schema: JSON!
+  version: Int!
+  vertical: HealthVertical!
+}
+
+input RefreshTokenInput {
+  refreshToken: String!
+}
+
+input RequestOtpInput {
+  phone: String!
+}
+
+type RequestOtpResponse {
+  message: String!
+  success: Boolean!
+}
+
+type S3TestResult {
+  message: String!
+  success: Boolean!
+}
+
+input SaveDraftInput {
+  intakeResponseId: String
+  responses: JSON!
+  vertical: HealthVertical!
+}
+
+type SaveDraftResponse {
+  intakeResponse: IntakeResponseType
+  message: String!
+  success: Boolean!
+}
+
+input SubmitIntakeInput {
+  photos: [PhotoInput!]
+  responses: JSON!
+  vertical: HealthVertical!
+}
+
+type SubmitIntakeResponse {
+  consultation: ConsultationType
+  intakeResponse: IntakeResponseType
+  message: String!
+  success: Boolean!
+}
+
+input UpdateProfileInput {
+  addressLine1: String
+  addressLine2: String
+  city: String
+  dateOfBirth: String
+  email: String
+  gender: Gender
+  height: Float
+  name: String
+  pincode: String
+  state: String
+  weight: Float
+}
+
+type UserProfileType {
+  createdAt: DateTime!
+  email: String
+  id: String!
+  isProfileComplete: Boolean!
+  isVerified: Boolean!
+  name: String
+  patientProfile: PatientProfileType
+  phone: String!
+  role: String!
+}
+
+type UserType {
+  createdAt: DateTime!
+  email: String
+  id: String!
+  isProfileComplete: Boolean!
+  isVerified: Boolean!
+  name: String
+  phone: String!
+  role: String!
+}
+
+input VerifyOtpInput {
+  otp: String!
+  phone: String!
+}
+
+type VerticalInfo {
+  color: String!
+  description: String!
+  icon: String!
+  id: HealthVertical!
+  name: String!
+  pricePerMonth: Int!
+  tagline: String!
+}

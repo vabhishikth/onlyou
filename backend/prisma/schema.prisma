@@ -1,0 +1,461 @@
+// Onlyou Database Schema
+// Indian Telehealth Platform for Stigmatized Health Conditions
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  NURSE
+  PHARMACIST
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum HealthVertical {
+  HAIR_LOSS
+  SEXUAL_HEALTH
+  PCOS
+  WEIGHT_MANAGEMENT
+}
+
+enum ConsultationStatus {
+  PENDING_ASSESSMENT
+  AI_REVIEWED
+  DOCTOR_REVIEWING
+  APPROVED
+  NEEDS_INFO
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+// ============================================
+// USER & PROFILES
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  phone         String    @unique // +91XXXXXXXXXX format
+  email         String?   @unique
+  name          String?
+  role          UserRole  @default(PATIENT)
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  patientProfile  PatientProfile?
+  doctorProfile   DoctorProfile?
+  staffProfile    StaffProfile?
+  refreshTokens   RefreshToken[]
+  consultations   Consultation[]    @relation("PatientConsultations")
+  doctorReviews   Consultation[]    @relation("DoctorConsultations")
+  orders          Order[]
+  subscriptions   Subscription[]
+  payments        Payment[]
+  messages        Message[]
+  auditLogs       AuditLog[]
+
+  @@index([phone])
+  @@index([role])
+}
+
+model PatientProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  dateOfBirth DateTime?
+  gender      Gender?
+  height      Float?    // in cm
+  weight      Float?    // in kg
+
+  // Address (Indian format)
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  pincode       String?   // 6-digit Indian postal code
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intakeResponses IntakeResponse[]
+  photos          PatientPhoto[]
+
+  @@index([userId])
+}
+
+model DoctorProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  registrationNo    String   @unique // Medical Council Registration
+  specialization    String
+  qualifications    String[]
+  yearsOfExperience Int
+  bio               String?
+  avatarUrl         String?
+  isAvailable       Boolean  @default(true)
+  consultationFee   Int      @default(0) // in paise
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([specialization])
+}
+
+model StaffProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  department String
+  employeeId String  @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ============================================
+// QUESTIONNAIRES
+// ============================================
+
+model QuestionnaireTemplate {
+  id        String         @id @default(cuid())
+  vertical  HealthVertical
+  version   Int            @default(1)
+  isActive  Boolean        @default(true)
+  schema    Json           // JSON schema for the questionnaire
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  intakeResponses IntakeResponse[]
+
+  @@unique([vertical, version])
+  @@index([vertical, isActive])
+}
+
+model IntakeResponse {
+  id                      String   @id @default(cuid())
+  patientProfileId        String
+  questionnaireTemplateId String
+  responses               Json     // Patient's answers
+  isDraft                 Boolean  @default(true)
+  submittedAt             DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  patientProfile        PatientProfile        @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+  questionnaireTemplate QuestionnaireTemplate @relation(fields: [questionnaireTemplateId], references: [id])
+  consultation          Consultation?
+
+  @@index([patientProfileId])
+  @@index([questionnaireTemplateId])
+}
+
+model PatientPhoto {
+  id               String  @id @default(cuid())
+  patientProfileId String
+  type             String  // e.g., "scalp_top", "scalp_front", "face"
+  url              String
+  thumbnailUrl     String?
+
+  createdAt DateTime @default(now())
+
+  patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id], onDelete: Cascade)
+
+  @@index([patientProfileId])
+}
+
+// ============================================
+// CONSULTATIONS & AI
+// ============================================
+
+model Consultation {
+  id               String             @id @default(cuid())
+  patientId        String
+  doctorId         String?
+  intakeResponseId String             @unique
+  vertical         HealthVertical
+  status           ConsultationStatus @default(PENDING_ASSESSMENT)
+  doctorNotes      String?
+  rejectionReason  String?
+  scheduledAt      DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  patient        User            @relation("PatientConsultations", fields: [patientId], references: [id])
+  doctor         User?           @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  intakeResponse IntakeResponse  @relation(fields: [intakeResponseId], references: [id])
+  aiAssessment   AIPreAssessment?
+  prescription   Prescription?
+  messages       Message[]
+  followUps      FollowUp[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([vertical])
+}
+
+model AIPreAssessment {
+  id              String   @id @default(cuid())
+  consultationId  String   @unique
+  summary         String   // AI-generated summary for doctor
+  riskLevel       String   // LOW, MEDIUM, HIGH
+  recommendedPlan String?
+  flags           String[] // Important flags for doctor attention
+  rawResponse     Json     // Full AI response for auditing
+  modelVersion    String   // e.g., "claude-3-sonnet-20240229"
+  createdAt       DateTime @default(now())
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+}
+
+model FollowUp {
+  id             String   @id @default(cuid())
+  consultationId String
+  scheduledAt    DateTime
+  type           String   // "WEEK_2", "MONTH_1", "MONTH_3"
+  isCompleted    Boolean  @default(false)
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+  @@index([scheduledAt])
+}
+
+// ============================================
+// PRESCRIPTIONS
+// ============================================
+
+model Prescription {
+  id              String   @id @default(cuid())
+  consultationId  String   @unique
+  pdfUrl          String?  // S3 URL for generated PDF
+  medications     Json     // Array of medication details
+  instructions    String?
+  validUntil      DateTime
+  issuedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@index([consultationId])
+}
+
+// ============================================
+// ORDERS & SHIPPING
+// ============================================
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  prescriptionId  String?
+  orderNumber     String      @unique
+  status          OrderStatus @default(PENDING)
+  items           Json        // Array of order items
+  subtotalPaise   Int
+  shippingPaise   Int         @default(0)
+  discountPaise   Int         @default(0)
+  totalPaise      Int
+
+  // Shipping details
+  shippingAddress Json
+  trackingNumber  String?
+  shiprocketOrderId String?
+  estimatedDelivery DateTime?
+  deliveredAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
+  payment      Payment?
+
+  @@index([userId])
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+// ============================================
+// SUBSCRIPTIONS & PAYMENTS
+// ============================================
+
+model SubscriptionPlan {
+  id              String         @id @default(cuid())
+  vertical        HealthVertical
+  name            String
+  description     String?
+  priceInPaise    Int            // Monthly price
+  durationMonths  Int            @default(1)
+  features        String[]
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([vertical])
+  @@index([isActive])
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String
+  planId                String
+  status                SubscriptionStatus @default(ACTIVE)
+  razorpaySubscriptionId String?           @unique
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelledAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id])
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  userId             String
+  orderId            String?       @unique
+  subscriptionId     String?
+  amountPaise        Int
+  status             PaymentStatus @default(PENDING)
+  razorpayPaymentId  String?       @unique
+  razorpayOrderId    String?       @unique
+  razorpaySignature  String?
+  method             String?       // "upi", "card", "netbanking"
+  failureReason      String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  order        Order?        @relation(fields: [orderId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+// ============================================
+// MESSAGING
+// ============================================
+
+model Message {
+  id             String   @id @default(cuid())
+  consultationId String
+  senderId       String
+  content        String
+  isFromAI       Boolean  @default(false)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([consultationId])
+  @@index([senderId])
+}
+
+// ============================================
+// AUDIT LOGGING (HIPAA/DPDPA Compliance)
+// ============================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // "VIEW_PHI", "CREATE_PRESCRIPTION", etc.
+  resource   String   // "Consultation", "Prescription", etc.
+  resourceId String
+  details    Json?    // Additional context
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}

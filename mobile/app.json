@@ -1,0 +1,48 @@
+{
+    "expo": {
+        "name": "Onlyou",
+        "slug": "onlyou",
+        "version": "0.0.1",
+        "orientation": "portrait",
+        "userInterfaceStyle": "automatic",
+        "scheme": "onlyou",
+        "splash": {
+            "backgroundColor": "#0ea5e9"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.onlyou.app",
+            "infoPlist": {
+                "NSCameraUsageDescription": "We need camera access for guided photo capture during consultation",
+                "NSPhotoLibraryUsageDescription": "We need photo library access to upload images for your consultation"
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#0ea5e9"
+            },
+            "package": "com.onlyou.app",
+            "permissions": [
+                "CAMERA",
+                "READ_EXTERNAL_STORAGE",
+                "WRITE_EXTERNAL_STORAGE"
+            ]
+        },
+        "plugins": [
+            "expo-router",
+            "expo-secure-store",
+            [
+                "expo-camera",
+                {
+                    "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for photo capture"
+                }
+            ]
+        ],
+        "experiments": {
+            "typedRoutes": true
+        }
+    }
+}

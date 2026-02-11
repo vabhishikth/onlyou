@@ -1,0 +1,30 @@
+{
+  "name": "onlyou",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Onlyou - Indian telehealth platform for stigmatized health conditions",
+  "scripts": {
+    "dev:backend": "pnpm --filter backend run dev",
+    "dev:mobile": "pnpm --filter mobile run start",
+    "dev:web": "pnpm --filter web run dev",
+    "build:backend": "pnpm --filter backend run build",
+    "build:web": "pnpm --filter web run build",
+    "build:shared": "pnpm --filter @onlyou/shared run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "pnpm -r run clean",
+    "db:migrate": "pnpm --filter backend run db:migrate",
+    "db:generate": "pnpm --filter backend run db:generate",
+    "db:studio": "pnpm --filter backend run db:studio"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}

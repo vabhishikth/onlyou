@@ -1,0 +1,16 @@
+{
+    "$schema": "https://raw.githubusercontent.com/nestjs/nest-cli/master/lib/config/nest-cli.schema.json",
+    "collection": "@nestjs/schematics",
+    "sourceRoot": "src",
+    "compilerOptions": {
+        "deleteOutDir": false,
+        "plugins": [
+            {
+                "name": "@nestjs/graphql",
+                "options": {
+                    "introspectComments": true
+                }
+            }
+        ]
+    }
+}
