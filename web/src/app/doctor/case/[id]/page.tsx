@@ -36,6 +36,7 @@ import {
     ATTENTION_LEVEL_CONFIG,
     HealthVertical,
 } from '@/graphql/dashboard';
+import { ConditionSpecificPanel, QuickActions } from '@/components/doctor/condition-panels';
 
 // Spec: master spec Section 5.2 — Case Review
 
@@ -296,6 +297,8 @@ export default function CaseDetailPage() {
                             patient={patient}
                             consultation={consultation}
                             aiAssessment={aiAssessment}
+                            questionnaire={questionnaire}
+                            consultationId={consultationId}
                         />
                     )}
                     {activeTab === 'questionnaire' && (
@@ -412,12 +415,23 @@ function OverviewTab({
     patient,
     consultation,
     aiAssessment,
+    questionnaire,
+    consultationId,
 }: {
     patient: CaseDetailResponse['caseDetail']['patient'];
     consultation: CaseDetailResponse['caseDetail']['consultation'];
     aiAssessment: CaseDetailResponse['caseDetail']['aiAssessment'];
+    questionnaire: CaseDetailResponse['caseDetail']['questionnaire'];
+    consultationId: string;
 }) {
     const [aiExpanded, setAiExpanded] = useState(true);
+
+    // Parse questionnaire responses for condition-specific panel
+    const responses = questionnaire?.responses
+        ? (typeof questionnaire.responses === 'string'
+            ? JSON.parse(questionnaire.responses)
+            : questionnaire.responses)
+        : {};
 
     return (
         <motion.div
@@ -534,6 +548,23 @@ function OverviewTab({
                         )}
                     </AnimatePresence>
                 </div>
+            </div>
+
+            {/* Condition-specific panel */}
+            <div className="lg:col-span-2">
+                <ConditionSpecificPanel
+                    vertical={consultation.vertical as HealthVertical}
+                    responses={responses}
+                />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="lg:col-span-1">
+                <QuickActions
+                    consultationId={consultationId}
+                    vertical={consultation.vertical as HealthVertical}
+                    status={consultation.status}
+                />
             </div>
 
             {/* Status timeline */}
