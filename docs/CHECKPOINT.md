@@ -1,4 +1,4 @@
-# CHECKPOINT — Last Updated: 2026-02-12 08:50 IST
+# CHECKPOINT — Last Updated: 2026-02-12 08:55 IST
 
 ## Current Phase: Phase 2 - Core Flow (Hair Loss)
 ## Current Task: Phase 2 COMPLETE
@@ -9,25 +9,27 @@
 - [x] Phase 2 Task 1 — Questionnaire Engine (32 tests)
 - [x] Phase 2 Task 2 — AI Pre-Assessment (53 tests)
 - [x] Phase 2 Task 3 — Consultation Lifecycle (30 tests)
-  - [x] Status machine with valid transitions
-  - [x] Invalid status transition rejection
-  - [x] Case assignment by specialization
-  - [x] AI assessment storage
-  - [x] Photo association with consultations
-  - [x] Doctor queue management
+- [x] Phase 2 Task 4 — Photo Requirements (47 tests)
+  - [x] Hair loss: 4 required photos
+  - [x] ED: 0 photos (blocked for privacy)
+  - [x] Weight: 2 required + 1 optional
+  - [x] PCOS: All optional
+  - [x] Storage path format validation
+  - [x] Minimum resolution 1024x768
+  - [x] Follow-up photo linking to baseline
 
 ## Last Completed:
-- Feature: Consultation Lifecycle Service
+- Feature: Condition-Specific Photo Requirements
 - Files created/modified:
-  - `backend/src/consultation/consultation.service.ts` (status machine, assignment, queue)
-  - `backend/src/consultation/consultation.service.spec.ts` (30 tests)
-  - `backend/src/consultation/consultation.module.ts`
+  - `backend/src/photo/photo-requirements.service.ts`
+  - `backend/src/photo/photo-requirements.service.spec.ts` (47 tests)
+  - `backend/src/photo/photo.module.ts`
 
 ## Test Summary:
 ```
-Test Suites: 9 passed, 9 total
-Tests:       245 passed, 245 total (0 skipped, 0 failing)
-Time:        ~6 seconds
+Test Suites: 10 passed, 10 total
+Tests:       292 passed, 292 total (0 skipped, 0 failing)
+Time:        ~5.6 seconds
 ```
 
 ## Test Breakdown:
@@ -39,38 +41,36 @@ Time:        ~6 seconds
 - questionnaire.service.spec.ts: 32 tests
 - intake.service.spec.ts: 18 tests
 - ai.service.spec.ts: 53 tests
-- consultation.service.spec.ts: 30 tests (NEW)
+- consultation.service.spec.ts: 30 tests
+- photo-requirements.service.spec.ts: 47 tests (NEW)
 
-## Phase 2 Summary:
+## Photo Requirements Summary:
 
-### Task 1: Questionnaire Engine
-- Hair loss questionnaire: 27 questions, 5 skip logic rules
-- Skip logic processor for conditional questions
-- Progress calculation and validation
+| Vertical | Required | Optional | Total |
+|----------|----------|----------|-------|
+| Hair Loss | 4 (front_hairline, crown, left_side, right_side) | 0 | 4 |
+| ED | 0 (blocked) | 0 | 0 |
+| Weight | 2 (body_front, body_side) | 1 (waist_measurement) | 3 |
+| PCOS | 0 | 3 (facial_acne, hirsutism_areas, acanthosis_nigricans) | 3 |
 
-### Task 2: AI Pre-Assessment
-- 9 classification categories
-- 12 red flags detection
-- 11 finasteride contraindication checks
-- Attention level calculation (low/medium/high)
-
-### Task 3: Consultation Lifecycle
-- Status machine: PENDING_ASSESSMENT → AI_REVIEWED → DOCTOR_REVIEWING → APPROVED/NEEDS_INFO/REJECTED
-- Invalid transitions blocked
-- Doctor assignment by specialization (DERMATOLOGY, TRICHOLOGY)
-- AI assessment storage with risk level
-- Photo association via intakeResponse
-- Queue management (doctor queue, unassigned queue)
-
-## Consultation Status Machine:
+### Storage Path Format:
 ```
-PENDING_ASSESSMENT → AI_REVIEWED (after AI pre-assessment)
-AI_REVIEWED → DOCTOR_REVIEWING (when doctor assigned)
-DOCTOR_REVIEWING → APPROVED (treatment plan ready)
-DOCTOR_REVIEWING → NEEDS_INFO (patient needs to provide more)
-DOCTOR_REVIEWING → REJECTED (referral needed)
-NEEDS_INFO → DOCTOR_REVIEWING (patient responds)
+patients/{patientId}/consultations/{consultationId}/{type}_{timestamp}.jpg
 ```
+
+### Minimum Resolution:
+- Width: 1024px
+- Height: 768px
+
+### Follow-up Photo Linking:
+- Follow-up photos link to baseline consultation for side-by-side comparison
+- Marked with `isFollowUp: true` and `baselineConsultationId`
+
+## Phase 2 Complete Summary:
+- **Task 1**: Questionnaire Engine (32 tests) — Skip logic, question flow
+- **Task 2**: AI Pre-Assessment (53 tests) — Classifications, red flags, contraindications
+- **Task 3**: Consultation Lifecycle (30 tests) — Status machine, assignment, queue
+- **Task 4**: Photo Requirements (47 tests) — Per-vertical requirements, validation
 
 ## Next Up:
 - Phase 3: Doctor Dashboard
@@ -81,10 +81,11 @@ NEEDS_INFO → DOCTOR_REVIEWING (patient responds)
   - Messaging
 
 ## Spec References:
-- Consultation Lifecycle: master spec Section 3.7
-- Status Flow: master spec Section 3.7 (Waiting → Doctor Review → Results)
-- AI Assessment Storage: master spec Section 6
-- Doctor Routing: master spec Section 6
+- Hair Loss Photos: hair-loss spec Section 4
+- ED Photos: ed spec Section 4
+- Weight Photos: weight-management spec Section 4
+- PCOS Photos: pcos spec Section 4
+- Storage Format: hair-loss spec Section 4
 
 ## Known Issues:
 - None currently
@@ -92,7 +93,7 @@ NEEDS_INFO → DOCTOR_REVIEWING (patient responds)
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 245 passed)
+pnpm test           # Run all tests (should show 292 passed)
 pnpm test:cov       # Run with coverage
 ```
 
