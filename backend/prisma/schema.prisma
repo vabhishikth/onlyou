@@ -47,14 +47,20 @@ enum ConsultationStatus {
   REJECTED
 }
 
+// Spec: master spec Section 8.3 — Order Status Enum
 enum OrderStatus {
-  PENDING
-  PROCESSING
-  PACKED
-  SHIPPED
+  PRESCRIPTION_CREATED
+  SENT_TO_PHARMACY
+  PHARMACY_PREPARING
+  PHARMACY_READY
+  PHARMACY_ISSUE
+  PICKUP_ARRANGED
+  OUT_FOR_DELIVERY
   DELIVERED
-  CANCELLED
+  DELIVERY_FAILED
+  RESCHEDULED
   RETURNED
+  CANCELLED
 }
 
 enum PaymentStatus {
@@ -412,36 +418,68 @@ model Prescription {
 // ORDERS & SHIPPING
 // ============================================
 
+// Spec: master spec Section 8.4 — Delivery Data Model
 model Order {
   id              String      @id @default(cuid())
-  userId          String
-  prescriptionId  String?
-  orderNumber     String      @unique
-  status          OrderStatus @default(PENDING)
-  items           Json        // Array of order items
-  subtotalPaise   Int
-  shippingPaise   Int         @default(0)
-  discountPaise   Int         @default(0)
-  totalPaise      Int
+  patientId       String
+  prescriptionId  String
+  consultationId  String
+  status          OrderStatus @default(PRESCRIPTION_CREATED)
 
-  // Shipping details
-  shippingAddress Json
-  trackingNumber  String?
-  shiprocketOrderId String?
-  estimatedDelivery DateTime?
-  deliveredAt     DateTime?
+  // Pharmacy details
+  pharmacyPartnerId   String?
+  pharmacyPartnerName String?
+  pharmacyAddress     String?
+
+  // Delivery person details
+  deliveryPersonName  String?
+  deliveryPersonPhone String?
+  deliveryMethod      String?   // RAPIDO, DUNZO, OWN, PORTER, OTHER
+  deliveryAddress     String
+  deliveryCity        String
+  deliveryPincode     String
+  estimatedDeliveryTime String?
+  deliveryOtp         String?   // 4-digit OTP for delivery confirmation
+
+  // Financials (in paise)
+  medicationCost      Int
+  deliveryCost        Int       @default(0)
+  totalAmount         Int
+
+  // Reorder tracking
+  parentOrderId       String?   // If this is a reorder
+  isReorder           Boolean   @default(false)
+
+  // Timestamps (ALL per spec)
+  orderedAt           DateTime  @default(now())
+  sentToPharmacyAt    DateTime?
+  pharmacyPreparingAt DateTime?
+  pharmacyReadyAt     DateTime?
+  pharmacyIssueAt     DateTime?
+  pharmacyIssueReason String?
+  pickupArrangedAt    DateTime?
+  outForDeliveryAt    DateTime?
+  deliveredAt         DateTime?
+  deliveryFailedAt    DateTime?
+  deliveryFailedReason String?
+  rescheduledAt       DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+
+  // Rating
+  deliveryRating      Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
-  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
+  patient      User          @relation(fields: [patientId], references: [id])
+  prescription Prescription  @relation(fields: [prescriptionId], references: [id])
   payment      Payment?
 
-  @@index([userId])
+  @@index([patientId])
   @@index([prescriptionId])
   @@index([status])
-  @@index([orderNumber])
+  @@index([pharmacyPartnerId])
 }
 
 // ============================================

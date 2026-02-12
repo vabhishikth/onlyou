@@ -1,8 +1,8 @@
-# CHECKPOINT — Last Updated: 2026-02-12 10:30 IST
+# CHECKPOINT — Last Updated: 2026-02-12 10:35 IST
 
 ## Current Phase: Phase 4 - Blood Work, Partners & Delivery
-## Current Task: Task 6 - Order & Delivery System
-## Status: PENDING
+## Current Task: PHASE 4 COMPLETE
+## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
 - [x] Phase 1 Foundation — ALL 112 TESTS PASSING
@@ -15,27 +15,27 @@
   - [x] Task 1: Dashboard Backend APIs (46 tests)
   - [x] Task 2: Prescription System (46 tests)
   - [x] Task 3: Messaging (33 tests)
-- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (239/??? tests)
+- [x] Phase 4 Blood Work & Delivery — ALL 279 TESTS PASSING
   - [x] Task 1: Lab Order Status Machine (70 tests)
   - [x] Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
   - [x] Task 3: Lab Processing & Results (48 tests)
   - [x] Task 4: SLA Escalation (30 tests)
   - [x] Task 5: Partner Management (47 tests)
-  - [ ] Task 6: Order & Delivery System
+  - [x] Task 6: Order & Delivery System (40 tests)
 
 ## Last Completed:
-- Feature: Partner Management
+- Feature: Order & Delivery System
 - Files created/modified:
-  - `backend/src/partner/partner.service.ts` (NEW - 47 tests)
-  - `backend/src/partner/partner.service.spec.ts` (NEW)
-  - `backend/src/partner/partner.module.ts` (NEW)
-  - `backend/prisma/schema.prisma` (added PartnerPharmacy model)
+  - `backend/src/order/order.service.ts` (NEW - 40 tests)
+  - `backend/src/order/order.service.spec.ts` (NEW)
+  - `backend/src/order/order.module.ts` (NEW)
+  - `backend/prisma/schema.prisma` (updated Order model + OrderStatus enum)
 
 ## Test Summary:
 ```
-Test Suites: 18 passed, 18 total
-Tests:       656 passed, 656 total (0 skipped, 0 failing)
-Time:        ~8.2 seconds
+Test Suites: 19 passed, 19 total
+Tests:       696 passed, 696 total (0 skipped, 0 failing)
+Time:        ~10.7 seconds
 ```
 
 ## Test Breakdown:
@@ -56,7 +56,8 @@ Time:        ~8.2 seconds
 - slot-booking.service.spec.ts: 44 tests
 - lab-processing.service.spec.ts: 48 tests
 - sla-escalation.service.spec.ts: 30 tests
-- partner.service.spec.ts: 47 tests (NEW)
+- partner.service.spec.ts: 47 tests
+- order.service.spec.ts: 40 tests (NEW)
 
 ## Phase 4 Completed Tasks Summary:
 
@@ -84,10 +85,6 @@ Time:        ~8.2 seconds
 - Critical values detection → criticalValues flag
 - Doctor reviews → DOCTOR_REVIEWED → CLOSED
 - Patient self-upload path → RESULTS_UPLOADED → DOCTOR_REVIEWED
-- Phlebotomist marks sample collected (with tube count)
-- Phlebotomist delivers to lab
-- Get lab orders for lab (with status/date filters)
-- Get pending results for doctor (prioritizes critical values)
 
 ### Task 4: SLA Escalation (30 tests)
 - Patient booking overdue (3d reminder, 7d second, 14d expired)
@@ -95,13 +92,7 @@ Time:        ~8.2 seconds
 - Lab receipt overdue (4h threshold)
 - Lab results overdue (48h warning, 72h critical)
 - Doctor review overdue (24h reminder, 48h reassign)
-- Get all breaches combined
-- Expire stale orders (14 days)
-- Breach summary for dashboard (total + critical counts)
-- Check order SLA status
-- Mark escalated with reason and coordinator
-- Get orders requiring notification
-- Mark reminder sent
+- Breach summary for dashboard
 
 ### Task 5: Partner Management (47 tests)
 - Diagnostic Centre CRUD (create, read, list, update, activate/deactivate)
@@ -109,29 +100,45 @@ Time:        ~8.2 seconds
 - Pharmacy CRUD (create, read, list, update, activate/deactivate)
 - Find nearest partners by pincode
 - Portal auth (find by portal phone for OTP login)
-- Partner statistics
-- Partner rating updates (0-5 validation)
-- Filter by city, pincode, availability day
+- Partner statistics and ratings
+
+### Task 6: Order & Delivery System (40 tests)
+- 12 order statuses per spec Section 8.3
+- Status transition validation
+- Send to pharmacy flow
+- Pharmacy preparing → ready → issue handling
+- Pickup arrangement with 4-digit delivery OTP generation
+- Out for delivery tracking
+- Delivery confirmation with OTP validation
+- Delivery failed → reschedule flow
+- Order cancellation (before delivery only)
+- Monthly reorder creation from delivered orders
+- Get orders due for reorder
+- Delivery rating (1-5 validation)
+
+## PHASE 4 COMPLETE!
+
+All 6 tasks completed with 279 tests total for Phase 4.
 
 ## Next Up:
-- Task 6: Order & Delivery System
-  - Order model (11 statuses per spec Section 8)
-  - Status transitions with timestamps
-  - Delivery OTP generation + validation
-  - Pharmacy coordination flow
-  - Monthly auto-reorder logic
-  - Spec: Section 8
+- Phase 5: Delivery & Payment (if needed)
+  - Razorpay payments + subscriptions
+  - Admin dashboard (unified lab + delivery views)
 
-## Spec References:
-- Order & Delivery: master spec Section 8
-
-## Known Issues:
-- None currently
+## Git Commits Made (Phase 4):
+```
+feat(lab-order): add Lab Order Status Machine with 70 tests
+feat(lab-order): add Slot Booking & Phlebotomist Assignment with 44 tests
+feat(lab-order): add Lab Processing & Results with 48 tests
+feat(lab-order): add SLA Escalation with 30 tests
+feat(partner): add Partner Management with 47 tests
+feat(order): add Order & Delivery System with 40 tests
+```
 
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 656 passed)
+pnpm test           # Run all tests (should show 696 passed)
 pnpm test:cov       # Run with coverage
 ```
 
