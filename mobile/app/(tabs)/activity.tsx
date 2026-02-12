@@ -8,9 +8,12 @@ import {
     TouchableOpacity,
     RefreshControl,
     ActivityIndicator,
+    Alert,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@apollo/client';
+import { useRouter } from 'expo-router';
 import { colors, spacing, borderRadius, typography } from '@/styles/theme';
 import {
     GET_ACTIVE_TRACKING,
@@ -22,6 +25,7 @@ import {
 } from '@/graphql/tracking';
 import LabOrderTracker from '@/components/LabOrderTracker';
 import DeliveryTracker from '@/components/DeliveryTracker';
+import CancelLabOrderModal from '@/components/CancelLabOrderModal';
 
 // Filter active vs completed
 function isActiveLabOrder(order: LabOrder): boolean {
@@ -33,13 +37,39 @@ function isActiveDeliveryOrder(order: Order): boolean {
 }
 
 export default function ActivityScreen() {
+    const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
     const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null);
     const [expandedDeliveryOrder, setExpandedDeliveryOrder] = useState<string | null>(null);
+    const [cancelModalOrder, setCancelModalOrder] = useState<LabOrder | null>(null);
 
     const { data, loading, refetch } = useQuery<ActiveTrackingResponse>(GET_ACTIVE_TRACKING, {
         fetchPolicy: 'cache-and-network',
     });
+
+    // Lab booking actions
+    const handleBookSlot = (labOrderId: string) => {
+        router.push(`/lab/${labOrderId}` as never);
+    };
+
+    const handleReschedule = (labOrderId: string) => {
+        router.push(`/lab/${labOrderId}/reschedule` as never);
+    };
+
+    const handleCancelLabOrder = (order: LabOrder) => {
+        setCancelModalOrder(order);
+    };
+
+    const handleViewResults = (resultFileUrl: string) => {
+        Linking.openURL(resultFileUrl).catch(() => {
+            Alert.alert('Error', 'Could not open results file');
+        });
+    };
+
+    const handleCancelComplete = () => {
+        setCancelModalOrder(null);
+        refetch();
+    };
 
     const labOrders = data?.activeTracking?.labOrders || [];
     const deliveryOrders = data?.activeTracking?.deliveryOrders || [];
@@ -118,30 +148,60 @@ export default function ActivityScreen() {
                         {/* Active Lab Orders */}
                         {activeLabOrders.map((order) => (
                             <View key={order.id} style={styles.trackerContainer}>
-                                {expandedLabOrder === order.id ? (
-                                    <View>
-                                        <TouchableOpacity
-                                            style={styles.collapseButton}
-                                            onPress={() => setExpandedLabOrder(null)}
-                                        >
-                                            <Text style={styles.collapseButtonText}>Collapse ↑</Text>
-                                        </TouchableOpacity>
-                                        <LabOrderTracker
-                                            order={order}
-                                            onReschedule={() => {/* TODO: Navigate to reschedule */}}
-                                            onCancel={() => {/* TODO: Show cancel confirmation */}}
-                                            onViewResults={() => {/* TODO: Open results PDF */}}
-                                        />
-                                    </View>
-                                ) : (
-                                    <TrackingCard
-                                        type="lab"
-                                        title="Blood Test"
-                                        status={LAB_STATUS_LABELS[order.status]?.label || order.status}
-                                        icon={LAB_STATUS_LABELS[order.status]?.icon || '🔬'}
-                                        timestamp={order.orderedAt}
-                                        onPress={() => setExpandedLabOrder(order.id)}
-                                    />
+                                {/* Show "Book Slot" CTA for ORDERED or COLLECTION_FAILED status */}
+                                {(order.status === 'ORDERED' || order.status === 'COLLECTION_FAILED') && (
+                                    <TouchableOpacity
+                                        style={styles.bookSlotCard}
+                                        onPress={() => handleBookSlot(order.id)}
+                                    >
+                                        <View style={styles.bookSlotIcon}>
+                                            <Text style={styles.bookSlotIconText}>📅</Text>
+                                        </View>
+                                        <View style={styles.bookSlotContent}>
+                                            <Text style={styles.bookSlotTitle}>
+                                                {order.status === 'COLLECTION_FAILED'
+                                                    ? 'Rebook Collection'
+                                                    : 'Book Collection Slot'}
+                                            </Text>
+                                            <Text style={styles.bookSlotSubtitle}>
+                                                {order.panelName || 'Blood tests ordered by your doctor'}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.bookSlotArrow}>→</Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Regular tracking card for other statuses */}
+                                {order.status !== 'ORDERED' && order.status !== 'COLLECTION_FAILED' && (
+                                    <>
+                                        {expandedLabOrder === order.id ? (
+                                            <View>
+                                                <TouchableOpacity
+                                                    style={styles.collapseButton}
+                                                    onPress={() => setExpandedLabOrder(null)}
+                                                >
+                                                    <Text style={styles.collapseButtonText}>Collapse ↑</Text>
+                                                </TouchableOpacity>
+                                                <LabOrderTracker
+                                                    order={order}
+                                                    onReschedule={() => handleReschedule(order.id)}
+                                                    onCancel={() => handleCancelLabOrder(order)}
+                                                    {...(order.resultFileUrl && {
+                                                        onViewResults: () => handleViewResults(order.resultFileUrl!),
+                                                    })}
+                                                />
+                                            </View>
+                                        ) : (
+                                            <TrackingCard
+                                                type="lab"
+                                                title="Blood Test"
+                                                status={LAB_STATUS_LABELS[order.status]?.label || order.status}
+                                                icon={LAB_STATUS_LABELS[order.status]?.icon || '🔬'}
+                                                timestamp={order.orderedAt}
+                                                onPress={() => setExpandedLabOrder(order.id)}
+                                            />
+                                        )}
+                                    </>
                                 )}
                             </View>
                         ))}
@@ -207,6 +267,14 @@ export default function ActivityScreen() {
                     </View>
                 )}
             </ScrollView>
+
+            {/* Cancel Lab Order Modal */}
+            <CancelLabOrderModal
+                visible={!!cancelModalOrder}
+                labOrder={cancelModalOrder}
+                onClose={() => setCancelModalOrder(null)}
+                onCancelled={handleCancelComplete}
+            />
         </SafeAreaView>
     );
 }
@@ -457,5 +525,41 @@ const styles = StyleSheet.create({
         ...typography.bodySmall,
         color: colors.primary,
         fontWeight: '500',
+    },
+    bookSlotCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+    },
+    bookSlotIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    bookSlotIconText: {
+        fontSize: 22,
+    },
+    bookSlotContent: {
+        flex: 1,
+    },
+    bookSlotTitle: {
+        ...typography.bodyMedium,
+        fontWeight: '600',
+        color: colors.primaryText,
+    },
+    bookSlotSubtitle: {
+        ...typography.bodySmall,
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginTop: 2,
+    },
+    bookSlotArrow: {
+        fontSize: 18,
+        color: colors.primaryText,
     },
 });

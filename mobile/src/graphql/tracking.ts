@@ -216,3 +216,78 @@ export const DELIVERY_STATUS_LABELS: Record<OrderStatus, { label: string; icon: 
     RESCHEDULED: { label: 'Rescheduled', icon: '📅' },
     CANCELLED: { label: 'Cancelled', icon: '❌' },
 };
+
+// Lab Slot Types
+export interface LabSlot {
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    city: string;
+    maxBookings: number;
+    currentBookings: number;
+}
+
+export interface GetAvailableSlotsResponse {
+    availableSlots: LabSlot[];
+}
+
+export interface BookSlotResponse {
+    bookLabSlot: LabOrder;
+}
+
+export interface RescheduleSlotResponse {
+    rescheduleLabSlot: LabOrder;
+}
+
+export interface CancelLabOrderResponse {
+    cancelLabOrder: LabOrder;
+}
+
+// Lab Slot Queries & Mutations
+export const GET_AVAILABLE_SLOTS = gql`
+    query GetAvailableSlots($city: String!, $pincode: String!, $startDate: DateTime!, $endDate: DateTime!) {
+        availableSlots(city: $city, pincode: $pincode, startDate: $startDate, endDate: $endDate) {
+            id
+            date
+            startTime
+            endTime
+            city
+            maxBookings
+            currentBookings
+        }
+    }
+`;
+
+export const BOOK_LAB_SLOT = gql`
+    mutation BookLabSlot($labOrderId: ID!, $slotId: ID!, $collectionAddress: String) {
+        bookLabSlot(labOrderId: $labOrderId, slotId: $slotId, collectionAddress: $collectionAddress) {
+            id
+            status
+            bookedDate
+            bookedTimeSlot
+            slotBookedAt
+        }
+    }
+`;
+
+export const RESCHEDULE_LAB_SLOT = gql`
+    mutation RescheduleLabSlot($labOrderId: ID!, $newSlotId: ID!) {
+        rescheduleLabSlot(labOrderId: $labOrderId, newSlotId: $newSlotId) {
+            id
+            status
+            bookedDate
+            bookedTimeSlot
+            slotBookedAt
+        }
+    }
+`;
+
+export const CANCEL_LAB_ORDER = gql`
+    mutation CancelLabOrder($labOrderId: ID!, $reason: String!) {
+        cancelLabOrder(labOrderId: $labOrderId, reason: $reason) {
+            id
+            status
+        }
+    }
+`;
