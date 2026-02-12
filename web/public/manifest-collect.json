@@ -1,0 +1,25 @@
+{
+    "name": "Onlyou Collection",
+    "short_name": "Collection",
+    "description": "Phlebotomist portal for sample collection",
+    "start_url": "/collect",
+    "display": "standalone",
+    "orientation": "portrait",
+    "theme_color": "#0d9488",
+    "background_color": "#ffffff",
+    "icons": [
+        {
+            "src": "/icons/collect-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/collect-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["medical", "health"]
+}

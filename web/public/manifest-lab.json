@@ -1,0 +1,25 @@
+{
+    "name": "Onlyou Lab Portal",
+    "short_name": "Lab Portal",
+    "description": "Diagnostic centre portal for Onlyou",
+    "start_url": "/lab",
+    "display": "standalone",
+    "orientation": "portrait",
+    "theme_color": "#2563eb",
+    "background_color": "#ffffff",
+    "icons": [
+        {
+            "src": "/icons/lab-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/lab-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["medical", "health"]
+}

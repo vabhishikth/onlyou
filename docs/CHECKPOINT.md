@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-12 (Session 8)
+# CHECKPOINT — Last Updated: 2026-02-12 (Session 9)
 
-## Current Phase: Phase 10C - Admin Dashboard Web Frontend
-## Current Task: ALL 6 TASKS COMPLETE
+## Current Phase: Phase 10D - Partner Portals
+## Current Task: ALL 4 TASKS COMPLETE
 ## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
@@ -17,127 +17,144 @@
 - [x] Phase 10A Mobile Patient App — COMPLETE
 - [x] Phase 10B Doctor Dashboard Web Frontend — ALL 6 TASKS COMPLETE
 - [x] Phase 10C Admin Dashboard Web Frontend — ALL 6 TASKS COMPLETE
-  - [x] Task 1: Admin Dashboard Home (stats, SLA alerts)
-  - [x] Task 2: Lab Orders Management (table, filters, assignment, bulk actions)
-  - [x] Task 3: Delivery Management (pharmacy assignment, OTP generation)
-  - [x] Task 4: Partner Management (Diagnostic Centres, Phlebotomists, Pharmacies)
-  - [x] Task 5: SLA Escalation Dashboard
-  - [x] Task 6: Patient Management (search, detail view)
+- [x] Phase 10D Partner Portals — ALL 4 TASKS COMPLETE
+  - [x] Task 1: Lab Portal (lab.onlyou.life)
+  - [x] Task 2: Phlebotomist Portal (collect.onlyou.life)
+  - [x] Task 3: Pharmacy Portal (pharmacy.onlyou.life)
+  - [x] Task 4: PWA Setup (all portals)
 
 ## Last Completed:
-- Feature: Admin Dashboard Web Frontend (Phase 10C)
-- Files created for admin.onlyou.life coordinator dashboard
+- Feature: Partner Portals (Phase 10D)
+- Files created for lab.onlyou.life, collect.onlyou.life, pharmacy.onlyou.life
 
-## Phase 10C Summary:
+## Phase 10D Summary:
 
-### Task 1: Admin Dashboard Home
-- AdminModule with AdminService and AdminResolver
-- Dashboard stats query (lab collections, deliveries, open cases, SLA breaches, revenue)
-- Animated stat cards with substat breakdowns
-- SLA breach alert banner with link to escalations
-- Quick action buttons for common workflows
+### Task 1: Lab Portal (lab.onlyou.life)
+- LabPortalModule with LabPortalService and LabPortalResolver
+- Role: LAB only (auth guard)
+- Mobile-first layout with bottom navigation
+- Three tabs: Incoming | Processing | Upload
+- Incoming: Mark Received, Report Issue dialogs
+- Processing: Start Processing button
+- Upload: Upload results with abnormal flags (Normal/Abnormal/Critical)
+- Critical value warning before submission
 
-### Task 2: Lab Orders Management
-- AdminLabOrdersResponse with filters (status, vertical, date range, search)
-- AvailablePhlebotomists query (filtered by pincode + date)
-- AvailableLabs query (filtered by city)
-- AssignPhlebotomist and AssignLab mutations
-- BulkAssignPhlebotomist for batch operations
-- SLA indicators (ON_TIME, APPROACHING, BREACHED)
-- Expandable timeline view per order
+### Task 2: Phlebotomist Portal (collect.onlyou.life)
+- CollectPortalModule with CollectPortalService and CollectPortalResolver
+- Role: PHLEBOTOMIST only (auth guard)
+- THE SIMPLEST PORTAL - single screen, no tabs
+- Today's assignments list with big action buttons (48px min)
+- Running Late button at top
+- Per-assignment: Navigate (Google Maps), Call, Mark Collected, Patient Unavailable
+- Collected samples: Deliver to Lab button
+- Offline mode indicator in layout
 
-### Task 3: Delivery Management
-- AdminDeliveriesResponse with filters
-- SendToPharmacy mutation (select pharmacy by pincode)
-- ArrangeDelivery mutation with 4-digit OTP generation
-- MarkOutForDelivery, UpdatePharmacyStatus, UpdateDeliveryStatus mutations
-- RegenerateDeliveryOtp mutation
-- Auto-reorder badge indicator
+### Task 3: Pharmacy Portal (pharmacy.onlyou.life)
+- PharmacyPortalModule with PharmacyPortalService and PharmacyPortalResolver
+- Role: PHARMACY only (auth guard)
+- Three tabs: New | Preparing | Ready
+- New Orders: View Prescription, Start Preparing, Stock Issue
+- Preparing: Ready for Pickup button
+- Ready: Shows delivery person info when assigned
 
-### Task 4: Partner Management
-- Three tabs: Diagnostic Centres, Phlebotomists, Pharmacies
-- CRUD operations for each partner type
-- Toggle active/inactive status
-- Expandable details with contact info, serviceable areas
-- Add Partner modal with validation
-- Phlebotomist stats (completed/failed/success rate)
+### Task 4: PWA Setup
+- Service worker (sw.js) with offline caching
+- Manifest files per portal (lab, collect, pharmacy)
+- Offline fallback page (/offline)
+- PWAProvider component for service worker registration
+- "Add to Home Screen" prompt after second visit
+- Network-first strategy for API calls
+- Cache-first strategy for static assets
 
-### Task 5: SLA Escalation Dashboard
-- SLAEscalation query with calculated status
-- Filter by type (Lab Order / Delivery)
-- Summary cards with counts
-- Escalation cards with responsible party + contact
-- Direct links to view/resolve each escalation
-
-### Task 6: Patient Management
-- AdminPatients query with search (name, phone, email)
-- AdminPatientDetail query with consultation/lab/order history
-- Patient list with activity indicators
-- Detail modal with tabs (Overview, Consultations, Lab Orders, Orders)
-- Status badges for each item type
-
-## Files Created/Modified (Phase 10C):
+## Files Created/Modified (Phase 10D):
 
 ### Backend
-- `backend/src/admin/admin.module.ts` (NEW)
-- `backend/src/admin/admin.service.ts` (NEW, ~2000 lines)
-- `backend/src/admin/admin.resolver.ts` (NEW, ~530 lines)
-- `backend/src/admin/dto/admin.dto.ts` (NEW)
-- `backend/src/admin/dto/lab-orders.dto.ts` (NEW)
-- `backend/src/admin/dto/deliveries.dto.ts` (NEW)
-- `backend/src/admin/dto/partners.dto.ts` (NEW)
-- `backend/src/admin/dto/patients.dto.ts` (NEW)
-- `backend/src/app.module.ts` (added AdminModule)
+- `backend/src/lab-portal/lab-portal.module.ts` (NEW)
+- `backend/src/lab-portal/lab-portal.service.ts` (NEW)
+- `backend/src/lab-portal/lab-portal.resolver.ts` (NEW)
+- `backend/src/lab-portal/dto/lab-portal.dto.ts` (NEW)
+- `backend/src/collect-portal/collect-portal.module.ts` (NEW)
+- `backend/src/collect-portal/collect-portal.service.ts` (NEW)
+- `backend/src/collect-portal/collect-portal.resolver.ts` (NEW)
+- `backend/src/collect-portal/dto/collect-portal.dto.ts` (NEW)
+- `backend/src/pharmacy-portal/pharmacy-portal.module.ts` (NEW)
+- `backend/src/pharmacy-portal/pharmacy-portal.service.ts` (NEW)
+- `backend/src/pharmacy-portal/pharmacy-portal.resolver.ts` (NEW)
+- `backend/src/pharmacy-portal/dto/pharmacy-portal.dto.ts` (NEW)
+- `backend/src/app.module.ts` (added portal modules)
 
 ### Web Frontend
-- `web/src/app/admin/layout.tsx` (sidebar navigation)
-- `web/src/app/admin/page.tsx` (dashboard home)
-- `web/src/app/admin/lab-orders/page.tsx`
-- `web/src/app/admin/deliveries/page.tsx`
-- `web/src/app/admin/partners/page.tsx`
-- `web/src/app/admin/escalations/page.tsx`
-- `web/src/app/admin/patients/page.tsx`
-- `web/src/graphql/admin.ts` (~1000 lines)
+- `web/src/graphql/lab-portal.ts` (NEW)
+- `web/src/graphql/collect-portal.ts` (NEW)
+- `web/src/graphql/pharmacy-portal.ts` (NEW)
+- `web/src/app/lab/layout.tsx` (NEW)
+- `web/src/app/lab/page.tsx` (NEW)
+- `web/src/app/lab/processing/page.tsx` (NEW)
+- `web/src/app/lab/upload/page.tsx` (NEW)
+- `web/src/app/lab/profile/page.tsx` (NEW)
+- `web/src/app/collect/layout.tsx` (NEW)
+- `web/src/app/collect/page.tsx` (NEW)
+- `web/src/app/pharmacy/layout.tsx` (NEW)
+- `web/src/app/pharmacy/page.tsx` (NEW)
+- `web/src/app/pharmacy/preparing/page.tsx` (NEW)
+- `web/src/app/pharmacy/ready/page.tsx` (NEW)
+- `web/src/app/pharmacy/profile/page.tsx` (NEW)
+- `web/src/app/offline/page.tsx` (NEW)
+- `web/src/components/pwa-provider.tsx` (NEW)
+- `web/src/app/layout.tsx` (added PWAProvider)
+- `web/public/manifest.json` (NEW)
+- `web/public/manifest-lab.json` (NEW)
+- `web/public/manifest-collect.json` (NEW)
+- `web/public/manifest-pharmacy.json` (NEW)
+- `web/public/sw.js` (NEW)
 
-## GraphQL API Added (Phase 10C):
+## GraphQL API Added (Phase 10D):
 
-### Queries
-- adminDashboardStats
-- slaEscalations
-- adminLabOrders (with filters)
-- availablePhlebotomists
-- availableLabs
-- adminDeliveries (with filters)
-- availablePharmacies
-- diagnosticCentres
-- phlebotomists
-- pharmacies
-- adminPatients (with filters)
-- adminPatientDetail
+### Lab Portal Queries
+- labInfo
+- labTodaySummary
+- labIncomingSamples
+- labInProgressSamples
+- labCompletedSamples
 
-### Mutations
-- assignPhlebotomist
-- bulkAssignPhlebotomist
-- assignLab
-- overrideLabOrderStatus
-- sendToPharmacy
-- arrangeDelivery
-- markOutForDelivery
-- updatePharmacyStatus
-- updateDeliveryStatus
-- regenerateDeliveryOtp
-- createDiagnosticCentre, updateDiagnosticCentre, toggleDiagnosticCentreActive
-- createPhlebotomist, updatePhlebotomist, togglePhlebotomistActive
-- createPharmacy, updatePharmacy, togglePharmacyActive
+### Lab Portal Mutations
+- labMarkSampleReceived
+- labReportSampleIssue
+- labStartProcessing
+- labUploadResults
+
+### Collect Portal Queries
+- phlebotomistInfo
+- collectTodaySummary
+- todayAssignments
+- nearbyLabs
+
+### Collect Portal Mutations
+- collectMarkCollected
+- collectMarkUnavailable
+- collectReportLate
+- collectDeliverToLab
+
+### Pharmacy Portal Queries
+- pharmacyInfo
+- pharmacyTodaySummary
+- pharmacyNewOrders
+- pharmacyPreparingOrders
+- pharmacyReadyOrders
+
+### Pharmacy Portal Mutations
+- pharmacyStartPreparing
+- pharmacyMarkReady
+- pharmacyReportStockIssue
 
 ## Next Up:
-- Phase 10D: Additional Portals (Lab, Pharmacy, Phlebotomist portals)
 - Phase 11: Testing & Polish
 - Phase 12: Deployment
 
 ## Known Issues:
 - Pre-existing TypeScript errors in backend (ai.service.ts, some spec files)
 - Mock auth used in frontend (needs full auth context integration)
+- PWA icons are placeholders (need actual icon files)
 
 ## Commands to Verify:
 ```bash

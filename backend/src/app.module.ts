@@ -12,6 +12,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { PrescriptionModule } from './prescription/prescription.module';
 import { LabOrderModule } from './lab-order/lab-order.module';
 import { AdminModule } from './admin/admin.module';
+import { LabPortalModule } from './lab-portal/lab-portal.module';
+import { CollectPortalModule } from './collect-portal/collect-portal.module';
+import { PharmacyPortalModule } from './pharmacy-portal/pharmacy-portal.module';
 
 @Module({
     imports: [
@@ -36,6 +39,9 @@ import { AdminModule } from './admin/admin.module';
         PrescriptionModule,
         LabOrderModule,
         AdminModule,
+        LabPortalModule,
+        CollectPortalModule,
+        PharmacyPortalModule,
     ],
 })
 export class AppModule { }

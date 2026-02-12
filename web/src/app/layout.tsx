@@ -1,7 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { PWAProvider } from '@/components/pwa-provider';
 
 const plusJakarta = Plus_Jakarta_Sans({
     subsets: ['latin'],
@@ -16,6 +17,23 @@ export const metadata: Metadata = {
     icons: {
         icon: '/favicon.ico',
     },
+    manifest: '/manifest.json',
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: 'default',
+        title: 'Onlyou',
+    },
+};
+
+export const viewport: Viewport = {
+    themeColor: [
+        { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+        { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+    ],
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
 };
 
 export default function RootLayout({
@@ -26,7 +44,9 @@ export default function RootLayout({
     return (
         <html lang="en" className={plusJakarta.variable}>
             <body className="min-h-screen font-sans">
-                <Providers>{children}</Providers>
+                <Providers>
+                    <PWAProvider>{children}</PWAProvider>
+                </Providers>
             </body>
         </html>
     );
