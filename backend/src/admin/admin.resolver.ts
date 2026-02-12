@@ -24,6 +24,26 @@ import {
     DeliveryMutationResponse,
     GenerateDeliveryOtpResponse,
 } from './dto/deliveries.dto';
+import {
+    DiagnosticCentre,
+    DiagnosticCentresResponse,
+    CreateDiagnosticCentreInput,
+    UpdateDiagnosticCentreInput,
+    PhlebotomistDetails,
+    PhlebotomistsResponse,
+    CreatePhlebotomistInput,
+    UpdatePhlebotomistInput,
+    PharmacyDetails,
+    PharmaciesResponse,
+    CreatePharmacyInput,
+    UpdatePharmacyInput,
+    PartnerMutationResponse,
+} from './dto/partners.dto';
+import {
+    AdminPatientsResponse,
+    AdminPatientsFilterInput,
+    AdminPatientDetail,
+} from './dto/patients.dto';
 
 // Spec: master spec Section 15 — Admin dashboard (unified lab + delivery views)
 
@@ -322,5 +342,189 @@ export class AdminResolver {
             message: result.message,
             otp: result.otp,
         };
+    }
+
+    // =============================================
+    // PARTNER MANAGEMENT
+    // Spec: master spec Section 7.5 — Partner Models
+    // =============================================
+
+    // --- Diagnostic Centres ---
+
+    /**
+     * Get all diagnostic centres with pagination
+     */
+    @Query(() => DiagnosticCentresResponse)
+    async diagnosticCentres(
+        @Args('page', { nullable: true }) page?: number,
+        @Args('pageSize', { nullable: true }) pageSize?: number,
+        @Args('city', { nullable: true }) city?: string,
+        @Args('search', { nullable: true }) search?: string,
+    ): Promise<DiagnosticCentresResponse> {
+        return this.adminService.getDiagnosticCentres({
+            page: page || undefined,
+            pageSize: pageSize || undefined,
+            city: city || undefined,
+            search: search || undefined,
+        });
+    }
+
+    /**
+     * Create a new diagnostic centre
+     */
+    @Mutation(() => DiagnosticCentre)
+    async createDiagnosticCentre(
+        @Args('input') input: CreateDiagnosticCentreInput,
+    ): Promise<DiagnosticCentre> {
+        return this.adminService.createDiagnosticCentre(input);
+    }
+
+    /**
+     * Update a diagnostic centre
+     */
+    @Mutation(() => DiagnosticCentre)
+    async updateDiagnosticCentre(
+        @Args('input') input: UpdateDiagnosticCentreInput,
+    ): Promise<DiagnosticCentre> {
+        return this.adminService.updateDiagnosticCentre(input);
+    }
+
+    /**
+     * Toggle diagnostic centre active status
+     */
+    @Mutation(() => PartnerMutationResponse)
+    async toggleDiagnosticCentreActive(
+        @Args('id') id: string,
+        @Args('isActive') isActive: boolean,
+    ): Promise<PartnerMutationResponse> {
+        return this.adminService.toggleDiagnosticCentreActive(id, isActive);
+    }
+
+    // --- Phlebotomists ---
+
+    /**
+     * Get all phlebotomists with pagination
+     */
+    @Query(() => PhlebotomistsResponse)
+    async phlebotomists(
+        @Args('page', { nullable: true }) page?: number,
+        @Args('pageSize', { nullable: true }) pageSize?: number,
+        @Args('city', { nullable: true }) city?: string,
+        @Args('search', { nullable: true }) search?: string,
+    ): Promise<PhlebotomistsResponse> {
+        return this.adminService.getPhlebotomists({
+            page: page || undefined,
+            pageSize: pageSize || undefined,
+            city: city || undefined,
+            search: search || undefined,
+        });
+    }
+
+    /**
+     * Create a new phlebotomist
+     */
+    @Mutation(() => PhlebotomistDetails)
+    async createPhlebotomist(
+        @Args('input') input: CreatePhlebotomistInput,
+    ): Promise<PhlebotomistDetails> {
+        return this.adminService.createPhlebotomist(input);
+    }
+
+    /**
+     * Update a phlebotomist
+     */
+    @Mutation(() => PhlebotomistDetails)
+    async updatePhlebotomist(
+        @Args('input') input: UpdatePhlebotomistInput,
+    ): Promise<PhlebotomistDetails> {
+        return this.adminService.updatePhlebotomist(input);
+    }
+
+    /**
+     * Toggle phlebotomist active status
+     */
+    @Mutation(() => PartnerMutationResponse)
+    async togglePhlebotomistActive(
+        @Args('id') id: string,
+        @Args('isActive') isActive: boolean,
+    ): Promise<PartnerMutationResponse> {
+        return this.adminService.togglePhlebotomistActive(id, isActive);
+    }
+
+    // --- Pharmacies ---
+
+    /**
+     * Get all pharmacies with pagination
+     */
+    @Query(() => PharmaciesResponse)
+    async pharmacies(
+        @Args('page', { nullable: true }) page?: number,
+        @Args('pageSize', { nullable: true }) pageSize?: number,
+        @Args('city', { nullable: true }) city?: string,
+        @Args('search', { nullable: true }) search?: string,
+    ): Promise<PharmaciesResponse> {
+        return this.adminService.getPharmacies({
+            page: page || undefined,
+            pageSize: pageSize || undefined,
+            city: city || undefined,
+            search: search || undefined,
+        });
+    }
+
+    /**
+     * Create a new pharmacy
+     */
+    @Mutation(() => PharmacyDetails)
+    async createPharmacy(@Args('input') input: CreatePharmacyInput): Promise<PharmacyDetails> {
+        return this.adminService.createPharmacy(input);
+    }
+
+    /**
+     * Update a pharmacy
+     */
+    @Mutation(() => PharmacyDetails)
+    async updatePharmacy(@Args('input') input: UpdatePharmacyInput): Promise<PharmacyDetails> {
+        return this.adminService.updatePharmacy(input);
+    }
+
+    /**
+     * Toggle pharmacy active status
+     */
+    @Mutation(() => PartnerMutationResponse)
+    async togglePharmacyActive(
+        @Args('id') id: string,
+        @Args('isActive') isActive: boolean,
+    ): Promise<PartnerMutationResponse> {
+        return this.adminService.togglePharmacyActive(id, isActive);
+    }
+
+    // =============================================
+    // PATIENT MANAGEMENT
+    // Spec: master spec Section 3.2 — Patient Profiles
+    // =============================================
+
+    /**
+     * Get patients with filters
+     */
+    @Query(() => AdminPatientsResponse)
+    async adminPatients(
+        @Args('filter', { nullable: true }) filter?: AdminPatientsFilterInput,
+    ): Promise<AdminPatientsResponse> {
+        return this.adminService.getPatients({
+            search: filter?.search || undefined,
+            vertical: filter?.vertical || undefined,
+            page: filter?.page || undefined,
+            pageSize: filter?.pageSize || undefined,
+        });
+    }
+
+    /**
+     * Get patient detail by ID
+     */
+    @Query(() => AdminPatientDetail, { nullable: true })
+    async adminPatientDetail(
+        @Args('patientId') patientId: string,
+    ): Promise<AdminPatientDetail | null> {
+        return this.adminService.getPatientDetail(patientId);
     }
 }

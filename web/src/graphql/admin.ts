@@ -585,3 +585,436 @@ export const ORDER_STATUS_CONFIG: Record<
     RETURNED: { label: 'Returned', color: 'text-gray-600', bgColor: 'bg-gray-100' },
     CANCELLED: { label: 'Cancelled', color: 'text-gray-400', bgColor: 'bg-gray-100' },
 };
+
+// =============================================
+// PARTNER MANAGEMENT
+// Spec: master spec Section 7.5 — Partner Models
+// =============================================
+
+// --- Diagnostic Centres ---
+
+export const DIAGNOSTIC_CENTRES = gql`
+    query DiagnosticCentres($page: Int, $pageSize: Int, $city: String, $search: String) {
+        diagnosticCentres(page: $page, pageSize: $pageSize, city: $city, search: $search) {
+            centres {
+                id
+                name
+                address
+                city
+                state
+                pincode
+                phone
+                email
+                contactPerson
+                testsOffered
+                avgTurnaroundHours
+                rating
+                isActive
+                createdAt
+            }
+            total
+        }
+    }
+`;
+
+export const CREATE_DIAGNOSTIC_CENTRE = gql`
+    mutation CreateDiagnosticCentre($input: CreateDiagnosticCentreInput!) {
+        createDiagnosticCentre(input: $input) {
+            id
+            name
+            city
+            isActive
+        }
+    }
+`;
+
+export const UPDATE_DIAGNOSTIC_CENTRE = gql`
+    mutation UpdateDiagnosticCentre($input: UpdateDiagnosticCentreInput!) {
+        updateDiagnosticCentre(input: $input) {
+            id
+            name
+            city
+            isActive
+        }
+    }
+`;
+
+export const TOGGLE_DIAGNOSTIC_CENTRE_ACTIVE = gql`
+    mutation ToggleDiagnosticCentreActive($id: String!, $isActive: Boolean!) {
+        toggleDiagnosticCentreActive(id: $id, isActive: $isActive) {
+            success
+            message
+        }
+    }
+`;
+
+// --- Phlebotomists ---
+
+export const PHLEBOTOMISTS = gql`
+    query Phlebotomists($page: Int, $pageSize: Int, $city: String, $search: String) {
+        phlebotomists(page: $page, pageSize: $pageSize, city: $city, search: $search) {
+            phlebotomists {
+                id
+                name
+                phone
+                email
+                certification
+                availableDays
+                availableTimeStart
+                availableTimeEnd
+                maxDailyCollections
+                currentCity
+                serviceableAreas
+                completedCollections
+                failedCollections
+                rating
+                isActive
+                createdAt
+                todayAssignments
+            }
+            total
+        }
+    }
+`;
+
+export const CREATE_PHLEBOTOMIST = gql`
+    mutation CreatePhlebotomist($input: CreatePhlebotomistInput!) {
+        createPhlebotomist(input: $input) {
+            id
+            name
+            phone
+            currentCity
+            isActive
+            todayAssignments
+        }
+    }
+`;
+
+export const UPDATE_PHLEBOTOMIST = gql`
+    mutation UpdatePhlebotomist($input: UpdatePhlebotomistInput!) {
+        updatePhlebotomist(input: $input) {
+            id
+            name
+            phone
+            isActive
+            todayAssignments
+        }
+    }
+`;
+
+export const TOGGLE_PHLEBOTOMIST_ACTIVE = gql`
+    mutation TogglePhlebotomistActive($id: String!, $isActive: Boolean!) {
+        togglePhlebotomistActive(id: $id, isActive: $isActive) {
+            success
+            message
+        }
+    }
+`;
+
+// --- Pharmacies ---
+
+export const PHARMACIES = gql`
+    query Pharmacies($page: Int, $pageSize: Int, $city: String, $search: String) {
+        pharmacies(page: $page, pageSize: $pageSize, city: $city, search: $search) {
+            pharmacies {
+                id
+                name
+                address
+                city
+                state
+                pincode
+                phone
+                email
+                contactPerson
+                drugLicenseNumber
+                gstNumber
+                serviceableAreas
+                avgPreparationMinutes
+                rating
+                isActive
+                createdAt
+            }
+            total
+        }
+    }
+`;
+
+export const CREATE_PHARMACY = gql`
+    mutation CreatePharmacy($input: CreatePharmacyInput!) {
+        createPharmacy(input: $input) {
+            id
+            name
+            city
+            isActive
+        }
+    }
+`;
+
+export const UPDATE_PHARMACY = gql`
+    mutation UpdatePharmacy($input: UpdatePharmacyInput!) {
+        updatePharmacy(input: $input) {
+            id
+            name
+            city
+            isActive
+        }
+    }
+`;
+
+export const TOGGLE_PHARMACY_ACTIVE = gql`
+    mutation TogglePharmacyActive($id: String!, $isActive: Boolean!) {
+        togglePharmacyActive(id: $id, isActive: $isActive) {
+            success
+            message
+        }
+    }
+`;
+
+// Partner Types
+
+export interface DiagnosticCentre {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+    phone: string;
+    email: string | null;
+    contactPerson: string | null;
+    testsOffered: string[];
+    avgTurnaroundHours: number;
+    rating: number | null;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface DiagnosticCentresResponse {
+    diagnosticCentres: {
+        centres: DiagnosticCentre[];
+        total: number;
+    };
+}
+
+export interface PhlebotomistDetails {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    certification: string | null;
+    availableDays: string[];
+    availableTimeStart: string | null;
+    availableTimeEnd: string | null;
+    maxDailyCollections: number;
+    currentCity: string;
+    serviceableAreas: string[];
+    completedCollections: number;
+    failedCollections: number;
+    rating: number | null;
+    isActive: boolean;
+    createdAt: string;
+    todayAssignments: number;
+}
+
+export interface PhlebotomistsResponse {
+    phlebotomists: {
+        phlebotomists: PhlebotomistDetails[];
+        total: number;
+    };
+}
+
+export interface PharmacyDetails {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+    phone: string;
+    email: string | null;
+    contactPerson: string | null;
+    drugLicenseNumber: string;
+    gstNumber: string | null;
+    serviceableAreas: string[];
+    avgPreparationMinutes: number;
+    rating: number | null;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface PharmaciesResponse {
+    pharmacies: {
+        pharmacies: PharmacyDetails[];
+        total: number;
+    };
+}
+
+export interface PartnerMutationResponse {
+    success: boolean;
+    message: string;
+}
+
+// =============================================
+// PATIENT MANAGEMENT
+// Spec: master spec Section 3.2 — Patient Profiles
+// =============================================
+
+export const ADMIN_PATIENTS = gql`
+    query AdminPatients($filter: AdminPatientsFilterInput) {
+        adminPatients(filter: $filter) {
+            patients {
+                id
+                phone
+                name
+                email
+                dateOfBirth
+                gender
+                city
+                state
+                createdAt
+                activeConsultations
+                pendingLabOrders
+                pendingDeliveries
+                lastActivityAt
+            }
+            total
+            page
+            pageSize
+        }
+    }
+`;
+
+export const ADMIN_PATIENT_DETAIL = gql`
+    query AdminPatientDetail($patientId: String!) {
+        adminPatientDetail(patientId: $patientId) {
+            id
+            phone
+            name
+            email
+            dateOfBirth
+            gender
+            address
+            city
+            state
+            pincode
+            createdAt
+            consultations {
+                id
+                vertical
+                status
+                createdAt
+                doctorName
+            }
+            labOrders {
+                id
+                status
+                bookedDate
+                panelName
+                createdAt
+            }
+            orders {
+                id
+                status
+                totalAmountPaise
+                createdAt
+            }
+            notes {
+                id
+                content
+                createdBy
+                createdAt
+            }
+        }
+    }
+`;
+
+// Patient Types
+
+export interface AdminPatientSummary {
+    id: string;
+    phone: string;
+    name: string | null;
+    email: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    city: string | null;
+    state: string | null;
+    createdAt: string;
+    activeConsultations: number;
+    pendingLabOrders: number;
+    pendingDeliveries: number;
+    lastActivityAt: string | null;
+}
+
+export interface AdminPatientsResponse {
+    adminPatients: {
+        patients: AdminPatientSummary[];
+        total: number;
+        page: number;
+        pageSize: number;
+    };
+}
+
+export interface PatientConsultationSummary {
+    id: string;
+    vertical: string;
+    status: string;
+    createdAt: string;
+    doctorName: string | null;
+}
+
+export interface PatientLabOrderSummary {
+    id: string;
+    status: string;
+    bookedDate: string | null;
+    panelName: string | null;
+    createdAt: string;
+}
+
+export interface PatientOrderSummary {
+    id: string;
+    status: string;
+    totalAmountPaise: number;
+    createdAt: string;
+}
+
+export interface PatientNote {
+    id: string;
+    content: string;
+    createdBy: string;
+    createdAt: string;
+}
+
+export interface AdminPatientDetail {
+    id: string;
+    phone: string;
+    name: string | null;
+    email: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+    createdAt: string;
+    consultations: PatientConsultationSummary[];
+    labOrders: PatientLabOrderSummary[];
+    orders: PatientOrderSummary[];
+    notes: PatientNote[];
+}
+
+export interface AdminPatientDetailResponse {
+    adminPatientDetail: AdminPatientDetail | null;
+}
+
+// Consultation status display config
+export const CONSULTATION_STATUS_CONFIG: Record<
+    string,
+    { label: string; color: string; bgColor: string }
+> = {
+    PENDING: { label: 'Pending', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+    ASSIGNED: { label: 'Assigned', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    IN_REVIEW: { label: 'In Review', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    COMPLETED: { label: 'Completed', color: 'text-green-600', bgColor: 'bg-green-100' },
+    CANCELLED: { label: 'Cancelled', color: 'text-gray-400', bgColor: 'bg-gray-100' },
+};

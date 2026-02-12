@@ -1496,4 +1496,629 @@ export class AdminService {
 
         return { success: true, message: 'OTP regenerated', otp };
     }
+
+    // =============================================
+    // PARTNER MANAGEMENT
+    // Spec: master spec Section 7.5 — Partner Models
+    // =============================================
+
+    // --- Diagnostic Centres ---
+
+    async getDiagnosticCentres(): Promise<{
+        centres: Array<{
+            id: string;
+            name: string;
+            address: string;
+            city: string;
+            state: string;
+            pincode: string;
+            phone: string;
+            email: string | null;
+            contactPerson: string | null;
+            testsOffered: string[];
+            avgTurnaroundHours: number;
+            rating: number | null;
+            isActive: boolean;
+            createdAt: Date;
+        }>;
+        total: number;
+    }> {
+        const centres = await this.prisma.partnerDiagnosticCentre.findMany({
+            orderBy: { name: 'asc' },
+        });
+
+        return {
+            centres: centres.map((c) => ({
+                id: c.id,
+                name: c.name,
+                address: c.address,
+                city: c.city,
+                state: c.state,
+                pincode: c.pincode,
+                phone: c.phone,
+                email: c.email,
+                contactPerson: c.contactPerson,
+                testsOffered: c.testsOffered,
+                avgTurnaroundHours: c.avgTurnaroundHours,
+                rating: c.rating,
+                isActive: c.isActive,
+                createdAt: c.createdAt,
+            })),
+            total: centres.length,
+        };
+    }
+
+    async createDiagnosticCentre(input: {
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email?: string;
+        contactPerson?: string;
+        testsOffered: string[];
+        avgTurnaroundHours?: number;
+    }): Promise<{ success: boolean; message: string }> {
+        await this.prisma.partnerDiagnosticCentre.create({
+            data: {
+                name: input.name,
+                address: input.address,
+                city: input.city,
+                state: input.state,
+                pincode: input.pincode,
+                phone: input.phone,
+                email: input.email || null,
+                contactPerson: input.contactPerson || null,
+                testsOffered: input.testsOffered,
+                avgTurnaroundHours: input.avgTurnaroundHours || 48,
+            },
+        });
+        return { success: true, message: 'Diagnostic centre created' };
+    }
+
+    async updateDiagnosticCentre(input: {
+        id: string;
+        name?: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+        contactPerson?: string;
+        testsOffered?: string[];
+        avgTurnaroundHours?: number;
+    }): Promise<{ success: boolean; message: string }> {
+        const centre = await this.prisma.partnerDiagnosticCentre.findUnique({
+            where: { id: input.id },
+        });
+        if (!centre) {
+            return { success: false, message: 'Diagnostic centre not found' };
+        }
+
+        await this.prisma.partnerDiagnosticCentre.update({
+            where: { id: input.id },
+            data: {
+                name: input.name ?? centre.name,
+                address: input.address ?? centre.address,
+                phone: input.phone ?? centre.phone,
+                email: input.email ?? centre.email,
+                contactPerson: input.contactPerson ?? centre.contactPerson,
+                testsOffered: input.testsOffered ?? centre.testsOffered,
+                avgTurnaroundHours: input.avgTurnaroundHours ?? centre.avgTurnaroundHours,
+            },
+        });
+        return { success: true, message: 'Diagnostic centre updated' };
+    }
+
+    async toggleDiagnosticCentreActive(id: string): Promise<{ success: boolean; message: string }> {
+        const centre = await this.prisma.partnerDiagnosticCentre.findUnique({
+            where: { id },
+        });
+        if (!centre) {
+            return { success: false, message: 'Diagnostic centre not found' };
+        }
+
+        await this.prisma.partnerDiagnosticCentre.update({
+            where: { id },
+            data: { isActive: !centre.isActive },
+        });
+        return {
+            success: true,
+            message: centre.isActive ? 'Diagnostic centre deactivated' : 'Diagnostic centre activated',
+        };
+    }
+
+    // --- Phlebotomists ---
+
+    async getPhlebotomists(): Promise<{
+        phlebotomists: Array<{
+            id: string;
+            name: string;
+            phone: string;
+            email: string | null;
+            certification: string | null;
+            availableDays: string[];
+            availableTimeStart: string | null;
+            availableTimeEnd: string | null;
+            maxDailyCollections: number;
+            currentCity: string;
+            serviceableAreas: string[];
+            completedCollections: number;
+            failedCollections: number;
+            rating: number | null;
+            isActive: boolean;
+            createdAt: Date;
+            todayAssignments: number;
+        }>;
+        total: number;
+    }> {
+        const phlebotomists = await this.prisma.phlebotomist.findMany({
+            orderBy: { name: 'asc' },
+        });
+
+        // Get today's assignments
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const assignmentCounts = await this.prisma.labOrder.groupBy({
+            by: ['phlebotomistId'],
+            where: {
+                phlebotomistId: { in: phlebotomists.map((p) => p.id) },
+                bookedDate: { gte: today, lt: tomorrow },
+                status: {
+                    notIn: [LabOrderStatus.CANCELLED, LabOrderStatus.EXPIRED, LabOrderStatus.COLLECTION_FAILED],
+                },
+            },
+            _count: { id: true },
+        });
+
+        const countMap = new Map(assignmentCounts.map((c) => [c.phlebotomistId, c._count.id]));
+
+        return {
+            phlebotomists: phlebotomists.map((p) => ({
+                id: p.id,
+                name: p.name,
+                phone: p.phone,
+                email: p.email,
+                certification: p.certification,
+                availableDays: p.availableDays,
+                availableTimeStart: p.availableTimeStart,
+                availableTimeEnd: p.availableTimeEnd,
+                maxDailyCollections: p.maxDailyCollections,
+                currentCity: p.currentCity,
+                serviceableAreas: p.serviceableAreas,
+                completedCollections: p.completedCollections,
+                failedCollections: p.failedCollections,
+                rating: p.rating,
+                isActive: p.isActive,
+                createdAt: p.createdAt,
+                todayAssignments: countMap.get(p.id) || 0,
+            })),
+            total: phlebotomists.length,
+        };
+    }
+
+    async createPhlebotomist(input: {
+        name: string;
+        phone: string;
+        email?: string;
+        certification?: string;
+        availableDays: string[];
+        availableTimeStart?: string;
+        availableTimeEnd?: string;
+        maxDailyCollections?: number;
+        currentCity: string;
+        serviceableAreas: string[];
+    }): Promise<{ success: boolean; message: string }> {
+        await this.prisma.phlebotomist.create({
+            data: {
+                name: input.name,
+                phone: input.phone,
+                email: input.email || null,
+                certification: input.certification || null,
+                availableDays: input.availableDays,
+                availableTimeStart: input.availableTimeStart || null,
+                availableTimeEnd: input.availableTimeEnd || null,
+                maxDailyCollections: input.maxDailyCollections || 10,
+                currentCity: input.currentCity,
+                serviceableAreas: input.serviceableAreas,
+            },
+        });
+        return { success: true, message: 'Phlebotomist created' };
+    }
+
+    async updatePhlebotomist(input: {
+        id: string;
+        name?: string;
+        phone?: string;
+        email?: string;
+        certification?: string;
+        availableDays?: string[];
+        availableTimeStart?: string;
+        availableTimeEnd?: string;
+        maxDailyCollections?: number;
+        serviceableAreas?: string[];
+    }): Promise<{ success: boolean; message: string }> {
+        const phlebotomist = await this.prisma.phlebotomist.findUnique({
+            where: { id: input.id },
+        });
+        if (!phlebotomist) {
+            return { success: false, message: 'Phlebotomist not found' };
+        }
+
+        await this.prisma.phlebotomist.update({
+            where: { id: input.id },
+            data: {
+                name: input.name ?? phlebotomist.name,
+                phone: input.phone ?? phlebotomist.phone,
+                email: input.email ?? phlebotomist.email,
+                certification: input.certification ?? phlebotomist.certification,
+                availableDays: input.availableDays ?? phlebotomist.availableDays,
+                availableTimeStart: input.availableTimeStart ?? phlebotomist.availableTimeStart,
+                availableTimeEnd: input.availableTimeEnd ?? phlebotomist.availableTimeEnd,
+                maxDailyCollections: input.maxDailyCollections ?? phlebotomist.maxDailyCollections,
+                serviceableAreas: input.serviceableAreas ?? phlebotomist.serviceableAreas,
+            },
+        });
+        return { success: true, message: 'Phlebotomist updated' };
+    }
+
+    async togglePhlebotomistActive(id: string): Promise<{ success: boolean; message: string }> {
+        const phlebotomist = await this.prisma.phlebotomist.findUnique({
+            where: { id },
+        });
+        if (!phlebotomist) {
+            return { success: false, message: 'Phlebotomist not found' };
+        }
+
+        await this.prisma.phlebotomist.update({
+            where: { id },
+            data: { isActive: !phlebotomist.isActive },
+        });
+        return {
+            success: true,
+            message: phlebotomist.isActive ? 'Phlebotomist deactivated' : 'Phlebotomist activated',
+        };
+    }
+
+    // --- Pharmacies ---
+
+    async getPharmacies(): Promise<{
+        pharmacies: Array<{
+            id: string;
+            name: string;
+            address: string;
+            city: string;
+            state: string;
+            pincode: string;
+            phone: string;
+            email: string | null;
+            contactPerson: string | null;
+            drugLicenseNumber: string;
+            gstNumber: string | null;
+            serviceableAreas: string[];
+            avgPreparationMinutes: number;
+            rating: number | null;
+            isActive: boolean;
+            createdAt: Date;
+        }>;
+        total: number;
+    }> {
+        const pharmacies = await this.prisma.partnerPharmacy.findMany({
+            orderBy: { name: 'asc' },
+        });
+
+        return {
+            pharmacies: pharmacies.map((p) => ({
+                id: p.id,
+                name: p.name,
+                address: p.address,
+                city: p.city,
+                state: p.state,
+                pincode: p.pincode,
+                phone: p.phone,
+                email: p.email,
+                contactPerson: p.contactPerson,
+                drugLicenseNumber: p.drugLicenseNumber,
+                gstNumber: p.gstNumber,
+                serviceableAreas: p.serviceableAreas,
+                avgPreparationMinutes: p.avgPreparationMinutes,
+                rating: p.rating,
+                isActive: p.isActive,
+                createdAt: p.createdAt,
+            })),
+            total: pharmacies.length,
+        };
+    }
+
+    async createPharmacy(input: {
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email?: string;
+        contactPerson?: string;
+        drugLicenseNumber: string;
+        gstNumber?: string;
+        serviceableAreas: string[];
+        avgPreparationMinutes?: number;
+    }): Promise<{ success: boolean; message: string }> {
+        await this.prisma.partnerPharmacy.create({
+            data: {
+                name: input.name,
+                address: input.address,
+                city: input.city,
+                state: input.state,
+                pincode: input.pincode,
+                phone: input.phone,
+                email: input.email || null,
+                contactPerson: input.contactPerson || null,
+                drugLicenseNumber: input.drugLicenseNumber,
+                gstNumber: input.gstNumber || null,
+                serviceableAreas: input.serviceableAreas,
+                avgPreparationMinutes: input.avgPreparationMinutes || 30,
+            },
+        });
+        return { success: true, message: 'Pharmacy created' };
+    }
+
+    async updatePharmacy(input: {
+        id: string;
+        name?: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+        contactPerson?: string;
+        serviceableAreas?: string[];
+        avgPreparationMinutes?: number;
+    }): Promise<{ success: boolean; message: string }> {
+        const pharmacy = await this.prisma.partnerPharmacy.findUnique({
+            where: { id: input.id },
+        });
+        if (!pharmacy) {
+            return { success: false, message: 'Pharmacy not found' };
+        }
+
+        await this.prisma.partnerPharmacy.update({
+            where: { id: input.id },
+            data: {
+                name: input.name ?? pharmacy.name,
+                address: input.address ?? pharmacy.address,
+                phone: input.phone ?? pharmacy.phone,
+                email: input.email ?? pharmacy.email,
+                contactPerson: input.contactPerson ?? pharmacy.contactPerson,
+                serviceableAreas: input.serviceableAreas ?? pharmacy.serviceableAreas,
+                avgPreparationMinutes: input.avgPreparationMinutes ?? pharmacy.avgPreparationMinutes,
+            },
+        });
+        return { success: true, message: 'Pharmacy updated' };
+    }
+
+    async togglePharmacyActive(id: string): Promise<{ success: boolean; message: string }> {
+        const pharmacy = await this.prisma.partnerPharmacy.findUnique({
+            where: { id },
+        });
+        if (!pharmacy) {
+            return { success: false, message: 'Pharmacy not found' };
+        }
+
+        await this.prisma.partnerPharmacy.update({
+            where: { id },
+            data: { isActive: !pharmacy.isActive },
+        });
+        return {
+            success: true,
+            message: pharmacy.isActive ? 'Pharmacy deactivated' : 'Pharmacy activated',
+        };
+    }
+
+    // =============================================
+    // PATIENT MANAGEMENT
+    // Spec: master spec Section 3.2 — Patient Profiles
+    // =============================================
+
+    async getPatients(params: {
+        search?: string;
+        vertical?: string;
+        page?: number;
+        pageSize?: number;
+    }): Promise<{
+        patients: Array<{
+            id: string;
+            phone: string;
+            name: string | null;
+            email: string | null;
+            dateOfBirth: Date | null;
+            gender: string | null;
+            city: string | null;
+            state: string | null;
+            createdAt: Date;
+            activeConsultations: number;
+            pendingLabOrders: number;
+            pendingDeliveries: number;
+            lastActivityAt: Date | null;
+        }>;
+        total: number;
+        page: number;
+        pageSize: number;
+    }> {
+        const page = params.page || 1;
+        const pageSize = params.pageSize || 20;
+        const skip = (page - 1) * pageSize;
+
+        // Build where clause
+        const where: Record<string, unknown> = {};
+
+        if (params.search) {
+            where.OR = [
+                { phone: { contains: params.search } },
+                { patientProfile: { fullName: { contains: params.search, mode: 'insensitive' } } },
+                { email: { contains: params.search, mode: 'insensitive' } },
+            ];
+        }
+
+        // Get patients with profiles
+        const [users, total] = await Promise.all([
+            this.prisma.user.findMany({
+                where,
+                include: {
+                    patientProfile: true,
+                    consultations: {
+                        where: {
+                            status: { in: ['PENDING', 'ASSIGNED', 'IN_REVIEW'] },
+                        },
+                    },
+                    labOrders: {
+                        where: {
+                            status: {
+                                notIn: ['CLOSED', 'CANCELLED', 'EXPIRED', 'DOCTOR_REVIEWED'],
+                            },
+                        },
+                    },
+                    orders: {
+                        where: {
+                            status: {
+                                notIn: ['DELIVERED', 'CANCELLED', 'RETURNED'],
+                            },
+                        },
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: pageSize,
+            }),
+            this.prisma.user.count({ where }),
+        ]);
+
+        return {
+            patients: users.map((user) => ({
+                id: user.id,
+                phone: user.phone,
+                name: user.patientProfile?.fullName || null,
+                email: user.email,
+                dateOfBirth: user.patientProfile?.dateOfBirth || null,
+                gender: user.patientProfile?.gender || null,
+                city: user.patientProfile?.city || null,
+                state: user.patientProfile?.state || null,
+                createdAt: user.createdAt,
+                activeConsultations: user.consultations.length,
+                pendingLabOrders: user.labOrders.length,
+                pendingDeliveries: user.orders.length,
+                lastActivityAt: user.lastLoginAt,
+            })),
+            total,
+            page,
+            pageSize,
+        };
+    }
+
+    async getPatientDetail(patientId: string): Promise<{
+        id: string;
+        phone: string;
+        name: string | null;
+        email: string | null;
+        dateOfBirth: Date | null;
+        gender: string | null;
+        address: string | null;
+        city: string | null;
+        state: string | null;
+        pincode: string | null;
+        createdAt: Date;
+        consultations: Array<{
+            id: string;
+            vertical: string;
+            status: string;
+            createdAt: Date;
+            doctorName: string | null;
+        }>;
+        labOrders: Array<{
+            id: string;
+            status: string;
+            bookedDate: Date | null;
+            panelName: string | null;
+            createdAt: Date;
+        }>;
+        orders: Array<{
+            id: string;
+            status: string;
+            totalAmountPaise: number;
+            createdAt: Date;
+        }>;
+        notes: Array<{
+            id: string;
+            content: string;
+            createdBy: string;
+            createdAt: Date;
+        }>;
+    } | null> {
+        const user = await this.prisma.user.findUnique({
+            where: { id: patientId },
+            include: {
+                patientProfile: true,
+                consultations: {
+                    include: {
+                        doctor: {
+                            include: { doctorProfile: true },
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                },
+                labOrders: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                },
+                orders: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                },
+            },
+        });
+
+        if (!user) {
+            return null;
+        }
+
+        // Get admin notes for this patient (stored in a separate table or JSON field)
+        // For now, we'll return an empty array as notes would need a separate model
+        const notes: Array<{ id: string; content: string; createdBy: string; createdAt: Date }> = [];
+
+        return {
+            id: user.id,
+            phone: user.phone,
+            name: user.patientProfile?.fullName || null,
+            email: user.email,
+            dateOfBirth: user.patientProfile?.dateOfBirth || null,
+            gender: user.patientProfile?.gender || null,
+            address: user.patientProfile?.address || null,
+            city: user.patientProfile?.city || null,
+            state: user.patientProfile?.state || null,
+            pincode: user.patientProfile?.pincode || null,
+            createdAt: user.createdAt,
+            consultations: user.consultations.map((c) => ({
+                id: c.id,
+                vertical: c.vertical,
+                status: c.status,
+                createdAt: c.createdAt,
+                doctorName: c.doctor?.doctorProfile?.fullName || null,
+            })),
+            labOrders: user.labOrders.map((lo) => ({
+                id: lo.id,
+                status: lo.status,
+                bookedDate: lo.bookedDate,
+                panelName: lo.panelName,
+                createdAt: lo.createdAt,
+            })),
+            orders: user.orders.map((o) => ({
+                id: o.id,
+                status: o.status,
+                totalAmountPaise: o.totalAmountPaise,
+                createdAt: o.createdAt,
+            })),
+            notes,
+        };
+    }
 }
