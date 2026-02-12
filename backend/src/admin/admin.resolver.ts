@@ -1,6 +1,7 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { AdminService, SLAStatus as ServiceSLAStatus } from './admin.service';
 import { AdminDashboardStats, SLAEscalation, SLAStatus } from './dto/admin.dto';
+import { HealthVertical } from '@prisma/client';
 import {
     AdminLabOrdersResponse,
     AdminLabOrdersFilterInput,
@@ -117,6 +118,7 @@ export class AdminResolver {
         return {
             labOrders: result.labOrders.map((order) => ({
                 ...order,
+                vertical: order.vertical as HealthVertical | null,
                 slaInfo: {
                     ...order.slaInfo,
                     status: order.slaInfo.status as ServiceSLAStatus,

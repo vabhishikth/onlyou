@@ -9,7 +9,6 @@ import {
     CheckCircle,
     User,
     AlertTriangle,
-    ChevronRight,
     Loader2,
     Package,
     X,

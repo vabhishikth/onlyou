@@ -422,10 +422,12 @@ model Prescription {
 // Spec: master spec Section 8.4 — Delivery Data Model
 model Order {
   id              String      @id @default(cuid())
+  orderNumber     String      @unique  // Format: ORD-XXXXXX
   patientId       String
   prescriptionId  String
   consultationId  String
   status          OrderStatus @default(PRESCRIPTION_CREATED)
+  items           Json        @default("[]")  // Array of medication items [{name, dosage, quantity}]
 
   // Pharmacy details
   pharmacyPartnerId   String?

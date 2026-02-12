@@ -602,6 +602,7 @@ describe('PrescriptionService', () => {
       });
     });
 
+    // Order model now has 'items' field
     it('should populate order with medication items', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
@@ -624,6 +625,7 @@ describe('PrescriptionService', () => {
       });
     });
 
+    // Order model now has 'orderNumber' field
     it('should generate unique order number', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);

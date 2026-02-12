@@ -8,7 +8,6 @@ import {
     CheckCircle,
     Loader2,
     X,
-    Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {

@@ -438,12 +438,26 @@ export class PrescriptionService {
       },
     });
 
+    // Generate unique order number (format: ORD-XXXXXX)
+    const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    // Convert medications to order items
+    const items = medications.map((med) => ({
+      name: med.name,
+      dosage: med.dosage,
+      quantity: med.quantity || 1,
+      frequency: med.frequency,
+      duration: med.duration,
+    }));
+
     // Create order (Spec: master spec Section 8 — Order model)
     const order = await this.prisma.order.create({
       data: {
+        orderNumber,
         patientId: consultation.patientId,
         prescriptionId: prescription.id,
         consultationId: input.consultationId,
+        items,
         // Status defaults to PRESCRIPTION_CREATED via schema default
         medicationCost: 0, // To be calculated based on actual pricing
         deliveryCost: 0,

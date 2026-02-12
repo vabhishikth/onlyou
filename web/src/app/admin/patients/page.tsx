@@ -9,8 +9,6 @@ import {
     Phone,
     Mail,
     MapPin,
-    Calendar,
-    ChevronDown,
     ChevronRight,
     TestTube2,
     Truck,

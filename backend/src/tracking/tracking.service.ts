@@ -335,7 +335,7 @@ export class TrackingService {
 
     for (let i = 0; i < labStepSequence.length; i++) {
       const stepDef = labStepSequence[i];
-      const timestamp = lab[stepDef.timestampField];
+      const timestamp = (lab as Record<string, unknown>)[stepDef.timestampField];
 
       let status: 'completed' | 'current' | 'upcoming';
       let details: string | undefined;
@@ -360,7 +360,7 @@ export class TrackingService {
       steps.push({
         label: stepDef.label,
         status,
-        timestamp: timestamp || undefined,
+        timestamp: (timestamp as Date | undefined) || undefined,
         details,
       });
     }
@@ -433,7 +433,7 @@ export class TrackingService {
 
     for (let i = 0; i < deliveryStepSequence.length; i++) {
       const stepDef = deliveryStepSequence[i];
-      const timestamp = order[stepDef.timestampField];
+      const timestamp = (order as Record<string, unknown>)[stepDef.timestampField];
 
       let status: 'completed' | 'current' | 'upcoming';
       let details: string | undefined;
@@ -461,7 +461,7 @@ export class TrackingService {
       steps.push({
         label: stepDef.label,
         status,
-        timestamp: timestamp || undefined,
+        timestamp: (timestamp as Date | undefined) || undefined,
         details,
       });
     }

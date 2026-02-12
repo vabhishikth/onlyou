@@ -1172,7 +1172,7 @@ export class AdminService {
             try {
                 const prescriptionMeds = order.prescription?.medications;
                 if (Array.isArray(prescriptionMeds)) {
-                    medications = prescriptionMeds.map((m: Record<string, unknown>) => ({
+                    medications = (prescriptionMeds as any[]).map((m) => ({
                         name: String(m.name || ''),
                         dosage: String(m.dosage || ''),
                         frequency: String(m.frequency || ''),
@@ -1504,7 +1504,12 @@ export class AdminService {
 
     // --- Diagnostic Centres ---
 
-    async getDiagnosticCentres(): Promise<{
+    async getDiagnosticCentres(params?: {
+        page?: number;
+        pageSize?: number;
+        city?: string;
+        search?: string;
+    }): Promise<{
         centres: Array<{
             id: string;
             name: string;
@@ -1523,7 +1528,19 @@ export class AdminService {
         }>;
         total: number;
     }> {
+        const where: Record<string, unknown> = {};
+        if (params?.city) {
+            where.city = { equals: params.city, mode: 'insensitive' };
+        }
+        if (params?.search) {
+            where.OR = [
+                { name: { contains: params.search, mode: 'insensitive' } },
+                { phone: { contains: params.search } },
+            ];
+        }
+
         const centres = await this.prisma.partnerDiagnosticCentre.findMany({
+            where,
             orderBy: { name: 'asc' },
         });
 
@@ -1559,8 +1576,23 @@ export class AdminService {
         contactPerson?: string;
         testsOffered: string[];
         avgTurnaroundHours?: number;
-    }): Promise<{ success: boolean; message: string }> {
-        await this.prisma.partnerDiagnosticCentre.create({
+    }): Promise<{
+        id: string;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email: string | null;
+        contactPerson: string | null;
+        testsOffered: string[];
+        avgTurnaroundHours: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+    }> {
+        const centre = await this.prisma.partnerDiagnosticCentre.create({
             data: {
                 name: input.name,
                 address: input.address,
@@ -1574,7 +1606,22 @@ export class AdminService {
                 avgTurnaroundHours: input.avgTurnaroundHours || 48,
             },
         });
-        return { success: true, message: 'Diagnostic centre created' };
+        return {
+            id: centre.id,
+            name: centre.name,
+            address: centre.address,
+            city: centre.city,
+            state: centre.state,
+            pincode: centre.pincode,
+            phone: centre.phone,
+            email: centre.email,
+            contactPerson: centre.contactPerson,
+            testsOffered: centre.testsOffered,
+            avgTurnaroundHours: centre.avgTurnaroundHours,
+            rating: centre.rating,
+            isActive: centre.isActive,
+            createdAt: centre.createdAt,
+        };
     }
 
     async updateDiagnosticCentre(input: {
@@ -1586,30 +1633,60 @@ export class AdminService {
         contactPerson?: string;
         testsOffered?: string[];
         avgTurnaroundHours?: number;
-    }): Promise<{ success: boolean; message: string }> {
-        const centre = await this.prisma.partnerDiagnosticCentre.findUnique({
+    }): Promise<{
+        id: string;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email: string | null;
+        contactPerson: string | null;
+        testsOffered: string[];
+        avgTurnaroundHours: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+    }> {
+        const existingCentre = await this.prisma.partnerDiagnosticCentre.findUnique({
             where: { id: input.id },
         });
-        if (!centre) {
-            return { success: false, message: 'Diagnostic centre not found' };
+        if (!existingCentre) {
+            throw new Error('Diagnostic centre not found');
         }
 
-        await this.prisma.partnerDiagnosticCentre.update({
+        const centre = await this.prisma.partnerDiagnosticCentre.update({
             where: { id: input.id },
             data: {
-                name: input.name ?? centre.name,
-                address: input.address ?? centre.address,
-                phone: input.phone ?? centre.phone,
-                email: input.email ?? centre.email,
-                contactPerson: input.contactPerson ?? centre.contactPerson,
-                testsOffered: input.testsOffered ?? centre.testsOffered,
-                avgTurnaroundHours: input.avgTurnaroundHours ?? centre.avgTurnaroundHours,
+                name: input.name ?? existingCentre.name,
+                address: input.address ?? existingCentre.address,
+                phone: input.phone ?? existingCentre.phone,
+                email: input.email ?? existingCentre.email,
+                contactPerson: input.contactPerson ?? existingCentre.contactPerson,
+                testsOffered: input.testsOffered ?? existingCentre.testsOffered,
+                avgTurnaroundHours: input.avgTurnaroundHours ?? existingCentre.avgTurnaroundHours,
             },
         });
-        return { success: true, message: 'Diagnostic centre updated' };
+        return {
+            id: centre.id,
+            name: centre.name,
+            address: centre.address,
+            city: centre.city,
+            state: centre.state,
+            pincode: centre.pincode,
+            phone: centre.phone,
+            email: centre.email,
+            contactPerson: centre.contactPerson,
+            testsOffered: centre.testsOffered,
+            avgTurnaroundHours: centre.avgTurnaroundHours,
+            rating: centre.rating,
+            isActive: centre.isActive,
+            createdAt: centre.createdAt,
+        };
     }
 
-    async toggleDiagnosticCentreActive(id: string): Promise<{ success: boolean; message: string }> {
+    async toggleDiagnosticCentreActive(id: string, isActive?: boolean): Promise<{ success: boolean; message: string }> {
         const centre = await this.prisma.partnerDiagnosticCentre.findUnique({
             where: { id },
         });
@@ -1617,19 +1694,25 @@ export class AdminService {
             return { success: false, message: 'Diagnostic centre not found' };
         }
 
+        const newActiveState = isActive !== undefined ? isActive : !centre.isActive;
         await this.prisma.partnerDiagnosticCentre.update({
             where: { id },
-            data: { isActive: !centre.isActive },
+            data: { isActive: newActiveState },
         });
         return {
             success: true,
-            message: centre.isActive ? 'Diagnostic centre deactivated' : 'Diagnostic centre activated',
+            message: newActiveState ? 'Diagnostic centre activated' : 'Diagnostic centre deactivated',
         };
     }
 
     // --- Phlebotomists ---
 
-    async getPhlebotomists(): Promise<{
+    async getPhlebotomists(params?: {
+        page?: number;
+        pageSize?: number;
+        city?: string;
+        search?: string;
+    }): Promise<{
         phlebotomists: Array<{
             id: string;
             name: string;
@@ -1651,7 +1734,19 @@ export class AdminService {
         }>;
         total: number;
     }> {
+        const where: Record<string, unknown> = {};
+        if (params?.city) {
+            where.currentCity = { equals: params.city, mode: 'insensitive' };
+        }
+        if (params?.search) {
+            where.OR = [
+                { name: { contains: params.search, mode: 'insensitive' } },
+                { phone: { contains: params.search } },
+            ];
+        }
+
         const phlebotomists = await this.prisma.phlebotomist.findMany({
+            where,
             orderBy: { name: 'asc' },
         });
 
@@ -1710,8 +1805,26 @@ export class AdminService {
         maxDailyCollections?: number;
         currentCity: string;
         serviceableAreas: string[];
-    }): Promise<{ success: boolean; message: string }> {
-        await this.prisma.phlebotomist.create({
+    }): Promise<{
+        id: string;
+        name: string;
+        phone: string;
+        email: string | null;
+        certification: string | null;
+        availableDays: string[];
+        availableTimeStart: string | null;
+        availableTimeEnd: string | null;
+        maxDailyCollections: number;
+        currentCity: string;
+        serviceableAreas: string[];
+        completedCollections: number;
+        failedCollections: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        todayAssignments: number;
+    }> {
+        const phlebotomist = await this.prisma.phlebotomist.create({
             data: {
                 name: input.name,
                 phone: input.phone,
@@ -1725,7 +1838,25 @@ export class AdminService {
                 serviceableAreas: input.serviceableAreas,
             },
         });
-        return { success: true, message: 'Phlebotomist created' };
+        return {
+            id: phlebotomist.id,
+            name: phlebotomist.name,
+            phone: phlebotomist.phone,
+            email: phlebotomist.email,
+            certification: phlebotomist.certification,
+            availableDays: phlebotomist.availableDays,
+            availableTimeStart: phlebotomist.availableTimeStart,
+            availableTimeEnd: phlebotomist.availableTimeEnd,
+            maxDailyCollections: phlebotomist.maxDailyCollections,
+            currentCity: phlebotomist.currentCity,
+            serviceableAreas: phlebotomist.serviceableAreas,
+            completedCollections: phlebotomist.completedCollections,
+            failedCollections: phlebotomist.failedCollections,
+            rating: phlebotomist.rating,
+            isActive: phlebotomist.isActive,
+            createdAt: phlebotomist.createdAt,
+            todayAssignments: 0,
+        };
     }
 
     async updatePhlebotomist(input: {
@@ -1739,32 +1870,85 @@ export class AdminService {
         availableTimeEnd?: string;
         maxDailyCollections?: number;
         serviceableAreas?: string[];
-    }): Promise<{ success: boolean; message: string }> {
-        const phlebotomist = await this.prisma.phlebotomist.findUnique({
+    }): Promise<{
+        id: string;
+        name: string;
+        phone: string;
+        email: string | null;
+        certification: string | null;
+        availableDays: string[];
+        availableTimeStart: string | null;
+        availableTimeEnd: string | null;
+        maxDailyCollections: number;
+        currentCity: string;
+        serviceableAreas: string[];
+        completedCollections: number;
+        failedCollections: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        todayAssignments: number;
+    }> {
+        const existingPhlebotomist = await this.prisma.phlebotomist.findUnique({
             where: { id: input.id },
         });
-        if (!phlebotomist) {
-            return { success: false, message: 'Phlebotomist not found' };
+        if (!existingPhlebotomist) {
+            throw new Error('Phlebotomist not found');
         }
 
-        await this.prisma.phlebotomist.update({
+        const phlebotomist = await this.prisma.phlebotomist.update({
             where: { id: input.id },
             data: {
-                name: input.name ?? phlebotomist.name,
-                phone: input.phone ?? phlebotomist.phone,
-                email: input.email ?? phlebotomist.email,
-                certification: input.certification ?? phlebotomist.certification,
-                availableDays: input.availableDays ?? phlebotomist.availableDays,
-                availableTimeStart: input.availableTimeStart ?? phlebotomist.availableTimeStart,
-                availableTimeEnd: input.availableTimeEnd ?? phlebotomist.availableTimeEnd,
-                maxDailyCollections: input.maxDailyCollections ?? phlebotomist.maxDailyCollections,
-                serviceableAreas: input.serviceableAreas ?? phlebotomist.serviceableAreas,
+                name: input.name ?? existingPhlebotomist.name,
+                phone: input.phone ?? existingPhlebotomist.phone,
+                email: input.email ?? existingPhlebotomist.email,
+                certification: input.certification ?? existingPhlebotomist.certification,
+                availableDays: input.availableDays ?? existingPhlebotomist.availableDays,
+                availableTimeStart: input.availableTimeStart ?? existingPhlebotomist.availableTimeStart,
+                availableTimeEnd: input.availableTimeEnd ?? existingPhlebotomist.availableTimeEnd,
+                maxDailyCollections: input.maxDailyCollections ?? existingPhlebotomist.maxDailyCollections,
+                serviceableAreas: input.serviceableAreas ?? existingPhlebotomist.serviceableAreas,
             },
         });
-        return { success: true, message: 'Phlebotomist updated' };
+
+        // Get today's assignments for this phlebotomist
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayAssignments = await this.prisma.labOrder.count({
+            where: {
+                phlebotomistId: phlebotomist.id,
+                bookedDate: { gte: today, lt: tomorrow },
+                status: {
+                    notIn: [LabOrderStatus.CANCELLED, LabOrderStatus.EXPIRED, LabOrderStatus.COLLECTION_FAILED],
+                },
+            },
+        });
+
+        return {
+            id: phlebotomist.id,
+            name: phlebotomist.name,
+            phone: phlebotomist.phone,
+            email: phlebotomist.email,
+            certification: phlebotomist.certification,
+            availableDays: phlebotomist.availableDays,
+            availableTimeStart: phlebotomist.availableTimeStart,
+            availableTimeEnd: phlebotomist.availableTimeEnd,
+            maxDailyCollections: phlebotomist.maxDailyCollections,
+            currentCity: phlebotomist.currentCity,
+            serviceableAreas: phlebotomist.serviceableAreas,
+            completedCollections: phlebotomist.completedCollections,
+            failedCollections: phlebotomist.failedCollections,
+            rating: phlebotomist.rating,
+            isActive: phlebotomist.isActive,
+            createdAt: phlebotomist.createdAt,
+            todayAssignments,
+        };
     }
 
-    async togglePhlebotomistActive(id: string): Promise<{ success: boolean; message: string }> {
+    async togglePhlebotomistActive(id: string, isActive?: boolean): Promise<{ success: boolean; message: string }> {
         const phlebotomist = await this.prisma.phlebotomist.findUnique({
             where: { id },
         });
@@ -1772,19 +1956,25 @@ export class AdminService {
             return { success: false, message: 'Phlebotomist not found' };
         }
 
+        const newActiveState = isActive !== undefined ? isActive : !phlebotomist.isActive;
         await this.prisma.phlebotomist.update({
             where: { id },
-            data: { isActive: !phlebotomist.isActive },
+            data: { isActive: newActiveState },
         });
         return {
             success: true,
-            message: phlebotomist.isActive ? 'Phlebotomist deactivated' : 'Phlebotomist activated',
+            message: newActiveState ? 'Phlebotomist activated' : 'Phlebotomist deactivated',
         };
     }
 
     // --- Pharmacies ---
 
-    async getPharmacies(): Promise<{
+    async getPharmacies(params?: {
+        page?: number;
+        pageSize?: number;
+        city?: string;
+        search?: string;
+    }): Promise<{
         pharmacies: Array<{
             id: string;
             name: string;
@@ -1805,7 +1995,19 @@ export class AdminService {
         }>;
         total: number;
     }> {
+        const where: Record<string, unknown> = {};
+        if (params?.city) {
+            where.city = { equals: params.city, mode: 'insensitive' };
+        }
+        if (params?.search) {
+            where.OR = [
+                { name: { contains: params.search, mode: 'insensitive' } },
+                { phone: { contains: params.search } },
+            ];
+        }
+
         const pharmacies = await this.prisma.partnerPharmacy.findMany({
+            where,
             orderBy: { name: 'asc' },
         });
 
@@ -1845,8 +2047,25 @@ export class AdminService {
         gstNumber?: string;
         serviceableAreas: string[];
         avgPreparationMinutes?: number;
-    }): Promise<{ success: boolean; message: string }> {
-        await this.prisma.partnerPharmacy.create({
+    }): Promise<{
+        id: string;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email: string | null;
+        contactPerson: string | null;
+        drugLicenseNumber: string;
+        gstNumber: string | null;
+        serviceableAreas: string[];
+        avgPreparationMinutes: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+    }> {
+        const pharmacy = await this.prisma.partnerPharmacy.create({
             data: {
                 name: input.name,
                 address: input.address,
@@ -1862,7 +2081,24 @@ export class AdminService {
                 avgPreparationMinutes: input.avgPreparationMinutes || 30,
             },
         });
-        return { success: true, message: 'Pharmacy created' };
+        return {
+            id: pharmacy.id,
+            name: pharmacy.name,
+            address: pharmacy.address,
+            city: pharmacy.city,
+            state: pharmacy.state,
+            pincode: pharmacy.pincode,
+            phone: pharmacy.phone,
+            email: pharmacy.email,
+            contactPerson: pharmacy.contactPerson,
+            drugLicenseNumber: pharmacy.drugLicenseNumber,
+            gstNumber: pharmacy.gstNumber,
+            serviceableAreas: pharmacy.serviceableAreas,
+            avgPreparationMinutes: pharmacy.avgPreparationMinutes,
+            rating: pharmacy.rating,
+            isActive: pharmacy.isActive,
+            createdAt: pharmacy.createdAt,
+        };
     }
 
     async updatePharmacy(input: {
@@ -1874,30 +2110,64 @@ export class AdminService {
         contactPerson?: string;
         serviceableAreas?: string[];
         avgPreparationMinutes?: number;
-    }): Promise<{ success: boolean; message: string }> {
-        const pharmacy = await this.prisma.partnerPharmacy.findUnique({
+    }): Promise<{
+        id: string;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        pincode: string;
+        phone: string;
+        email: string | null;
+        contactPerson: string | null;
+        drugLicenseNumber: string;
+        gstNumber: string | null;
+        serviceableAreas: string[];
+        avgPreparationMinutes: number;
+        rating: number | null;
+        isActive: boolean;
+        createdAt: Date;
+    }> {
+        const existingPharmacy = await this.prisma.partnerPharmacy.findUnique({
             where: { id: input.id },
         });
-        if (!pharmacy) {
-            return { success: false, message: 'Pharmacy not found' };
+        if (!existingPharmacy) {
+            throw new Error('Pharmacy not found');
         }
 
-        await this.prisma.partnerPharmacy.update({
+        const pharmacy = await this.prisma.partnerPharmacy.update({
             where: { id: input.id },
             data: {
-                name: input.name ?? pharmacy.name,
-                address: input.address ?? pharmacy.address,
-                phone: input.phone ?? pharmacy.phone,
-                email: input.email ?? pharmacy.email,
-                contactPerson: input.contactPerson ?? pharmacy.contactPerson,
-                serviceableAreas: input.serviceableAreas ?? pharmacy.serviceableAreas,
-                avgPreparationMinutes: input.avgPreparationMinutes ?? pharmacy.avgPreparationMinutes,
+                name: input.name ?? existingPharmacy.name,
+                address: input.address ?? existingPharmacy.address,
+                phone: input.phone ?? existingPharmacy.phone,
+                email: input.email ?? existingPharmacy.email,
+                contactPerson: input.contactPerson ?? existingPharmacy.contactPerson,
+                serviceableAreas: input.serviceableAreas ?? existingPharmacy.serviceableAreas,
+                avgPreparationMinutes: input.avgPreparationMinutes ?? existingPharmacy.avgPreparationMinutes,
             },
         });
-        return { success: true, message: 'Pharmacy updated' };
+        return {
+            id: pharmacy.id,
+            name: pharmacy.name,
+            address: pharmacy.address,
+            city: pharmacy.city,
+            state: pharmacy.state,
+            pincode: pharmacy.pincode,
+            phone: pharmacy.phone,
+            email: pharmacy.email,
+            contactPerson: pharmacy.contactPerson,
+            drugLicenseNumber: pharmacy.drugLicenseNumber,
+            gstNumber: pharmacy.gstNumber,
+            serviceableAreas: pharmacy.serviceableAreas,
+            avgPreparationMinutes: pharmacy.avgPreparationMinutes,
+            rating: pharmacy.rating,
+            isActive: pharmacy.isActive,
+            createdAt: pharmacy.createdAt,
+        };
     }
 
-    async togglePharmacyActive(id: string): Promise<{ success: boolean; message: string }> {
+    async togglePharmacyActive(id: string, isActive?: boolean): Promise<{ success: boolean; message: string }> {
         const pharmacy = await this.prisma.partnerPharmacy.findUnique({
             where: { id },
         });
@@ -1905,13 +2175,14 @@ export class AdminService {
             return { success: false, message: 'Pharmacy not found' };
         }
 
+        const newActiveState = isActive !== undefined ? isActive : !pharmacy.isActive;
         await this.prisma.partnerPharmacy.update({
             where: { id },
-            data: { isActive: !pharmacy.isActive },
+            data: { isActive: newActiveState },
         });
         return {
             success: true,
-            message: pharmacy.isActive ? 'Pharmacy deactivated' : 'Pharmacy activated',
+            message: newActiveState ? 'Pharmacy activated' : 'Pharmacy deactivated',
         };
     }
 
@@ -1968,20 +2239,35 @@ export class AdminService {
                     patientProfile: true,
                     consultations: {
                         where: {
-                            status: { in: ['PENDING', 'ASSIGNED', 'IN_REVIEW'] },
+                            status: {
+                                in: [
+                                    ConsultationStatus.PENDING_ASSESSMENT,
+                                    ConsultationStatus.AI_REVIEWED,
+                                    ConsultationStatus.DOCTOR_REVIEWING,
+                                ],
+                            },
                         },
                     },
                     labOrders: {
                         where: {
                             status: {
-                                notIn: ['CLOSED', 'CANCELLED', 'EXPIRED', 'DOCTOR_REVIEWED'],
+                                notIn: [
+                                    LabOrderStatus.CLOSED,
+                                    LabOrderStatus.CANCELLED,
+                                    LabOrderStatus.EXPIRED,
+                                    LabOrderStatus.DOCTOR_REVIEWED,
+                                ],
                             },
                         },
                     },
                     orders: {
                         where: {
                             status: {
-                                notIn: ['DELIVERED', 'CANCELLED', 'RETURNED'],
+                                notIn: [
+                                    OrderStatus.DELIVERED,
+                                    OrderStatus.CANCELLED,
+                                    OrderStatus.RETURNED,
+                                ],
                             },
                         },
                     },
@@ -1997,7 +2283,7 @@ export class AdminService {
             patients: users.map((user) => ({
                 id: user.id,
                 phone: user.phone,
-                name: user.patientProfile?.fullName || null,
+                name: user.name || null,
                 email: user.email,
                 dateOfBirth: user.patientProfile?.dateOfBirth || null,
                 gender: user.patientProfile?.gender || null,
@@ -2007,7 +2293,7 @@ export class AdminService {
                 activeConsultations: user.consultations.length,
                 pendingLabOrders: user.labOrders.length,
                 pendingDeliveries: user.orders.length,
-                lastActivityAt: user.lastLoginAt,
+                lastActivityAt: user.updatedAt,
             })),
             total,
             page,
@@ -2089,11 +2375,11 @@ export class AdminService {
         return {
             id: user.id,
             phone: user.phone,
-            name: user.patientProfile?.fullName || null,
+            name: user.name || null,
             email: user.email,
             dateOfBirth: user.patientProfile?.dateOfBirth || null,
             gender: user.patientProfile?.gender || null,
-            address: user.patientProfile?.address || null,
+            address: user.patientProfile?.addressLine1 || null,
             city: user.patientProfile?.city || null,
             state: user.patientProfile?.state || null,
             pincode: user.patientProfile?.pincode || null,
@@ -2103,7 +2389,7 @@ export class AdminService {
                 vertical: c.vertical,
                 status: c.status,
                 createdAt: c.createdAt,
-                doctorName: c.doctor?.doctorProfile?.fullName || null,
+                doctorName: c.doctor?.name || null,
             })),
             labOrders: user.labOrders.map((lo) => ({
                 id: lo.id,
@@ -2115,7 +2401,7 @@ export class AdminService {
             orders: user.orders.map((o) => ({
                 id: o.id,
                 status: o.status,
-                totalAmountPaise: o.totalAmountPaise,
+                totalAmountPaise: o.totalAmount,
                 createdAt: o.createdAt,
             })),
             notes,

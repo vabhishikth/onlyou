@@ -133,15 +133,20 @@ export class OrderService {
   async createOrder(input: CreateOrderInput): Promise<any> {
     const prescription = await this.prisma.prescription.findUnique({
       where: { id: input.prescriptionId },
+      include: { consultation: { select: { patientId: true } } },
     });
 
     if (!prescription) {
       throw new NotFoundException('Prescription not found');
     }
 
+    // Generate unique order number
+    const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     return this.prisma.order.create({
       data: {
-        patientId: prescription.patientId,
+        orderNumber,
+        patientId: prescription.consultation.patientId,
         prescriptionId: input.prescriptionId,
         consultationId: prescription.consultationId,
         status: OrderStatus.PRESCRIPTION_CREATED,
@@ -511,8 +516,12 @@ export class OrderService {
       );
     }
 
+    // Generate unique order number
+    const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     return this.prisma.order.create({
       data: {
+        orderNumber,
         patientId: originalOrder.patientId,
         prescriptionId: originalOrder.prescriptionId,
         consultationId: originalOrder.consultationId,
@@ -526,6 +535,7 @@ export class OrderService {
         parentOrderId: originalOrderId,
         isReorder: true,
         orderedAt: new Date(),
+        items: originalOrder.items || [],
       },
     });
   }

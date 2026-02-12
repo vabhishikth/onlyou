@@ -429,7 +429,7 @@ export class PartnerService {
   // FIND NEAREST PARTNERS
   // ============================================
 
-  async findNearestDiagnosticCentres(pincode: string): Promise<any[]> {
+  async findNearestDiagnosticCentres(_pincode: string): Promise<any[]> {
     // For now, just filter by city (pincode prefix) and active status
     // In future, could use lat/lng for proper distance calculation
     return this.prisma.partnerDiagnosticCentre.findMany({

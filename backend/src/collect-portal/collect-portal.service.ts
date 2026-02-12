@@ -136,12 +136,6 @@ export class CollectPortalService {
                         phone: true,
                     },
                 },
-                slot: {
-                    select: {
-                        startTime: true,
-                        endTime: true,
-                    },
-                },
             },
             orderBy: [
                 { status: 'asc' }, // Pending first
@@ -183,7 +177,6 @@ export class CollectPortalService {
             },
             include: {
                 patient: { select: { name: true, phone: true } },
-                slot: { select: { startTime: true, endTime: true } },
             },
         });
 
@@ -256,11 +249,12 @@ export class CollectPortalService {
             );
         }
 
-        // Update order with new ETA (stored in notes for now)
+        // Update order with new ETA
         await this.prisma.labOrder.update({
             where: { id: labOrderId },
             data: {
-                notes: `Running late. New ETA: ${newEta}`,
+                estimatedArrivalTime: newEta,
+                runningLateAt: new Date(),
             },
         });
 
@@ -311,7 +305,6 @@ export class CollectPortalService {
             },
             include: {
                 patient: { select: { name: true, phone: true } },
-                slot: { select: { startTime: true, endTime: true } },
             },
         });
 
@@ -376,9 +369,10 @@ export class CollectPortalService {
         const patientName = order.patient?.name || 'Unknown';
         const firstName = patientName.split(' ')[0] || patientName;
 
-        // Format time window
+        // Format time window from bookedTimeSlot (e.g., "8:00-10:00")
         let timeWindow = 'Scheduled';
-        if (order.slot?.startTime && order.slot?.endTime) {
+        if (order.bookedTimeSlot) {
+            // bookedTimeSlot is already in format "8:00-10:00"
             const formatTime = (time: string) => {
                 const [hours, minutes] = time.split(':');
                 const hour = parseInt(hours || '0', 10);
@@ -386,7 +380,12 @@ export class CollectPortalService {
                 const hour12 = hour % 12 || 12;
                 return `${hour12}:${minutes} ${ampm}`;
             };
-            timeWindow = `${formatTime(order.slot.startTime)}-${formatTime(order.slot.endTime)}`;
+            const [start, end] = order.bookedTimeSlot.split('-');
+            if (start && end) {
+                timeWindow = `${formatTime(start)}-${formatTime(end)}`;
+            } else {
+                timeWindow = order.bookedTimeSlot;
+            }
         }
 
         // Extract area from address
@@ -415,7 +414,7 @@ export class CollectPortalService {
             status: order.status,
             tubeCount: order.tubeCount,
             collectedAt: order.sampleCollectedAt,
-            notes: order.notes,
+            notes: order.estimatedArrivalTime ? `Running late. New ETA: ${order.estimatedArrivalTime}` : null,
         };
     }
 }

@@ -31,17 +31,6 @@ export type DeliveryAction =
 // Lab statuses where cancellation/reschedule is allowed
 const CANCELLABLE_LAB_STATUSES = ['SLOT_BOOKED', 'PHLEBOTOMIST_ASSIGNED'];
 
-// Lab statuses that are view-only (sample collected onwards)
-const VIEW_ONLY_LAB_STATUSES = [
-  'SAMPLE_COLLECTED',
-  'DELIVERED_TO_LAB',
-  'SAMPLE_RECEIVED',
-  'SAMPLE_ISSUE',
-  'PROCESSING',
-  'DOCTOR_REVIEWED',
-  'CLOSED',
-];
-
 // Cutoff time in hours before slot for reschedule/cancel
 const CUTOFF_HOURS = 4;
 

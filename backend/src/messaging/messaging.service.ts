@@ -146,7 +146,7 @@ export class MessagingService {
    * Spec: master spec Section 5.5 — Threaded chat per consultation
    */
   async sendMessage(input: SendMessageInput): Promise<MessageWithReceipts> {
-    const { consultation, user, isPatient } = await this.verifyConsultationAccess(
+    const { consultation, user: _user, isPatient } = await this.verifyConsultationAccess(
       input.consultationId,
       input.senderId
     );
@@ -231,7 +231,7 @@ export class MessagingService {
     doctorId: string,
     message: string
   ): Promise<{ message: MessageWithReceipts; consultation: any }> {
-    const { consultation, user } = await this.verifyConsultationAccess(
+    const { consultation: _consultation, user } = await this.verifyConsultationAccess(
       consultationId,
       doctorId
     );

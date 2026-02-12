@@ -35,7 +35,7 @@ type FilterType = 'ALL' | 'LAB_ORDER' | 'DELIVERY';
 export default function EscalationsPage() {
     const [filter, setFilter] = useState<FilterType>('ALL');
 
-    const { data, loading, error, refetch } = useQuery<SLAEscalationsResponse>(SLA_ESCALATIONS, {
+    const { data, loading, error } = useQuery<SLAEscalationsResponse>(SLA_ESCALATIONS, {
         pollInterval: 30000, // Refresh every 30 seconds
     });
 

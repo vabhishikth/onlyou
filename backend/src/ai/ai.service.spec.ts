@@ -826,44 +826,44 @@ describe('AIService', () => {
       expect(result.action).toBe('BLOCK');
     });
 
-    it('should CAUTION for alpha-blockers (4hr separation required)', () => {
+    it('should FLAG for alpha-blockers (4hr separation required)', () => {
       const responses = { Q14: ['alpha_blockers'], Q16: 'no', Q17: 'no', Q18: 'no' };
       const result = service.checkPDE5Contraindications(responses);
       expect(result.safe).toBe(false);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
       expect(result.concerns).toContain('Alpha-blockers: 4-hour separation, start lowest dose');
     });
 
-    it('should CAUTION for HIV protease inhibitors (dose reduction)', () => {
+    it('should FLAG for HIV protease inhibitors (dose reduction)', () => {
       const responses = { Q14: ['hiv_protease'], Q16: 'no', Q17: 'no', Q18: 'no' };
       const result = service.checkPDE5Contraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
       expect(result.concerns).toContain('HIV protease inhibitors: reduce PDE5 dose');
     });
 
-    it('should CAUTION for severe liver disease', () => {
+    it('should FLAG for severe liver disease', () => {
       const responses = { Q13: ['liver_disease'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
       const result = service.checkPDE5Contraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
     });
 
-    it('should CAUTION for sickle cell disease (priapism risk)', () => {
+    it('should FLAG for sickle cell disease (priapism risk)', () => {
       const responses = { Q13: ['sickle_cell'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
       const result = service.checkPDE5Contraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
       expect(result.concerns).toContain('Sickle cell: priapism risk');
     });
 
-    it('should CAUTION for priapism history', () => {
+    it('should FLAG for priapism history', () => {
       const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q27: ['priapism'] };
       const result = service.checkPDE5Contraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
     });
 
-    it('should CAUTION for heavy alcohol use', () => {
+    it('should FLAG for heavy alcohol use', () => {
       const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q22: 'heavy' };
       const result = service.checkPDE5Contraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
       expect(result.concerns).toContain('Heavy alcohol: increased hypotension risk');
     });
 
@@ -1287,18 +1287,18 @@ describe('AIService', () => {
       expect(result.action).toBe('BLOCK');
     });
 
-    it('should CAUTION for gallstones', () => {
+    it('should FLAG for gallstones', () => {
       const responses = { Q13: ['Gallbladder disease / gallstones'] };
       const result = service.checkOrlistatContraindications(responses);
       expect(result.safe).toBe(false);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
       expect(result.concerns).toContain('Gallstones present');
     });
 
-    it('should CAUTION for oxalate kidney stones', () => {
+    it('should FLAG for oxalate kidney stones', () => {
       const responses = { Q13: ['Kidney disease'] };
       const result = service.checkOrlistatContraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
     });
 
     it('should return safe with no contraindications', () => {
@@ -1321,7 +1321,7 @@ describe('AIService', () => {
     it('should BLOCK for severe liver disease', () => {
       const responses = { Q13: ['Fatty liver disease'] };
       const result = service.checkMetforminContraindications(responses);
-      expect(result.action).toBe('CAUTION');
+      expect(result.action).toBe('FLAG');
     });
 
     it('should BLOCK for pregnancy', () => {

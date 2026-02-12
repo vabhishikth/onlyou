@@ -6,14 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Clock,
     CheckCircle,
-    MapPin,
     Phone,
     Navigation,
     AlertTriangle,
     Loader2,
     X,
     User,
-    Package,
     Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

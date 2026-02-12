@@ -58,9 +58,9 @@ export class PharmacyPortalService {
     /**
      * Get pharmacy info for the logged-in pharmacy
      */
-    async getPharmacyInfo(pharmacyId: string): Promise<PharmacyInfo> {
+    async getPharmacyInfo(pharmacyPartnerId: string): Promise<PharmacyInfo> {
         const pharmacy = await this.prisma.partnerPharmacy.findUnique({
-            where: { id: pharmacyId },
+            where: { id: pharmacyPartnerId },
         });
 
         if (!pharmacy) {
@@ -79,11 +79,11 @@ export class PharmacyPortalService {
     /**
      * Get today's summary stats
      */
-    async getTodaySummary(pharmacyId: string): Promise<TodaySummary> {
+    async getTodaySummary(pharmacyPartnerId: string): Promise<TodaySummary> {
         // Count new orders (SENT_TO_PHARMACY)
         const newOrders = await this.prisma.order.count({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: PharmacyOrderStatus.SENT_TO_PHARMACY,
             },
         });
@@ -91,7 +91,7 @@ export class PharmacyPortalService {
         // Count preparing (PHARMACY_PREPARING)
         const preparing = await this.prisma.order.count({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: PharmacyOrderStatus.PHARMACY_PREPARING,
             },
         });
@@ -99,7 +99,7 @@ export class PharmacyPortalService {
         // Count ready (PHARMACY_READY, PICKUP_ARRANGED)
         const ready = await this.prisma.order.count({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: {
                     in: [PharmacyOrderStatus.PHARMACY_READY, PharmacyOrderStatus.PICKUP_ARRANGED],
                 },
@@ -112,17 +112,20 @@ export class PharmacyPortalService {
     /**
      * Get new orders (SENT_TO_PHARMACY)
      */
-    async getNewOrders(pharmacyId: string): Promise<PharmacyOrderSummary[]> {
+    async getNewOrders(pharmacyPartnerId: string): Promise<PharmacyOrderSummary[]> {
         const orders = await this.prisma.order.findMany({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: PharmacyOrderStatus.SENT_TO_PHARMACY,
             },
             include: {
                 patient: {
                     select: {
-                        address: true,
-                        city: true,
+                        patientProfile: {
+                            select: {
+                                city: true,
+                            },
+                        },
                     },
                 },
                 prescription: {
@@ -141,17 +144,20 @@ export class PharmacyPortalService {
     /**
      * Get preparing orders (PHARMACY_PREPARING)
      */
-    async getPreparingOrders(pharmacyId: string): Promise<PharmacyOrderSummary[]> {
+    async getPreparingOrders(pharmacyPartnerId: string): Promise<PharmacyOrderSummary[]> {
         const orders = await this.prisma.order.findMany({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: PharmacyOrderStatus.PHARMACY_PREPARING,
             },
             include: {
                 patient: {
                     select: {
-                        address: true,
-                        city: true,
+                        patientProfile: {
+                            select: {
+                                city: true,
+                            },
+                        },
                     },
                 },
                 prescription: {
@@ -170,10 +176,10 @@ export class PharmacyPortalService {
     /**
      * Get ready orders (PHARMACY_READY, PICKUP_ARRANGED)
      */
-    async getReadyOrders(pharmacyId: string): Promise<PharmacyOrderSummary[]> {
+    async getReadyOrders(pharmacyPartnerId: string): Promise<PharmacyOrderSummary[]> {
         const orders = await this.prisma.order.findMany({
             where: {
-                pharmacyId,
+                pharmacyPartnerId,
                 status: {
                     in: [PharmacyOrderStatus.PHARMACY_READY, PharmacyOrderStatus.PICKUP_ARRANGED],
                 },
@@ -181,8 +187,11 @@ export class PharmacyPortalService {
             include: {
                 patient: {
                     select: {
-                        address: true,
-                        city: true,
+                        patientProfile: {
+                            select: {
+                                city: true,
+                            },
+                        },
                     },
                 },
                 prescription: {
@@ -203,10 +212,10 @@ export class PharmacyPortalService {
      * Spec: Section 8.2 Step 3 — Pharmacy Preparing
      */
     async startPreparing(
-        pharmacyId: string,
+        pharmacyPartnerId: string,
         orderId: string,
     ): Promise<PharmacyOrderSummary> {
-        const order = await this.getOrder(orderId, pharmacyId);
+        const order = await this.getOrder(orderId, pharmacyPartnerId);
 
         if (order.status !== PharmacyOrderStatus.SENT_TO_PHARMACY) {
             throw new BadRequestException(
@@ -221,7 +230,7 @@ export class PharmacyPortalService {
                 pharmacyPreparingAt: new Date(),
             },
             include: {
-                patient: { select: { address: true, city: true } },
+                patient: { select: { patientProfile: { select: { city: true } } } },
                 prescription: { select: { pdfUrl: true, medications: true } },
             },
         });
@@ -234,10 +243,10 @@ export class PharmacyPortalService {
      * Spec: Section 8.2 Step 3b — Pharmacy Ready
      */
     async markReady(
-        pharmacyId: string,
+        pharmacyPartnerId: string,
         orderId: string,
     ): Promise<PharmacyOrderSummary> {
-        const order = await this.getOrder(orderId, pharmacyId);
+        const order = await this.getOrder(orderId, pharmacyPartnerId);
 
         if (order.status !== PharmacyOrderStatus.PHARMACY_PREPARING) {
             throw new BadRequestException(
@@ -252,7 +261,7 @@ export class PharmacyPortalService {
                 pharmacyReadyAt: new Date(),
             },
             include: {
-                patient: { select: { address: true, city: true } },
+                patient: { select: { patientProfile: { select: { city: true } } } },
                 prescription: { select: { pdfUrl: true, medications: true } },
             },
         });
@@ -267,11 +276,11 @@ export class PharmacyPortalService {
      * Spec: Section 8.2 — Stock Issue
      */
     async reportStockIssue(
-        pharmacyId: string,
+        pharmacyPartnerId: string,
         orderId: string,
         missingMedications: string[],
     ): Promise<{ success: boolean; message: string }> {
-        const order = await this.getOrder(orderId, pharmacyId);
+        const order = await this.getOrder(orderId, pharmacyPartnerId);
 
         const validStatuses = [
             PharmacyOrderStatus.SENT_TO_PHARMACY,
@@ -309,7 +318,7 @@ export class PharmacyPortalService {
     /**
      * Helper: Get order with permission check
      */
-    private async getOrder(orderId: string, pharmacyId: string): Promise<any> {
+    private async getOrder(orderId: string, pharmacyPartnerId: string): Promise<any> {
         const order = await this.prisma.order.findUnique({
             where: { id: orderId },
         });
@@ -318,7 +327,7 @@ export class PharmacyPortalService {
             throw new NotFoundException('Order not found');
         }
 
-        if (order.pharmacyId !== pharmacyId) {
+        if (order.pharmacyPartnerId !== pharmacyPartnerId) {
             throw new ForbiddenException('You do not have access to this order');
         }
 
@@ -342,8 +351,8 @@ export class PharmacyPortalService {
             }
         }
 
-        // Get patient area (anonymized)
-        const patientArea = order.patient?.city || 'Unknown area';
+        // Get patient area (anonymized) - city is nested under patientProfile
+        const patientArea = order.patient?.patientProfile?.city || order.deliveryCity || 'Unknown area';
 
         return {
             id: order.id,

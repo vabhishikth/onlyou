@@ -11,6 +11,7 @@ import {
     User,
     RequestOTPResponse,
     VerifyOTPResponse,
+    LogoutResponse,
     MeResponse,
 } from '@/graphql/auth';
 
@@ -75,14 +76,14 @@ export function useAuth() {
     );
 
     // Logout mutation
-    const [logoutMutation] = useMutation(LOGOUT);
+    const [logoutMutation] = useMutation<LogoutResponse>(LOGOUT);
 
     const requestOTP = useCallback(
         async (phone: string) => {
             const result = await requestOTPMutation({
                 variables: { phone },
             });
-            return result.data?.requestOTP;
+            return result.data?.requestOtp;
         },
         [requestOTPMutation]
     );
@@ -93,8 +94,9 @@ export function useAuth() {
                 variables: { phone, otp },
             });
 
-            if (result.data?.verifyOTP) {
-                const { accessToken, refreshToken, user } = result.data.verifyOTP;
+            const response = result.data?.verifyOtp;
+            if (response?.success && response.accessToken && response.refreshToken && response.user) {
+                const { accessToken, refreshToken, user } = response;
 
                 // Store tokens
                 localStorage.setItem('accessToken', accessToken);
@@ -121,14 +123,17 @@ export function useAuth() {
                 return user;
             }
 
-            return null;
+            // Return error message if failed
+            throw new Error(response?.message || 'Verification failed');
         },
         [verifyOTPMutation, refetch]
     );
 
     const logout = useCallback(async () => {
         try {
-            await logoutMutation();
+            const refreshToken =
+                localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+            await logoutMutation({ variables: { refreshToken } });
         } catch {
             // Ignore errors - we're logging out anyway
         }

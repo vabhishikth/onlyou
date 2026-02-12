@@ -68,11 +68,11 @@ describe('ED Questionnaire Data', () => {
         expect(iief5Questions).toHaveLength(5);
       });
 
-      it('should have Q4-Q8 as scale 1-5 type', () => {
+      it('should have Q4-Q8 as single choice with 5 options (IIEF-5 scale)', () => {
         for (let i = 4; i <= 8; i++) {
           const q = edQuestions.find((q) => q.id === `Q${i}`);
           expect(q).toBeDefined();
-          expect(q!.type).toBe('scale_1_5');
+          expect(q!.type).toBe('single_choice');
           expect(q!.options).toHaveLength(5);
         }
       });

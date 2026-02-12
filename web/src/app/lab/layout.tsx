@@ -9,7 +9,6 @@ import {
     Clock,
     Upload,
     User,
-    Calendar,
     LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

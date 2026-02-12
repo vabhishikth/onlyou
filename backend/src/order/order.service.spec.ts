@@ -123,8 +123,8 @@ describe('OrderService', () => {
     it('should create an order from prescription', async () => {
       mockPrismaService.prescription.findUnique.mockResolvedValue({
         id: 'prescription-1',
-        patientId: 'patient-1',
         consultationId: 'consultation-1',
+        consultation: { patientId: 'patient-1' },
       });
       mockPrismaService.order.create.mockResolvedValue(mockOrder);
 

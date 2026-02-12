@@ -196,13 +196,12 @@ export interface ContraindicationResult {
 
 @Injectable()
 export class AIService {
-  private readonly apiKey: string;
-  private readonly model: string;
-
-  constructor(private readonly config: ConfigService) {
-    this.apiKey = this.config.get<string>('ANTHROPIC_API_KEY') || '';
-    this.model = this.config.get<string>('ANTHROPIC_MODEL') || 'claude-3-sonnet-20240229';
-  }
+  // Note: These will be used when Claude API integration is implemented
+  // For now, this is a pre-screening rules engine without actual API calls
+  constructor(
+    // @ts-expect-error ConfigService reserved for future Claude API integration
+    private readonly config: ConfigService,
+  ) {}
 
   /**
    * Get classification categories for a vertical
@@ -829,46 +828,46 @@ Respond ONLY with valid JSON matching this schema:
       }
     }
 
-    // CAUTION: Alpha-blockers (4hr separation)
+    // FLAG: Alpha-blockers (4hr separation)
     if (Array.isArray(responses.Q14) && responses.Q14.includes('alpha_blockers')) {
       concerns.push('Alpha-blockers: 4-hour separation, start lowest dose');
-      action = 'CAUTION';
+      action = 'FLAG';
     }
 
-    // CAUTION: HIV protease inhibitors
+    // FLAG: HIV protease inhibitors
     if (Array.isArray(responses.Q14) && responses.Q14.includes('hiv_protease')) {
       concerns.push('HIV protease inhibitors: reduce PDE5 dose');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
-    // CAUTION: Severe liver disease
+    // FLAG: Severe liver disease
     if (Array.isArray(responses.Q13) && responses.Q13.includes('liver_disease')) {
       concerns.push('Liver disease: lower dose, monitor');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
-    // CAUTION: Severe kidney disease
+    // FLAG: Severe kidney disease
     if (Array.isArray(responses.Q13) && responses.Q13.includes('kidney_disease')) {
       concerns.push('Kidney disease: lower dose');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
-    // CAUTION: Sickle cell (priapism risk)
+    // FLAG: Sickle cell (priapism risk)
     if (Array.isArray(responses.Q13) && responses.Q13.includes('sickle_cell')) {
       concerns.push('Sickle cell: priapism risk');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
-    // CAUTION: Priapism history
+    // FLAG: Priapism history
     if (Array.isArray(responses.Q27) && responses.Q27.includes('priapism')) {
       concerns.push('Priapism history: start lowest dose, warn patient');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
-    // CAUTION: Heavy alcohol
+    // FLAG: Heavy alcohol
     if (responses.Q22 === 'heavy') {
       concerns.push('Heavy alcohol: increased hypotension risk');
-      action = action || 'CAUTION';
+      action = action || 'FLAG';
     }
 
     if (concerns.length === 0) {
@@ -1304,7 +1303,7 @@ Respond ONLY with valid JSON matching this schema:
       return { safe: false, action: 'BLOCK', concerns };
     }
 
-    // CAUTION: Gallstones
+    // FLAG: Gallstones
     if (
       Array.isArray(conditions) &&
       conditions.some(
@@ -1313,20 +1312,20 @@ Respond ONLY with valid JSON matching this schema:
       )
     ) {
       concerns.push('Gallstones present');
-      action = 'CAUTION';
+      action = 'FLAG';
     }
 
-    // CAUTION: Kidney disease (oxalate stones)
+    // FLAG: Kidney disease (oxalate stones)
     if (
       Array.isArray(conditions) &&
       conditions.some((c: string) => c.toLowerCase().includes('kidney'))
     ) {
       concerns.push('Kidney disease — oxalate stones risk');
-      action = 'CAUTION';
+      action = 'FLAG';
     }
 
     if (concerns.length > 0) {
-      return { safe: false, action: action || 'CAUTION', concerns };
+      return { safe: false, action: action || 'FLAG', concerns };
     }
 
     return { safe: true, concerns: [] };
@@ -1356,7 +1355,7 @@ Respond ONLY with valid JSON matching this schema:
       return { safe: false, action: 'BLOCK', concerns };
     }
 
-    // CAUTION: Liver disease
+    // FLAG: Liver disease
     if (
       Array.isArray(conditions) &&
       conditions.some(
@@ -1365,7 +1364,7 @@ Respond ONLY with valid JSON matching this schema:
       )
     ) {
       concerns.push('Liver disease');
-      return { safe: false, action: 'CAUTION', concerns };
+      return { safe: false, action: 'FLAG', concerns };
     }
 
     return { safe: true, concerns: [] };

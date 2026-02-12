@@ -293,9 +293,13 @@ export class SubscriptionService {
     // Check if prescription has changed since last order
     const prescriptionChanged = lastOrder.prescriptionId !== prescription.id;
 
+    // Generate unique order number
+    const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     // Create new order
     const newOrder = await this.prisma.order.create({
       data: {
+        orderNumber,
         patientId: userId,
         prescriptionId: prescription.id,
         consultationId: prescription.consultationId,
@@ -309,6 +313,7 @@ export class SubscriptionService {
         isReorder: true,
         parentOrderId: lastOrder.id,
         needsReview: prescriptionChanged,
+        items: lastOrder.items || [],
       } as any,
     });
 

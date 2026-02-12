@@ -145,7 +145,7 @@ export const edQuestions: Question[] = [
   {
     id: 'Q4',
     section: 'iief5',
-    type: 'scale_1_5',
+    type: 'single_choice',
     question: 'Over the past 6 months, how do you rate your confidence that you could get and keep an erection?',
     options: SCALE_1_5_CONFIDENCE,
     required: true,
@@ -154,7 +154,7 @@ export const edQuestions: Question[] = [
   {
     id: 'Q5',
     section: 'iief5',
-    type: 'scale_1_5',
+    type: 'single_choice',
     question: 'When you had erections with sexual stimulation, how often were your erections hard enough for penetration?',
     options: SCALE_1_5_FREQUENCY,
     required: true,
@@ -163,7 +163,7 @@ export const edQuestions: Question[] = [
   {
     id: 'Q6',
     section: 'iief5',
-    type: 'scale_1_5',
+    type: 'single_choice',
     question: 'During sexual intercourse, how often were you able to maintain your erection after penetration?',
     options: SCALE_1_5_FREQUENCY,
     required: true,
@@ -172,7 +172,7 @@ export const edQuestions: Question[] = [
   {
     id: 'Q7',
     section: 'iief5',
-    type: 'scale_1_5',
+    type: 'single_choice',
     question: 'During sexual intercourse, how difficult was it to maintain your erection to completion?',
     options: SCALE_1_5_DIFFICULTY,
     required: true,
@@ -181,7 +181,7 @@ export const edQuestions: Question[] = [
   {
     id: 'Q8',
     section: 'iief5',
-    type: 'scale_1_5',
+    type: 'single_choice',
     question: 'When you attempted sexual intercourse, how often was it satisfactory?',
     options: SCALE_1_5_FREQUENCY,
     required: true,
