@@ -500,6 +500,10 @@ model Message {
   readAt         DateTime?
   createdAt      DateTime @default(now())
 
+  // Spec: master spec Section 5.5 — Attachments (photos, PDFs)
+  attachmentUrl  String?   // S3 URL for attachment
+  attachmentType String?   // "image", "pdf", "document"
+
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id])
 
