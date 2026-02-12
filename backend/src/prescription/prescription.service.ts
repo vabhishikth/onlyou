@@ -1117,6 +1117,370 @@ export class PrescriptionService {
     // Default: standard orlistat
     return 'STANDARD_ORLISTAT';
   }
+
+  // ============================================
+  // PCOS PRESCRIPTION METHODS
+  // Spec: PCOS spec Section 6 (Prescription Templates)
+  // ============================================
+
+  /**
+   * Get PCOS templates for NOT trying to conceive
+   */
+  getPCOSTemplatesNotTrying(): Record<string, PCOSTemplateDefinition> {
+    return PCOS_TEMPLATES_NOT_TRYING;
+  }
+
+  /**
+   * Get PCOS templates for trying to conceive
+   */
+  getPCOSTemplatesTrying(): Record<string, PCOSTemplateDefinition> {
+    return PCOS_TEMPLATES_TRYING;
+  }
+
+  /**
+   * Get PCOS canned messages
+   */
+  getPCOSCannedMessages(): PCOSCannedMessage[] {
+    return PCOS_CANNED_MESSAGES;
+  }
+
+  /**
+   * Check combined OCP contraindications for PCOS
+   * Spec: PCOS spec Section 5 — Combined OCP contraindicated for blood clots, migraine with aura, etc.
+   */
+  checkPCOSCombinedOCPContraindications(
+    responses: Record<string, any>,
+  ): ContraindicationCheckResult {
+    const concerns: string[] = [];
+    const conditions = responses.Q22 || [];
+
+    // ABSOLUTE BLOCK: Pregnancy
+    if (responses.Q21 === 'Yes, pregnant') {
+      concerns.push('Pregnancy');
+      return {
+        safe: false,
+        action: 'ABSOLUTE_BLOCK',
+        concerns,
+      };
+    }
+
+    // ABSOLUTE BLOCK: Blood clot history
+    if (Array.isArray(conditions) && conditions.includes('Blood clot history (DVT/PE)')) {
+      concerns.push('Blood clot history');
+      return {
+        safe: false,
+        action: 'ABSOLUTE_BLOCK',
+        concerns,
+      };
+    }
+
+    // ABSOLUTE BLOCK: Migraine with aura
+    if (Array.isArray(conditions) && conditions.includes('Migraine with aura')) {
+      concerns.push('Migraine with aura');
+      return {
+        safe: false,
+        action: 'ABSOLUTE_BLOCK',
+        concerns,
+      };
+    }
+
+    // BLOCK: Liver disease
+    if (Array.isArray(conditions) && conditions.includes('Liver disease')) {
+      concerns.push('Liver disease');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    // BLOCK: Smoker >35
+    const age = responses.Q2;
+    if (
+      typeof age === 'number' &&
+      age > 35 &&
+      Array.isArray(conditions) &&
+      conditions.includes('Smoker')
+    ) {
+      concerns.push('Smoker over 35');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    // BLOCK: Breastfeeding
+    if (responses.Q21 === 'Yes, breastfeeding') {
+      concerns.push('Breastfeeding');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check spironolactone contraindications for PCOS
+   * Spec: PCOS spec Section 5 — Spironolactone is TERATOGENIC
+   */
+  checkPCOSSpironolactoneContraindications(
+    responses: Record<string, any>,
+  ): ContraindicationCheckResult {
+    const concerns: string[] = [];
+    const conditions = responses.Q22 || [];
+
+    // ABSOLUTE BLOCK: Pregnancy (teratogenic)
+    if (responses.Q21 === 'Yes, pregnant') {
+      concerns.push('Pregnancy — teratogenic');
+      return {
+        safe: false,
+        action: 'ABSOLUTE_BLOCK',
+        concerns,
+      };
+    }
+
+    // ABSOLUTE BLOCK: Trying to conceive
+    if (responses.Q19 === 'Yes') {
+      concerns.push('Trying to conceive — teratogenic, requires reliable contraception');
+      return {
+        safe: false,
+        action: 'ABSOLUTE_BLOCK',
+        concerns,
+      };
+    }
+
+    // BLOCK: Renal impairment
+    if (Array.isArray(conditions) && conditions.includes('Kidney disease')) {
+      concerns.push('Kidney disease — renal impairment');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check metformin contraindications for PCOS
+   * Spec: PCOS spec Section 5 — Metformin contraindications
+   */
+  checkPCOSMetforminContraindications(
+    responses: Record<string, any>,
+  ): ContraindicationCheckResult {
+    const concerns: string[] = [];
+    const conditions = responses.Q22 || [];
+
+    // BLOCK: Severe kidney disease
+    if (Array.isArray(conditions) && conditions.includes('Kidney disease')) {
+      concerns.push('Kidney disease');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    // BLOCK: Severe liver disease
+    if (Array.isArray(conditions) && conditions.includes('Liver disease')) {
+      concerns.push('Liver disease');
+      return {
+        safe: false,
+        action: 'BLOCK',
+        concerns,
+      };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check PCOS referral needs
+   * Spec: PCOS spec Section 8 — Referral Edge Cases
+   */
+  checkPCOSReferral(profile: {
+    rotterdamCriteriaMet: number;
+    fertilityIntent: 'trying' | 'planning_soon' | 'not_planning' | 'unsure';
+    tryingDuration?: string;
+    conditions: string[];
+    needsUltrasound?: boolean;
+    rapidVirilization?: boolean;
+    wantsBC?: boolean;
+    severeCysticAcne?: boolean;
+    endometriosisSuspected?: boolean;
+    amenorrheaMonths?: number;
+  }): PCOSReferralResult {
+    // Ultrasound needed
+    if (profile.needsUltrasound) {
+      return {
+        referralNeeded: true,
+        referralType: 'ultrasound',
+        message: 'To confirm diagnosis, we recommend a pelvic ultrasound.',
+        urgency: 'routine',
+      };
+    }
+
+    // URGENT: Rapid virilization
+    if (profile.rapidVirilization) {
+      return {
+        referralNeeded: true,
+        referralType: 'urgent_endocrinology',
+        specialties: ['ENDOCRINOLOGY'],
+        message: 'Symptoms need urgent in-person evaluation to rule out androgen-secreting tumor.',
+        urgency: 'urgent',
+      };
+    }
+
+    // Fertility specialist for trying >12 months
+    if (
+      profile.fertilityIntent === 'trying' &&
+      (profile.tryingDuration === '1-2 years' || profile.tryingDuration === '2+ years')
+    ) {
+      return {
+        referralNeeded: true,
+        referralType: 'fertility_specialist',
+        specialties: ['REPRODUCTIVE_MEDICINE'],
+        message: 'A fertility specialist can offer monitored treatments.',
+        urgency: 'high',
+      };
+    }
+
+    // Blood clot history + wants BC
+    if (
+      profile.wantsBC &&
+      profile.conditions.some((c) => c.includes('Blood clot'))
+    ) {
+      return {
+        referralNeeded: false,
+        alternativeSuggested: 'PROGESTIN_ONLY',
+        message: "Combined BC isn't safe. Here are alternative progestin-only options.",
+      };
+    }
+
+    // Severe cystic acne
+    if (profile.severeCysticAcne) {
+      return {
+        referralNeeded: true,
+        referralType: 'dermatology',
+        specialties: ['DERMATOLOGY'],
+        message: 'May need isotretinoin (requires in-person dermatology consultation).',
+        urgency: 'routine',
+      };
+    }
+
+    // Eating disorder
+    if (profile.conditions.some((c) => c.includes('Eating disorder'))) {
+      return {
+        referralNeeded: true,
+        referralType: 'mental_health_counseling',
+        specialties: ['PSYCHIATRY', 'COUNSELING'],
+        message: "Let's connect you with a counselor alongside PCOS care.",
+        urgency: 'high',
+      };
+    }
+
+    // Endometriosis suspected
+    if (profile.endometriosisSuspected) {
+      return {
+        referralNeeded: true,
+        referralType: 'gynecology_in_person',
+        specialties: ['GYNECOLOGY'],
+        message: 'Additional condition needs in-person evaluation.',
+        urgency: 'routine',
+      };
+    }
+
+    // Amenorrhea >6 months
+    if (profile.amenorrheaMonths && profile.amenorrheaMonths >= 6) {
+      return {
+        referralNeeded: false,
+        bloodWorkRequired: true,
+        endometrialProtectionNeeded: true,
+        message: 'Long gaps can affect uterine health. Blood work ordered and endometrial protection discussed.',
+      };
+    }
+
+    // No referral needed for standard PCOS
+    return { referralNeeded: false };
+  }
+
+  /**
+   * Suggest PCOS template based on patient profile
+   * Spec: PCOS spec Section 6 — Template selection logic
+   */
+  suggestPCOSTemplate(profile: {
+    fertilityIntent: 'trying' | 'planning_soon' | 'not_planning' | 'unsure';
+    primaryConcern: 'irregular_periods' | 'fertility' | 'acne_hirsutism' | 'weight' | 'multiple';
+    insulinResistance: boolean;
+    bmi: number;
+    bcContraindicated?: boolean;
+    prefersMinimalMedication?: boolean;
+    tryingDuration?: string;
+  }): string {
+    // TRYING TO CONCEIVE
+    if (profile.fertilityIntent === 'trying') {
+      // Refer if trying >12 months
+      if (
+        profile.tryingDuration === '1-2 years' ||
+        profile.tryingDuration === '2+ years'
+      ) {
+        return 'REFER_FERTILITY_SPECIALIST';
+      }
+
+      // Metformin first if insulin resistant
+      if (profile.insulinResistance) {
+        return 'FERTILITY_METFORMIN';
+      }
+
+      // Lifestyle first if overweight and just started trying
+      if (profile.bmi >= 28 && profile.tryingDuration === '<6 months') {
+        return 'FERTILITY_LIFESTYLE_FIRST';
+      }
+
+      // Ovulation induction
+      return 'OVULATION_INDUCTION';
+    }
+
+    // NOT TRYING TO CONCEIVE
+    // BC contraindicated
+    if (profile.bcContraindicated) {
+      return 'PROGESTIN_ONLY';
+    }
+
+    // Prefers minimal medication
+    if (profile.prefersMinimalMedication) {
+      return 'NATURAL_SUPPLEMENT';
+    }
+
+    // Multiple symptoms with metabolic features
+    if (profile.primaryConcern === 'multiple' && profile.insulinResistance) {
+      return 'COMPREHENSIVE';
+    }
+
+    // Insulin focused (weight concern or IR)
+    if (profile.insulinResistance || profile.primaryConcern === 'weight') {
+      return 'INSULIN_FOCUSED';
+    }
+
+    // Anti-androgen for acne/hirsutism
+    if (profile.primaryConcern === 'acne_hirsutism') {
+      return 'ANTI_ANDROGEN';
+    }
+
+    // Lean PCOS - normal BMI (WHO Asian: <23) without insulin resistance
+    // BMI <23 is truly lean for Asian population
+    if (profile.bmi < 23 && !profile.insulinResistance) {
+      return 'LEAN_PCOS';
+    }
+
+    // Default: Cycle regulation (for BMI 23-27 normal range)
+    return 'CYCLE_REGULATION';
+  }
 }
 
 // ============================================
@@ -1496,3 +1860,312 @@ export interface WeightReferralResult {
   message?: string;
   action?: string;
 }
+
+// ============================================
+// PCOS TEMPLATES AND TYPES
+// Spec: PCOS spec Section 6 (Prescription Templates)
+// ============================================
+
+// PCOS template definition
+export interface PCOSTemplateDefinition {
+  name: string;
+  description: string;
+  indication: string;
+  medications: Medication[];
+  monitoringRequired?: string[];
+}
+
+// PCOS canned message
+export interface PCOSCannedMessage {
+  id: string;
+  name: string;
+  template: string;
+  category: string;
+}
+
+// PCOS referral result
+export interface PCOSReferralResult {
+  referralNeeded: boolean;
+  referralType?: string;
+  specialties?: string[];
+  message?: string;
+  urgency?: 'routine' | 'high' | 'urgent';
+  alternativeSuggested?: string;
+  bloodWorkRequired?: boolean;
+  endometrialProtectionNeeded?: boolean;
+}
+
+// Spec: PCOS spec Section 6 — 7 templates for NOT trying to conceive
+export const PCOS_TEMPLATES_NOT_TRYING: Record<string, PCOSTemplateDefinition> = {
+  CYCLE_REGULATION: {
+    name: 'Cycle Regulation',
+    description: 'Combined OCP for irregular periods',
+    indication: 'Irregular periods, no BC contraindications',
+    medications: [
+      {
+        name: 'Combined OCP (Drospirenone/EE)',
+        dosage: '3mg/30mcg',
+        frequency: 'Once daily for 21 days, 7 day break',
+        instructions: 'Start on day 1 of period or anytime with backup contraception for 7 days',
+      },
+    ],
+    monitoringRequired: ['Blood pressure at 3 months'],
+  },
+  ANTI_ANDROGEN: {
+    name: 'Anti-Androgen',
+    description: 'Spironolactone for acne/hirsutism',
+    indication: 'Acne/hirsutism primary concern, reliable contraception in place',
+    medications: [
+      {
+        name: 'Spironolactone',
+        dosage: '50mg',
+        frequency: 'Once daily, may increase to 100mg after 2 months',
+        instructions: 'Take with food. MUST use reliable contraception — teratogenic',
+      },
+      {
+        name: 'Combined OCP (Drospirenone/EE)',
+        dosage: '3mg/30mcg',
+        frequency: 'Once daily for 21 days, 7 day break',
+        instructions: 'Provides contraception and additional anti-androgen effect',
+      },
+    ],
+    monitoringRequired: ['Potassium at 1 month and 3 months', 'Blood pressure'],
+  },
+  INSULIN_FOCUSED: {
+    name: 'Insulin Focused',
+    description: 'Metformin for insulin resistance',
+    indication: 'Insulin resistance, weight gain, acanthosis nigricans',
+    medications: [
+      {
+        name: 'Metformin',
+        dosage: '500mg',
+        frequency: 'Once daily with dinner, titrate to 1500-2000mg over 4-6 weeks',
+        instructions: 'Take with food to reduce GI upset. Start low, go slow.',
+      },
+    ],
+    monitoringRequired: ['Fasting glucose at 3 months', 'B12 annually'],
+  },
+  COMPREHENSIVE: {
+    name: 'Comprehensive',
+    description: 'Combined OCP + Spironolactone + Metformin',
+    indication: 'Multiple symptoms, metabolic PCOS with acne/hirsutism',
+    medications: [
+      {
+        name: 'Combined OCP (Drospirenone/EE)',
+        dosage: '3mg/30mcg',
+        frequency: 'Once daily for 21 days, 7 day break',
+        instructions: 'Cycle regulation + anti-androgen + contraception',
+      },
+      {
+        name: 'Spironolactone',
+        dosage: '50-100mg',
+        frequency: 'Once daily',
+        instructions: 'Anti-androgen for acne/hirsutism. OCP provides required contraception.',
+      },
+      {
+        name: 'Metformin',
+        dosage: '500-1000mg',
+        frequency: 'Once or twice daily with meals',
+        instructions: 'For insulin resistance and weight management',
+      },
+    ],
+    monitoringRequired: ['Potassium at 1 and 3 months', 'Fasting glucose', 'Blood pressure'],
+  },
+  LEAN_PCOS: {
+    name: 'Lean PCOS',
+    description: 'Combined OCP + lifestyle for normal BMI patients',
+    indication: 'Normal BMI (<25), cycle/androgen issues without insulin resistance',
+    medications: [
+      {
+        name: 'Combined OCP (Drospirenone/EE)',
+        dosage: '3mg/30mcg',
+        frequency: 'Once daily for 21 days, 7 day break',
+        instructions: 'Cycle regulation + anti-androgen effect from drospirenone',
+      },
+    ],
+    monitoringRequired: ['Blood pressure at 3 months'],
+  },
+  NATURAL_SUPPLEMENT: {
+    name: 'Natural/Supplement',
+    description: 'Supplements for patients preferring minimal medication',
+    indication: 'Prefers minimal medication, mild symptoms',
+    medications: [
+      {
+        name: 'Myo-Inositol',
+        dosage: '2g',
+        frequency: 'Twice daily (4g total)',
+        instructions: 'Mix powder in water, take before meals',
+      },
+      {
+        name: 'Vitamin D',
+        dosage: '60,000 IU',
+        frequency: 'Once weekly',
+        instructions: 'Take with fatty meal for absorption',
+      },
+      {
+        name: 'Omega-3 Fish Oil',
+        dosage: '1000mg',
+        frequency: 'Once daily',
+        instructions: 'Take with food',
+      },
+    ],
+    monitoringRequired: ['Vitamin D levels at 3 months'],
+  },
+  PROGESTIN_ONLY: {
+    name: 'Progestin Only',
+    description: 'Cyclical progesterone for BC contraindication cases',
+    indication: 'Combined BC contraindication (blood clots, migraine with aura, etc.)',
+    medications: [
+      {
+        name: 'Medroxyprogesterone',
+        dosage: '10mg',
+        frequency: 'Days 1-14 of each month',
+        instructions: 'Induces withdrawal bleed to protect endometrium',
+      },
+    ],
+    monitoringRequired: ['Annual pelvic ultrasound if amenorrheic'],
+  },
+};
+
+// Spec: PCOS spec Section 6 — 4 templates for trying to conceive
+export const PCOS_TEMPLATES_TRYING: Record<string, PCOSTemplateDefinition> = {
+  FERTILITY_LIFESTYLE_FIRST: {
+    name: 'Lifestyle First',
+    description: 'Weight loss + supplements for fertility prep',
+    indication: 'Mild PCOS, recently started trying, overweight',
+    medications: [
+      {
+        name: 'Myo-Inositol',
+        dosage: '2g',
+        frequency: 'Twice daily',
+        instructions: 'Improves ovulation and egg quality',
+      },
+      {
+        name: 'Folic Acid',
+        dosage: '5mg',
+        frequency: 'Once daily',
+        instructions: 'Essential for neural tube development',
+      },
+      {
+        name: 'Vitamin D',
+        dosage: '60,000 IU',
+        frequency: 'Once weekly',
+        instructions: 'Supports fertility and pregnancy',
+      },
+    ],
+    monitoringRequired: ['BMI monthly', 'Ovulation tracking'],
+  },
+  OVULATION_INDUCTION: {
+    name: 'Ovulation Induction',
+    description: 'Letrozole for ovulation induction',
+    indication: 'First-line for PCOS infertility (preferred over clomiphene)',
+    medications: [
+      {
+        name: 'Letrozole',
+        dosage: '2.5mg',
+        frequency: 'Days 3-7 of cycle, may increase to 5mg',
+        instructions: 'Start on day 3 of period. Monitor with ultrasound if available.',
+      },
+      {
+        name: 'Folic Acid',
+        dosage: '5mg',
+        frequency: 'Once daily',
+        instructions: 'Continue throughout treatment and pregnancy',
+      },
+    ],
+    monitoringRequired: ['Ultrasound monitoring recommended', 'Ovulation tracking'],
+  },
+  FERTILITY_METFORMIN: {
+    name: 'Metformin + Lifestyle',
+    description: 'Metformin prep for conception (3-6 months)',
+    indication: 'Insulin resistant, preparing for conception',
+    medications: [
+      {
+        name: 'Metformin',
+        dosage: '500mg',
+        frequency: 'Once daily, titrate to 1500mg',
+        instructions: 'Safe to continue into early pregnancy. Improves ovulation.',
+      },
+      {
+        name: 'Folic Acid',
+        dosage: '5mg',
+        frequency: 'Once daily',
+        instructions: 'Essential preconception supplement',
+      },
+      {
+        name: 'Myo-Inositol',
+        dosage: '2g',
+        frequency: 'Twice daily',
+        instructions: 'Complementary to metformin for insulin sensitivity',
+      },
+    ],
+    monitoringRequired: ['Fasting glucose', 'Ovulation tracking'],
+  },
+  REFER_FERTILITY_SPECIALIST: {
+    name: 'Refer to Fertility Specialist',
+    description: 'Referral for complex fertility cases',
+    indication: 'Trying >12 months, complex cases, needs specialist monitoring',
+    medications: [
+      {
+        name: 'Folic Acid',
+        dosage: '5mg',
+        frequency: 'Once daily',
+        instructions: 'Continue while waiting for specialist appointment',
+      },
+    ],
+    monitoringRequired: ['Specialist appointment within 2-4 weeks'],
+  },
+};
+
+// Spec: PCOS spec Section 7 — 6+ canned messages
+export const PCOS_CANNED_MESSAGES: PCOSCannedMessage[] = [
+  {
+    id: 'pcos_cycle_regulation_started',
+    name: 'Cycle Regulation Started',
+    template:
+      "I've started you on a combined birth control pill (OCP). This will regulate your periods and help with androgen-related symptoms. Expect some breakthrough bleeding in the first 1-2 months. Take at the same time daily.",
+    category: 'medication',
+  },
+  {
+    id: 'pcos_spironolactone_started',
+    name: 'Spironolactone Started',
+    template:
+      "I've prescribed Spironolactone for your acne/excess hair. IMPORTANT: You MUST use reliable contraception as this medication can cause birth defects. We'll check potassium levels at 1 and 3 months. Expect results in 3-6 months.",
+    category: 'medication',
+  },
+  {
+    id: 'pcos_metformin_started',
+    name: 'Metformin Started',
+    template:
+      "I've started you on Metformin for insulin resistance. Start with 500mg daily with dinner. GI side effects (nausea, diarrhea) are common initially but usually improve. We'll increase the dose gradually over 4-6 weeks.",
+    category: 'medication',
+  },
+  {
+    id: 'pcos_fertility_consult_needed',
+    name: 'Fertility Consultation',
+    template:
+      "Since you've been trying to conceive for over 12 months, I recommend seeing a fertility specialist. They can offer monitored ovulation induction and additional interventions. I'll continue supporting your PCOS management alongside.",
+    category: 'referral',
+  },
+  {
+    id: 'pcos_blood_work_ordered',
+    name: 'Blood Work Ordered',
+    template:
+      "I've ordered a PCOS diagnostic panel: testosterone, DHEA-S, LH, FSH, TSH, fasting glucose, and HbA1c. This will help confirm diagnosis and guide treatment. Please complete fasting (8+ hours) for accurate results.",
+    category: 'lab',
+  },
+  {
+    id: 'pcos_progress_check',
+    name: 'Progress Check',
+    template:
+      "How are you doing with your treatment? I'd like to check: 1) Period regularity 2) Any side effects 3) Changes in acne/hair 4) Weight changes. Let me know and we can adjust as needed.",
+    category: 'followup',
+  },
+  {
+    id: 'pcos_lifestyle_guidance',
+    name: 'Lifestyle Guidance',
+    template:
+      "For PCOS, lifestyle is as important as medication. Focus on: low-glycemic foods, 150+ minutes exercise weekly, stress management, and adequate sleep. Even 5-10% weight loss can restore ovulation and improve symptoms.",
+    category: 'lifestyle',
+  },
+];

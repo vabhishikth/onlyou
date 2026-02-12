@@ -1564,4 +1564,339 @@ describe('AIService', () => {
       expect(level).toBe('high');
     });
   });
+
+  // ============================================
+  // PCOS-SPECIFIC TESTS
+  // Spec: PCOS spec Section 5 (AI Pre-Assessment)
+  // ============================================
+  describe('PCOS Classification Categories', () => {
+    // Spec: PCOS spec Section 5 — 8 classification categories
+    const expectedPCOSCategories = [
+      'pcos_classic',
+      'pcos_lean',
+      'pcos_metabolic',
+      'pcos_fertility_focused',
+      'thyroid_suspected',
+      'not_pcos_suspected',
+      'endometriosis_possible',
+      'needs_blood_work',
+    ];
+
+    it('should have exactly 8 classification categories for PCOS', () => {
+      const categories = service.getPCOSClassificationCategories();
+      expect(categories.length).toBe(8);
+    });
+
+    it.each(expectedPCOSCategories)('should include %s classification', (category) => {
+      const categories = service.getPCOSClassificationCategories();
+      expect(categories).toContain(category);
+    });
+  });
+
+  describe('PCOS Red Flags Detection', () => {
+    // Spec: PCOS spec Section 5 — Red Flags
+    it('should detect pregnant requesting PCOS meds as red flag', () => {
+      const responses = { Q21: 'Yes, pregnant' };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Pregnant — most PCOS medications contraindicated');
+    });
+
+    it('should detect blood clot history + BC request as red flag', () => {
+      const responses = { Q22: ['Blood clot history (DVT/PE)'] };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Blood clot history — combined BC contraindicated');
+    });
+
+    it('should detect migraine with aura + BC request as red flag', () => {
+      const responses = { Q22: ['Migraine with aura'] };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Migraine with aura — combined BC contraindicated');
+    });
+
+    it('should detect trying to conceive as high priority flag', () => {
+      const responses = { Q19: 'Yes' };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Trying to conceive — different treatment pathway required');
+    });
+
+    it('should detect rapid virilization as URGENT flag', () => {
+      const responses = { Q3: ['Deep voice changes', 'Significant muscle mass'] };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags.some(f => f.includes('URGENT'))).toBe(true);
+    });
+
+    it('should detect amenorrhea >6 months as flag', () => {
+      const responses = { Q5: 'Absent (3+ months, not pregnant)', Q4: '3+ months ago' };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Amenorrhea >6 months — endometrial protection needed');
+    });
+
+    it('should detect eating disorder as flag', () => {
+      const responses = { Q22: ['Eating disorder'] };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags).toContain('Eating disorder — careful approach needed');
+    });
+
+    it('should return empty array for healthy profile', () => {
+      const responses = {
+        Q19: 'No',
+        Q21: 'No',
+        Q22: ['None'],
+        Q5: 'Somewhat irregular (varies by a week+)',
+      };
+      const flags = service.detectPCOSRedFlags(responses);
+      expect(flags.length).toBe(0);
+    });
+  });
+
+  describe('PCOS Rotterdam Criteria Assessment', () => {
+    it('should detect oligo/anovulation from irregular periods', () => {
+      const responses = { Q5: 'Very irregular (sometimes skip months)' };
+      const result = service.assessRotterdamCriteria(responses);
+      expect(result.oligoAnovulation).toBe(true);
+    });
+
+    it('should detect hyperandrogenism from hirsutism', () => {
+      const responses = { Q10: ['Upper lip/chin', 'Chest'], Q11: 'Moderate' };
+      const result = service.assessRotterdamCriteria(responses);
+      expect(result.hyperandrogenismClinical).toBe(true);
+    });
+
+    it('should detect hyperandrogenism from cystic acne', () => {
+      const responses = { Q12: 'Severe (deep/cystic)' };
+      const result = service.assessRotterdamCriteria(responses);
+      expect(result.hyperandrogenismClinical).toBe(true);
+    });
+
+    it('should return 2 criteria met for classic PCOS', () => {
+      const responses = {
+        Q5: 'Very irregular (sometimes skip months)',
+        Q10: ['Upper lip/chin'],
+        Q11: 'Moderate',
+      };
+      const result = service.assessRotterdamCriteria(responses);
+      expect(result.criteriaMet).toBe(2);
+    });
+
+    it('should indicate polycystic ovaries as unknown', () => {
+      const responses = {};
+      const result = service.assessRotterdamCriteria(responses);
+      expect(result.polycysticOvaries).toBe('unknown');
+    });
+  });
+
+  describe('PCOS Contraindication Matrix', () => {
+    it('should BLOCK combined OCP for blood clot history', () => {
+      const responses = { Q22: ['Blood clot history (DVT/PE)'] };
+      const result = service.checkPCOSOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK combined OCP for migraine with aura', () => {
+      const responses = { Q22: ['Migraine with aura'] };
+      const result = service.checkPCOSOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK combined OCP for liver disease', () => {
+      const responses = { Q22: ['Liver disease'] };
+      const result = service.checkPCOSOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK combined OCP for pregnancy', () => {
+      const responses = { Q21: 'Yes, pregnant' };
+      const result = service.checkPCOSOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should return safe for combined OCP with no contraindications', () => {
+      const responses = { Q21: 'No', Q22: ['None'] };
+      const result = service.checkPCOSOCPContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+
+    it('should ABSOLUTE BLOCK spironolactone for pregnancy', () => {
+      const responses = { Q21: 'Yes, pregnant' };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.concerns).toContain('Pregnancy — teratogenic');
+    });
+
+    it('should ABSOLUTE BLOCK spironolactone for trying to conceive', () => {
+      const responses = { Q19: 'Yes', Q21: 'No' };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should return safe for spironolactone with reliable contraception', () => {
+      const responses = { Q19: 'No', Q21: 'No', Q23: ['Birth control'] };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('PCOS Phenotype Determination', () => {
+    it('should determine classic phenotype', () => {
+      const params = {
+        oligoAnovulation: true,
+        hyperandrogenism: true,
+        bmi: 28,
+        insulinResistance: false,
+        tryingToConceive: false,
+      };
+      const phenotype = service.determinePCOSPhenotype(params);
+      expect(phenotype).toBe('classic');
+    });
+
+    it('should determine lean phenotype for normal BMI', () => {
+      const params = {
+        oligoAnovulation: true,
+        hyperandrogenism: true,
+        bmi: 22,
+        insulinResistance: false,
+        tryingToConceive: false,
+      };
+      const phenotype = service.determinePCOSPhenotype(params);
+      expect(phenotype).toBe('lean');
+    });
+
+    it('should determine metabolic phenotype for overweight with IR', () => {
+      const params = {
+        oligoAnovulation: true,
+        hyperandrogenism: true,
+        bmi: 32,
+        insulinResistance: true,
+        tryingToConceive: false,
+      };
+      const phenotype = service.determinePCOSPhenotype(params);
+      expect(phenotype).toBe('metabolic');
+    });
+
+    it('should prioritize fertility_focused when trying to conceive', () => {
+      const params = {
+        oligoAnovulation: true,
+        hyperandrogenism: true,
+        bmi: 28,
+        insulinResistance: false,
+        tryingToConceive: true,
+      };
+      const phenotype = service.determinePCOSPhenotype(params);
+      expect(phenotype).toBe('fertility_focused');
+    });
+  });
+
+  describe('PCOS AI Prompt Building', () => {
+    it('should include PCOS classification categories in prompt', () => {
+      const responses = { Q2: 28, Q5: 'Very irregular' };
+      const prompt = service.buildPCOSPrompt(responses);
+      expect(prompt).toContain('pcos_classic');
+      expect(prompt).toContain('pcos_lean');
+      expect(prompt).toContain('pcos_fertility_focused');
+    });
+
+    it('should include Rotterdam criteria in prompt', () => {
+      const responses = { Q2: 28, Q5: 'Very irregular', Q10: ['Upper lip/chin'], Q11: 'Moderate' };
+      const prompt = service.buildPCOSPrompt(responses);
+      expect(prompt).toContain('Rotterdam');
+      expect(prompt).toContain('oligo');
+      expect(prompt).toContain('hyperandrogenism');
+    });
+
+    it('should include fertility intent prominently', () => {
+      const responses = { Q2: 28, Q19: 'Yes' };
+      const prompt = service.buildPCOSPrompt(responses);
+      expect(prompt).toContain('fertility');
+      expect(prompt).toContain('trying');
+    });
+
+    it('should request JSON response format with PCOS-specific fields', () => {
+      const responses = { Q2: 28 };
+      const prompt = service.buildPCOSPrompt(responses);
+      expect(prompt).toContain('JSON');
+      expect(prompt).toContain('rotterdam_criteria_met');
+      expect(prompt).toContain('fertility_intent');
+      expect(prompt).toContain('pcos_phenotype');
+    });
+  });
+
+  describe('PCOS Attention Level Calculation', () => {
+    it('should return CRITICAL for pregnant', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_classic' },
+        pregnant: true,
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('critical');
+    });
+
+    it('should return HIGH for fertility_focused', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_fertility_focused' },
+        fertility_intent: 'trying',
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for thyroid_suspected', () => {
+      const assessment = {
+        classification: { likely_condition: 'thyroid_suspected' },
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for endometriosis_possible', () => {
+      const assessment = {
+        classification: { likely_condition: 'endometriosis_possible' },
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return MEDIUM for pcos_metabolic', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_metabolic' },
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return MEDIUM for needs_blood_work', () => {
+      const assessment = {
+        classification: { likely_condition: 'needs_blood_work' },
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return LOW for pcos_classic', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_classic' },
+        pregnant: false,
+        fertility_intent: 'not_planning',
+        red_flags: [],
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('low');
+    });
+
+    it('should return LOW for pcos_lean', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_lean' },
+        pregnant: false,
+        fertility_intent: 'not_planning',
+        red_flags: [],
+      };
+      const level = service.calculatePCOSAttentionLevel(assessment);
+      expect(level).toBe('low');
+    });
+  });
 });

@@ -70,6 +70,29 @@ export const WEIGHT_CLASSIFICATIONS: WeightClassificationCategory[] = [
   'underweight_concern',
 ];
 
+// Classification categories for PCOS (8 total)
+// Spec: PCOS spec Section 5 — Classification Categories
+export type PCOSClassificationCategory =
+  | 'pcos_classic'
+  | 'pcos_lean'
+  | 'pcos_metabolic'
+  | 'pcos_fertility_focused'
+  | 'thyroid_suspected'
+  | 'not_pcos_suspected'
+  | 'endometriosis_possible'
+  | 'needs_blood_work';
+
+export const PCOS_CLASSIFICATIONS: PCOSClassificationCategory[] = [
+  'pcos_classic',
+  'pcos_lean',
+  'pcos_metabolic',
+  'pcos_fertility_focused',
+  'thyroid_suspected',
+  'not_pcos_suspected',
+  'endometriosis_possible',
+  'needs_blood_work',
+];
+
 export const HAIR_LOSS_CLASSIFICATIONS: ClassificationCategory[] = [
   'androgenetic_alopecia',
   'telogen_effluvium_suspected',
@@ -1570,6 +1593,322 @@ Respond ONLY with valid JSON matching this schema:
     }
 
     // LOW: Lifestyle obesity with low metabolic risk
+    return 'low';
+  }
+
+  // ============================================
+  // PCOS-SPECIFIC METHODS
+  // Spec: PCOS spec Section 5 (AI Pre-Assessment)
+  // ============================================
+
+  /**
+   * Get PCOS classification categories
+   * Spec: PCOS spec Section 5 — 8 classification categories
+   */
+  getPCOSClassificationCategories(): PCOSClassificationCategory[] {
+    return PCOS_CLASSIFICATIONS;
+  }
+
+  /**
+   * Detect PCOS-specific red flags
+   * Spec: PCOS spec Section 5 — Red Flags
+   */
+  detectPCOSRedFlags(responses: Record<string, any>): string[] {
+    const flags: string[] = [];
+
+    // Pregnant — most PCOS medications contraindicated
+    if (responses.Q21 === 'Yes, pregnant') {
+      flags.push('Pregnant — most PCOS medications contraindicated');
+    }
+
+    // Blood clot history + BC request
+    const contraindications = responses.Q22 || [];
+    if (
+      Array.isArray(contraindications) &&
+      contraindications.includes('Blood clot history (DVT/PE)')
+    ) {
+      flags.push('Blood clot history — combined BC contraindicated');
+    }
+
+    // Migraine with aura + BC request
+    if (Array.isArray(contraindications) && contraindications.includes('Migraine with aura')) {
+      flags.push('Migraine with aura — combined BC contraindicated');
+    }
+
+    // Trying to conceive — different treatment pathway
+    if (responses.Q19 === 'Yes') {
+      flags.push('Trying to conceive — different treatment pathway required');
+    }
+
+    // Rapid virilization (URGENT — rule out androgen-secreting tumor)
+    const concerns = responses.Q3 || [];
+    if (
+      Array.isArray(concerns) &&
+      (concerns.includes('Deep voice changes') || concerns.includes('Significant muscle mass'))
+    ) {
+      flags.push('Rapid virilization (URGENT — rule out androgen-secreting tumor)');
+    }
+
+    // Amenorrhea >6 months
+    if (
+      responses.Q5 === 'Absent (3+ months, not pregnant)' &&
+      responses.Q4 === '3+ months ago'
+    ) {
+      flags.push('Amenorrhea >6 months — endometrial protection needed');
+    }
+
+    // Eating disorder
+    if (Array.isArray(contraindications) && contraindications.includes('Eating disorder')) {
+      flags.push('Eating disorder — careful approach needed');
+    }
+
+    return flags;
+  }
+
+  /**
+   * Assess Rotterdam criteria from questionnaire responses
+   * Spec: PCOS spec Section 5 — Rotterdam criteria (2 of 3)
+   */
+  assessRotterdamCriteria(responses: Record<string, any>): {
+    oligoAnovulation: boolean;
+    hyperandrogenismClinical: boolean;
+    polycysticOvaries: 'unknown' | 'confirmed' | 'absent';
+    criteriaMet: number;
+  } {
+    // Oligo/anovulation: irregular or absent periods
+    const irregularPeriods = [
+      'Very irregular (sometimes skip months)',
+      'Absent (3+ months, not pregnant)',
+      'Irregular (vary a lot)',
+    ];
+    const oligoAnovulation =
+      responses.Q5 && irregularPeriods.some((p) => responses.Q5.includes(p.split(' ')[0]));
+
+    // Hyperandrogenism clinical: hirsutism (Q10 + Q11 moderate+) or severe acne (Q12)
+    const hirsutismAreas = responses.Q10 || [];
+    const hirsutismSeverity = responses.Q11;
+    const acneSeverity = responses.Q12;
+
+    const hasHirsutism =
+      Array.isArray(hirsutismAreas) &&
+      hirsutismAreas.length > 0 &&
+      ['Moderate', 'Severe'].includes(hirsutismSeverity);
+
+    const hasSevereAcne = acneSeverity === 'Severe (deep/cystic)';
+
+    const hyperandrogenismClinical = hasHirsutism || hasSevereAcne;
+
+    // Polycystic ovaries: requires ultrasound, unknown from questionnaire
+    const polycysticOvaries: 'unknown' | 'confirmed' | 'absent' = 'unknown';
+
+    // Count criteria met
+    let criteriaMet = 0;
+    if (oligoAnovulation) criteriaMet++;
+    if (hyperandrogenismClinical) criteriaMet++;
+    // polycysticOvaries would add to count if confirmed by ultrasound
+
+    return {
+      oligoAnovulation,
+      hyperandrogenismClinical,
+      polycysticOvaries,
+      criteriaMet,
+    };
+  }
+
+  /**
+   * Check combined OCP contraindications for PCOS
+   * Spec: PCOS spec Section 5 — OCP contraindication matrix
+   */
+  checkPCOSOCPContraindications(responses: Record<string, any>): ContraindicationResult {
+    const concerns: string[] = [];
+    const contraindications = responses.Q22 || [];
+
+    // ABSOLUTE BLOCK: Pregnancy
+    if (responses.Q21 === 'Yes, pregnant') {
+      concerns.push('Pregnancy');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // ABSOLUTE BLOCK: Blood clot history
+    if (
+      Array.isArray(contraindications) &&
+      contraindications.includes('Blood clot history (DVT/PE)')
+    ) {
+      concerns.push('Blood clot history');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // ABSOLUTE BLOCK: Migraine with aura
+    if (Array.isArray(contraindications) && contraindications.includes('Migraine with aura')) {
+      concerns.push('Migraine with aura');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // BLOCK: Liver disease
+    if (Array.isArray(contraindications) && contraindications.includes('Liver disease')) {
+      concerns.push('Liver disease');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check spironolactone contraindications for PCOS
+   * Spec: PCOS spec Section 5 — Spironolactone is TERATOGENIC
+   */
+  checkPCOSSpironolactoneContraindications(
+    responses: Record<string, any>
+  ): ContraindicationResult {
+    const concerns: string[] = [];
+
+    // ABSOLUTE BLOCK: Pregnancy (teratogenic)
+    if (responses.Q21 === 'Yes, pregnant') {
+      concerns.push('Pregnancy — teratogenic');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // ABSOLUTE BLOCK: Trying to conceive
+    if (responses.Q19 === 'Yes') {
+      concerns.push('Trying to conceive — teratogenic, requires reliable contraception');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Determine PCOS phenotype
+   * Spec: PCOS spec Section 5 — 4 phenotypes based on presentation
+   */
+  determinePCOSPhenotype(params: {
+    oligoAnovulation: boolean;
+    hyperandrogenism: boolean;
+    bmi: number;
+    insulinResistance: boolean;
+    tryingToConceive: boolean;
+  }): 'classic' | 'lean' | 'metabolic' | 'fertility_focused' {
+    // Fertility focused takes priority
+    if (params.tryingToConceive) {
+      return 'fertility_focused';
+    }
+
+    // Metabolic: overweight/obese with insulin resistance
+    if (params.bmi >= 25 && params.insulinResistance) {
+      return 'metabolic';
+    }
+
+    // Lean: normal BMI
+    if (params.bmi < 25) {
+      return 'lean';
+    }
+
+    // Classic: standard PCOS presentation
+    return 'classic';
+  }
+
+  /**
+   * Build PCOS AI prompt
+   * Spec: PCOS spec Section 5 — Fertility intent is CRITICAL
+   */
+  buildPCOSPrompt(responses: Record<string, any>): string {
+    const classifications = PCOS_CLASSIFICATIONS.join(', ');
+    const rotterdamResult = this.assessRotterdamCriteria(responses);
+
+    // Determine fertility intent
+    let fertilityIntent = 'not_planning';
+    if (responses.Q19 === 'Yes') fertilityIntent = 'trying';
+    else if (responses.Q19 === 'Planning in next 12 months') fertilityIntent = 'planning_soon';
+
+    const prompt = `You are a clinical pre-screening AI for a PCOS telehealth platform in India.
+You are NOT a doctor. You screen, classify, and flag. The doctor makes all decisions.
+
+CRITICAL: PCOS treatment depends heavily on fertility intent. Assess this FIRST.
+
+Given the patient's questionnaire:
+1. Classify PCOS type (${classifications})
+2. Assess Rotterdam criteria (need 2 of 3: oligo/anovulation, hyperandrogenism, polycystic ovaries)
+3. Determine fertility_intent (trying/planning_soon/not_planning/unsure)
+4. Determine pcos_phenotype (classic/lean/metabolic/fertility_focused)
+5. Detect red flags
+6. Check OCP and spironolactone contraindications
+7. Identify insulin_resistance_likely (true/false)
+8. Rate doctor_attention_level: low/medium/high/critical
+
+Rotterdam assessment from questionnaire:
+- Oligo/anovulation: ${rotterdamResult.oligoAnovulation}
+- Hyperandrogenism (clinical): ${rotterdamResult.hyperandrogenismClinical}
+- Polycystic ovaries: ${rotterdamResult.polycysticOvaries} (requires ultrasound)
+- Criteria currently met: ${rotterdamResult.criteriaMet}/3
+
+Fertility intent from questionnaire: ${fertilityIntent}
+
+Patient data:
+${JSON.stringify(responses, null, 2)}
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "classification": {
+    "likely_condition": string,
+    "confidence": "high" | "medium" | "low",
+    "alternative_considerations": string[]
+  },
+  "rotterdam_criteria_met": number,
+  "fertility_intent": "trying" | "planning_soon" | "not_planning" | "unsure",
+  "pcos_phenotype": "classic" | "lean" | "metabolic" | "fertility_focused",
+  "oligo_anovulation": boolean,
+  "hyperandrogenism_clinical": boolean,
+  "insulin_resistance_likely": boolean,
+  "thyroid_check_recommended": boolean,
+  "red_flags": string[],
+  "contraindications": {
+    "combined_ocp": { "safe": boolean, "concerns": string[] },
+    "spironolactone": { "safe": boolean, "concerns": string[] },
+    "metformin": { "safe": boolean, "concerns": string[] }
+  },
+  "risk_factors": string[],
+  "recommended_protocol": {
+    "primary": string,
+    "medications": [{ "name": string, "dose": string, "frequency": string }],
+    "additional": string[]
+  },
+  "doctor_attention_level": "low" | "medium" | "high" | "critical",
+  "summary": string
+}`;
+
+    return prompt;
+  }
+
+  /**
+   * Calculate PCOS attention level
+   * Spec: PCOS spec Section 5 — Fertility intent affects attention
+   */
+  calculatePCOSAttentionLevel(
+    assessment: Record<string, any>
+  ): 'low' | 'medium' | 'high' | 'critical' {
+    const condition = assessment.classification?.likely_condition;
+
+    // CRITICAL: Pregnant
+    if (assessment.pregnant === true) {
+      return 'critical';
+    }
+
+    // HIGH: Fertility focused, thyroid suspected, endometriosis possible
+    if (
+      condition === 'pcos_fertility_focused' ||
+      condition === 'thyroid_suspected' ||
+      condition === 'endometriosis_possible' ||
+      assessment.fertility_intent === 'trying'
+    ) {
+      return 'high';
+    }
+
+    // MEDIUM: Metabolic, needs blood work
+    if (condition === 'pcos_metabolic' || condition === 'needs_blood_work') {
+      return 'medium';
+    }
+
+    // LOW: Classic or lean PCOS with no red flags
     return 'low';
   }
 }

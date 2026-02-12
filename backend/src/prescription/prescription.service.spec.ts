@@ -1581,4 +1581,525 @@ describe('PrescriptionService', () => {
       expect(suggestion).toBe('LIFESTYLE_ONLY');
     });
   });
+
+  // ============================================
+  // PCOS PRESCRIPTION TESTS
+  // Spec: PCOS spec Section 6 (Prescription Templates)
+  // ============================================
+  describe('PCOS Templates - NOT Trying to Conceive', () => {
+    it('should have exactly 7 PCOS templates for not trying to conceive', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(Object.keys(templates).length).toBe(7);
+    });
+
+    it('should include CYCLE_REGULATION template', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.CYCLE_REGULATION).toBeDefined();
+      expect(templates.CYCLE_REGULATION.name.toLowerCase()).toContain('cycle');
+    });
+
+    it('CYCLE_REGULATION should include Combined OCP', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      const hasCombinedOCP = templates.CYCLE_REGULATION.medications.some(
+        (m) => m.name.toLowerCase().includes('ocp') || m.name.toLowerCase().includes('drospirenone'),
+      );
+      expect(hasCombinedOCP).toBe(true);
+    });
+
+    it('should include ANTI_ANDROGEN template', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.ANTI_ANDROGEN).toBeDefined();
+      expect(
+        templates.ANTI_ANDROGEN.medications.some((m) =>
+          m.name.toLowerCase().includes('spironolactone'),
+        ),
+      ).toBe(true);
+    });
+
+    it('ANTI_ANDROGEN spironolactone dosage should be 50-100mg', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      const spiro = templates.ANTI_ANDROGEN.medications.find((m) =>
+        m.name.toLowerCase().includes('spironolactone'),
+      );
+      expect(spiro).toBeDefined();
+      expect(spiro!.dosage).toMatch(/50|100/);
+    });
+
+    it('should include INSULIN_FOCUSED template', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.INSULIN_FOCUSED).toBeDefined();
+      expect(
+        templates.INSULIN_FOCUSED.medications.some((m) =>
+          m.name.toLowerCase().includes('metformin'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should include COMPREHENSIVE template with all 3 medications', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.COMPREHENSIVE).toBeDefined();
+      const meds = templates.COMPREHENSIVE.medications;
+      const hasOCP = meds.some(
+        (m) => m.name.toLowerCase().includes('ocp') || m.name.toLowerCase().includes('drospirenone'),
+      );
+      const hasSpiro = meds.some((m) => m.name.toLowerCase().includes('spironolactone'));
+      const hasMetformin = meds.some((m) => m.name.toLowerCase().includes('metformin'));
+      expect(hasOCP).toBe(true);
+      expect(hasSpiro).toBe(true);
+      expect(hasMetformin).toBe(true);
+    });
+
+    it('should include LEAN_PCOS template', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.LEAN_PCOS).toBeDefined();
+      expect(templates.LEAN_PCOS.name.toLowerCase()).toContain('lean');
+    });
+
+    it('should include NATURAL_SUPPLEMENT template', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.NATURAL_SUPPLEMENT).toBeDefined();
+      const hasInositol = templates.NATURAL_SUPPLEMENT.medications.some((m) =>
+        m.name.toLowerCase().includes('inositol'),
+      );
+      expect(hasInositol).toBe(true);
+    });
+
+    it('NATURAL_SUPPLEMENT should include Vitamin D', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      const hasVitD = templates.NATURAL_SUPPLEMENT.medications.some((m) =>
+        m.name.toLowerCase().includes('vitamin d'),
+      );
+      expect(hasVitD).toBe(true);
+    });
+
+    it('should include PROGESTIN_ONLY template for BC contraindications', () => {
+      const templates = service.getPCOSTemplatesNotTrying();
+      expect(templates.PROGESTIN_ONLY).toBeDefined();
+      expect(templates.PROGESTIN_ONLY.indication.toLowerCase()).toContain('contraindication');
+    });
+  });
+
+  describe('PCOS Templates - Trying to Conceive', () => {
+    it('should have exactly 4 PCOS templates for trying to conceive', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      expect(Object.keys(templates).length).toBe(4);
+    });
+
+    it('should include FERTILITY_LIFESTYLE_FIRST template', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      expect(templates.FERTILITY_LIFESTYLE_FIRST).toBeDefined();
+      expect(templates.FERTILITY_LIFESTYLE_FIRST.name.toLowerCase()).toContain('lifestyle');
+    });
+
+    it('should include OVULATION_INDUCTION template with Letrozole', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      expect(templates.OVULATION_INDUCTION).toBeDefined();
+      const hasLetrozole = templates.OVULATION_INDUCTION.medications.some((m) =>
+        m.name.toLowerCase().includes('letrozole'),
+      );
+      expect(hasLetrozole).toBe(true);
+    });
+
+    it('OVULATION_INDUCTION Letrozole should be 2.5-5mg on day 3-7', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      const letrozole = templates.OVULATION_INDUCTION.medications.find((m) =>
+        m.name.toLowerCase().includes('letrozole'),
+      );
+      expect(letrozole).toBeDefined();
+      expect(letrozole!.dosage).toMatch(/2\.5|5/);
+      expect(letrozole!.frequency.toLowerCase()).toContain('day');
+    });
+
+    it('should include FERTILITY_METFORMIN template', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      expect(templates.FERTILITY_METFORMIN).toBeDefined();
+      const hasMetformin = templates.FERTILITY_METFORMIN.medications.some((m) =>
+        m.name.toLowerCase().includes('metformin'),
+      );
+      expect(hasMetformin).toBe(true);
+    });
+
+    it('should include REFER_FERTILITY_SPECIALIST template', () => {
+      const templates = service.getPCOSTemplatesTrying();
+      expect(templates.REFER_FERTILITY_SPECIALIST).toBeDefined();
+      expect(templates.REFER_FERTILITY_SPECIALIST.indication.toLowerCase()).toContain(
+        'specialist',
+      );
+    });
+  });
+
+  describe('PCOS Contraindication Checks', () => {
+    it('should ABSOLUTE_BLOCK combined OCP for blood clot history', () => {
+      const responses = { Q22: ['Blood clot history (DVT/PE)'] };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should ABSOLUTE_BLOCK combined OCP for migraine with aura', () => {
+      const responses = { Q22: ['Migraine with aura'] };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK combined OCP for liver disease', () => {
+      const responses = { Q22: ['Liver disease'] };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK combined OCP for smoker >35', () => {
+      const responses = { Q2: 38, Q22: ['Smoker'] };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should ABSOLUTE_BLOCK combined OCP for pregnancy', () => {
+      const responses = { Q21: 'Yes, pregnant' };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK combined OCP for breastfeeding', () => {
+      const responses = { Q21: 'Yes, breastfeeding' };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe for combined OCP with no contraindications', () => {
+      const responses = { Q2: 28, Q21: 'No', Q22: ['None'] };
+      const result = service.checkPCOSCombinedOCPContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+
+    it('should ABSOLUTE_BLOCK spironolactone for pregnancy', () => {
+      const responses = { Q21: 'Yes, pregnant' };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.concerns).toContain('Pregnancy — teratogenic');
+    });
+
+    it('should ABSOLUTE_BLOCK spironolactone for trying to conceive', () => {
+      const responses = { Q19: 'Yes', Q21: 'No' };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK spironolactone for renal impairment', () => {
+      const responses = { Q19: 'No', Q21: 'No', Q22: ['Kidney disease'] };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe for spironolactone with reliable contraception', () => {
+      const responses = { Q19: 'No', Q21: 'No', Q22: ['None'] };
+      const result = service.checkPCOSSpironolactoneContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+
+    it('should BLOCK metformin for severe kidney disease', () => {
+      const responses = { Q22: ['Kidney disease'] };
+      const result = service.checkPCOSMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK metformin for severe liver disease', () => {
+      const responses = { Q22: ['Liver disease'] };
+      const result = service.checkPCOSMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe for metformin with no contraindications', () => {
+      const responses = { Q22: ['None'] };
+      const result = service.checkPCOSMetforminContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('PCOS Canned Messages', () => {
+    it('should have at least 6 PCOS canned messages', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.length).toBeGreaterThanOrEqual(6);
+    });
+
+    it('should have pcos_cycle_regulation_started message', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.some((m) => m.id === 'pcos_cycle_regulation_started')).toBe(true);
+    });
+
+    it('should have pcos_spironolactone_started message', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.some((m) => m.id === 'pcos_spironolactone_started')).toBe(true);
+    });
+
+    it('pcos_spironolactone_started should warn about teratogenicity', () => {
+      const messages = service.getPCOSCannedMessages();
+      const spiroMessage = messages.find((m) => m.id === 'pcos_spironolactone_started');
+      expect(spiroMessage).toBeDefined();
+      expect(spiroMessage!.template.toLowerCase()).toContain('contraception');
+    });
+
+    it('should have pcos_metformin_started message', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.some((m) => m.id === 'pcos_metformin_started')).toBe(true);
+    });
+
+    it('should have pcos_fertility_consult_needed message', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.some((m) => m.id === 'pcos_fertility_consult_needed')).toBe(true);
+    });
+
+    it('should have pcos_blood_work_ordered message', () => {
+      const messages = service.getPCOSCannedMessages();
+      expect(messages.some((m) => m.id === 'pcos_blood_work_ordered')).toBe(true);
+    });
+
+    it('each message should have id, template, and category', () => {
+      const messages = service.getPCOSCannedMessages();
+      messages.forEach((m) => {
+        expect(m.id).toBeDefined();
+        expect(m.template).toBeDefined();
+        expect(m.template.length).toBeGreaterThan(10);
+        expect(m.category).toBeDefined();
+      });
+    });
+  });
+
+  describe('PCOS Referral Logic', () => {
+    it('should refer to imaging center for ultrasound needed', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 1,
+        needsUltrasound: true,
+        fertilityIntent: 'not_planning',
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('ultrasound');
+      expect(referral.message).toContain('pelvic ultrasound');
+    });
+
+    it('should refer to fertility specialist for trying >12 months', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'trying',
+        tryingDuration: '1-2 years',
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('fertility_specialist');
+      expect(referral.urgency).toBe('high');
+    });
+
+    it('should URGENT refer to endocrinologist for rapid virilization', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        rapidVirilization: true,
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('urgent_endocrinology');
+      expect(referral.urgency).toBe('urgent');
+      expect(referral.message).toContain('urgent');
+    });
+
+    it('should suggest progestin-only for blood clot history wanting BC', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        wantsBC: true,
+        conditions: ['Blood clot history (DVT/PE)'],
+      });
+      expect(referral.alternativeSuggested).toBe('PROGESTIN_ONLY');
+      expect(referral.message).toContain('alternative');
+    });
+
+    it('should refer to dermatologist for severe cystic acne', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        severeCysticAcne: true,
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('dermatology');
+      expect(referral.specialties).toContain('DERMATOLOGY');
+    });
+
+    it('should refer to counseling for eating disorder', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        conditions: ['Eating disorder'],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('mental_health_counseling');
+    });
+
+    it('should refer to gynecologist in-person for endometriosis suspected', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 1,
+        fertilityIntent: 'not_planning',
+        endometriosisSuspected: true,
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('gynecology_in_person');
+    });
+
+    it('should flag endometrial protection for amenorrhea >6 months', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        amenorrheaMonths: 8,
+        conditions: [],
+      });
+      expect(referral.bloodWorkRequired).toBe(true);
+      expect(referral.endometrialProtectionNeeded).toBe(true);
+      expect(referral.message).toContain('uterine health');
+    });
+
+    it('should not need referral for standard PCOS not trying to conceive', () => {
+      const referral = service.checkPCOSReferral({
+        rotterdamCriteriaMet: 2,
+        fertilityIntent: 'not_planning',
+        conditions: [],
+      });
+      expect(referral.referralNeeded).toBe(false);
+    });
+  });
+
+  describe('PCOS Template Suggestion', () => {
+    it('should suggest CYCLE_REGULATION for irregular periods without IR', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'irregular_periods',
+        insulinResistance: false,
+        bmi: 24,
+        bcContraindicated: false,
+      });
+      expect(suggestion).toBe('CYCLE_REGULATION');
+    });
+
+    it('should suggest ANTI_ANDROGEN for acne/hirsutism primary concern', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'acne_hirsutism',
+        insulinResistance: false,
+        bmi: 26,
+        bcContraindicated: false,
+      });
+      expect(suggestion).toBe('ANTI_ANDROGEN');
+    });
+
+    it('should suggest INSULIN_FOCUSED for metabolic PCOS', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'weight',
+        insulinResistance: true,
+        bmi: 32,
+        bcContraindicated: false,
+      });
+      expect(suggestion).toBe('INSULIN_FOCUSED');
+    });
+
+    it('should suggest COMPREHENSIVE for multiple symptoms with metabolic features', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'multiple',
+        insulinResistance: true,
+        bmi: 30,
+        bcContraindicated: false,
+      });
+      expect(suggestion).toBe('COMPREHENSIVE');
+    });
+
+    it('should suggest LEAN_PCOS for normal BMI without IR', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'irregular_periods',
+        insulinResistance: false,
+        bmi: 22,
+        bcContraindicated: false,
+      });
+      expect(suggestion).toBe('LEAN_PCOS');
+    });
+
+    it('should suggest NATURAL_SUPPLEMENT when patient prefers minimal medication', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'irregular_periods',
+        insulinResistance: false,
+        bmi: 25,
+        bcContraindicated: false,
+        prefersMinimalMedication: true,
+      });
+      expect(suggestion).toBe('NATURAL_SUPPLEMENT');
+    });
+
+    it('should suggest PROGESTIN_ONLY when BC is contraindicated', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'not_planning',
+        primaryConcern: 'irregular_periods',
+        insulinResistance: false,
+        bmi: 25,
+        bcContraindicated: true,
+      });
+      expect(suggestion).toBe('PROGESTIN_ONLY');
+    });
+
+    it('should suggest FERTILITY_LIFESTYLE_FIRST for trying, overweight', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'trying',
+        primaryConcern: 'fertility',
+        insulinResistance: false,
+        bmi: 30,
+        tryingDuration: '<6 months',
+      });
+      expect(suggestion).toBe('FERTILITY_LIFESTYLE_FIRST');
+    });
+
+    it('should suggest OVULATION_INDUCTION for trying with normal BMI', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'trying',
+        primaryConcern: 'fertility',
+        insulinResistance: false,
+        bmi: 24,
+        tryingDuration: '6-12 months',
+      });
+      expect(suggestion).toBe('OVULATION_INDUCTION');
+    });
+
+    it('should suggest FERTILITY_METFORMIN for trying with IR', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'trying',
+        primaryConcern: 'fertility',
+        insulinResistance: true,
+        bmi: 28,
+        tryingDuration: '<6 months',
+      });
+      expect(suggestion).toBe('FERTILITY_METFORMIN');
+    });
+
+    it('should suggest REFER_FERTILITY_SPECIALIST for trying >12 months', () => {
+      const suggestion = service.suggestPCOSTemplate({
+        fertilityIntent: 'trying',
+        primaryConcern: 'fertility',
+        insulinResistance: false,
+        bmi: 25,
+        tryingDuration: '2+ years',
+      });
+      expect(suggestion).toBe('REFER_FERTILITY_SPECIALIST');
+    });
+  });
 });
