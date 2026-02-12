@@ -71,6 +71,29 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+// Spec: master spec Section 7.3 — Lab Order Status Enum
+// Main flow: ORDERED → SLOT_BOOKED → PHLEBOTOMIST_ASSIGNED → SAMPLE_COLLECTED →
+//            DELIVERED_TO_LAB → SAMPLE_RECEIVED → PROCESSING → RESULTS_READY →
+//            DOCTOR_REVIEWED → CLOSED
+// Branches: COLLECTION_FAILED, SAMPLE_ISSUE, RESULTS_UPLOADED, CANCELLED, EXPIRED
+enum LabOrderStatus {
+  ORDERED
+  SLOT_BOOKED
+  PHLEBOTOMIST_ASSIGNED
+  SAMPLE_COLLECTED
+  COLLECTION_FAILED
+  DELIVERED_TO_LAB
+  SAMPLE_RECEIVED
+  SAMPLE_ISSUE
+  PROCESSING
+  RESULTS_READY
+  RESULTS_UPLOADED      // Patient self-upload path
+  DOCTOR_REVIEWED
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
 // ============================================
 // USER & PROFILES
 // ============================================
@@ -100,6 +123,7 @@ model User {
   payments        Payment[]
   messages        Message[]
   auditLogs       AuditLog[]
+  labOrders       LabOrder[]        @relation("PatientLabOrders")
 
   @@index([phone])
   @@index([role])
@@ -316,6 +340,7 @@ model Consultation {
   prescription   Prescription?
   messages       Message[]
   followUps      FollowUp[]
+  labOrders      LabOrder[]
 
   @@index([patientId])
   @@index([doctorId])
@@ -509,6 +534,167 @@ model Message {
 
   @@index([consultationId])
   @@index([senderId])
+}
+
+// ============================================
+// BLOOD WORK & DIAGNOSTICS
+// Spec: master spec Section 7
+// ============================================
+
+// Spec: master spec Section 7.5 — PartnerDiagnosticCentre
+model PartnerDiagnosticCentre {
+  id                  String   @id @default(cuid())
+  name                String
+  address             String
+  city                String
+  state               String
+  pincode             String
+  lat                 Float?
+  lng                 Float?
+  phone               String
+  email               String?
+  contactPerson       String?
+  portalLoginPhone    String?  @unique // For portal OTP auth
+  testsOffered        String[]
+  testPricing         Json?    // { "TSH": 30000, "CBC": 25000 } in paise
+  panelPricing        Json?    // { "Hair Loss Basic": 99900 } in paise
+  avgTurnaroundHours  Int      @default(48)
+  rating              Float?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  labOrders LabOrder[]
+
+  @@index([city])
+  @@index([isActive])
+}
+
+// Spec: master spec Section 7.5 — Phlebotomist
+model Phlebotomist {
+  id                    String   @id @default(cuid())
+  name                  String
+  phone                 String   @unique
+  email                 String?
+  certification         String?
+  certificationDocUrl   String?
+  availableDays         String[] // ["MONDAY", "TUESDAY", etc.]
+  availableTimeStart    String?  // "08:00"
+  availableTimeEnd      String?  // "18:00"
+  maxDailyCollections   Int      @default(10)
+  currentCity           String
+  serviceableAreas      String[] // Pincodes
+  completedCollections  Int      @default(0)
+  failedCollections     Int      @default(0)
+  rating                Float?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  labOrders LabOrder[]
+  labSlots  LabSlot[]
+
+  @@index([currentCity])
+  @@index([isActive])
+}
+
+// Spec: master spec Section 7.5 — LabSlot
+model LabSlot {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  startTime       String   // "08:00"
+  endTime         String   // "10:00"
+  phlebotomistId  String?
+  maxBookings     Int      @default(5)
+  currentBookings Int      @default(0)
+  city            String
+  serviceableAreas String[] // Pincodes covered by this slot
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  phlebotomist Phlebotomist? @relation(fields: [phlebotomistId], references: [id])
+
+  @@index([date, city])
+  @@index([phlebotomistId])
+}
+
+// Spec: master spec Section 7.5 — LabOrder (full timestamps per spec)
+model LabOrder {
+  id                String         @id @default(cuid())
+  patientId         String
+  consultationId    String
+  doctorId          String
+  testPanel         String[]       // ["TSH", "CBC", "Ferritin", "Vitamin_D"]
+  panelName         String?        // "Hair Loss Basic Panel"
+  doctorNotes       String?
+
+  // Collection details
+  bookedDate        DateTime?      @db.Date
+  bookedTimeSlot    String?        // "8:00-10:00"
+  collectionAddress String
+  collectionCity    String
+  collectionPincode String
+
+  // Assignments
+  phlebotomistId      String?
+  diagnosticCentreId  String?
+
+  // Status
+  status LabOrderStatus @default(ORDERED)
+
+  // ALL timestamps per spec Section 7.5
+  orderedAt               DateTime  @default(now())
+  slotBookedAt            DateTime?
+  phlebotomistAssignedAt  DateTime?
+  sampleCollectedAt       DateTime?
+  collectionFailedAt      DateTime?
+  collectionFailedReason  String?
+  deliveredToLabAt        DateTime?
+  sampleReceivedAt        DateTime?
+  receivedTubeCount       Int?
+  sampleIssueAt           DateTime?
+  sampleIssueReason       String?
+  processingStartedAt     DateTime?
+  resultsUploadedAt       DateTime?
+  doctorReviewedAt        DateTime?
+  closedAt                DateTime?
+  cancelledAt             DateTime?
+  cancellationReason      String?
+  expiredAt               DateTime?
+
+  // Sample tracking
+  tubeCount Int?
+
+  // Results
+  resultFileUrl           String?   // S3 URL for result PDF
+  abnormalFlags           Json?     // { "TSH": "HIGH", "CBC": "NORMAL" }
+  criticalValues          Boolean   @default(false)
+  patientUploadedResults  Boolean   @default(false)
+  patientUploadedFileUrl  String?
+
+  // Recollection tracking
+  parentLabOrderId    String?       // If this is a recollection order
+  isFreeRecollection  Boolean       @default(false)
+
+  // Financials (in paise)
+  labCost               Int
+  patientCharge         Int         @default(0)
+  coveredBySubscription Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  patient          User                     @relation("PatientLabOrders", fields: [patientId], references: [id])
+  consultation     Consultation             @relation(fields: [consultationId], references: [id])
+  phlebotomist     Phlebotomist?            @relation(fields: [phlebotomistId], references: [id])
+  diagnosticCentre PartnerDiagnosticCentre? @relation(fields: [diagnosticCentreId], references: [id])
+
+  @@index([patientId])
+  @@index([consultationId])
+  @@index([status])
+  @@index([orderedAt])
+  @@index([bookedDate])
 }
 
 // ============================================
