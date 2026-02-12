@@ -14,12 +14,15 @@ datasource db {
 // ENUMS
 // ============================================
 
+// 7 roles per spec: patient, doctor, admin, lab, phlebotomist, pharmacy, delivery
 enum UserRole {
   PATIENT
   DOCTOR
-  NURSE
-  PHARMACIST
   ADMIN
+  LAB           // Diagnostic centre staff
+  PHLEBOTOMIST  // Sample collectors
+  PHARMACY      // Pharmacy partners
+  DELIVERY      // Delivery personnel
 }
 
 enum Gender {
