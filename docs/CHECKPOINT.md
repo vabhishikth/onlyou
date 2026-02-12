@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-12 10:35 IST
+# CHECKPOINT — Last Updated: 2026-02-12 (Session 2)
 
-## Current Phase: Phase 4 - Blood Work, Partners & Delivery
-## Current Task: PHASE 4 COMPLETE
+## Current Phase: Phase 5 - Payment & Subscription
+## Current Task: PHASE 5 COMPLETE
 ## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
@@ -22,20 +22,24 @@
   - [x] Task 4: SLA Escalation (30 tests)
   - [x] Task 5: Partner Management (47 tests)
   - [x] Task 6: Order & Delivery System (40 tests)
+- [x] Phase 5 Payment & Subscription — ALL 124 TESTS PASSING
+  - [x] Task 1: Razorpay Integration (41 tests)
+  - [x] Task 2: Subscription System (49 tests)
+  - [x] Task 3: Wallet & Refunds (34 tests)
 
 ## Last Completed:
-- Feature: Order & Delivery System
+- Feature: Wallet & Refunds System
 - Files created/modified:
-  - `backend/src/order/order.service.ts` (NEW - 40 tests)
-  - `backend/src/order/order.service.spec.ts` (NEW)
-  - `backend/src/order/order.module.ts` (NEW)
-  - `backend/prisma/schema.prisma` (updated Order model + OrderStatus enum)
+  - `backend/src/payment/payment.service.ts` (NEW - 41 tests)
+  - `backend/src/subscription/subscription.service.ts` (NEW - 49 tests)
+  - `backend/src/wallet/wallet.service.ts` (NEW - 34 tests)
+  - `backend/prisma/schema.prisma` (updated with Wallet, WalletTransaction, Refund models)
 
 ## Test Summary:
 ```
-Test Suites: 19 passed, 19 total
-Tests:       696 passed, 696 total (0 skipped, 0 failing)
-Time:        ~10.7 seconds
+Test Suites: 22 passed, 22 total
+Tests:       820 passed, 820 total (0 skipped, 0 failing)
+Time:        ~9 seconds
 ```
 
 ## Test Breakdown:
@@ -57,88 +61,72 @@ Time:        ~10.7 seconds
 - lab-processing.service.spec.ts: 48 tests
 - sla-escalation.service.spec.ts: 30 tests
 - partner.service.spec.ts: 47 tests
-- order.service.spec.ts: 40 tests (NEW)
+- order.service.spec.ts: 40 tests
+- payment.service.spec.ts: 41 tests (NEW)
+- subscription.service.spec.ts: 49 tests (NEW)
+- wallet.service.spec.ts: 34 tests (NEW)
 
-## Phase 4 Completed Tasks Summary:
+## Phase 5 Completed Tasks Summary:
 
-### Task 1: Lab Order Status Machine (70 tests)
-- 15 statuses per spec Section 7.3
-- Valid transitions with timestamps
-- COLLECTION_FAILED → rebook, SAMPLE_ISSUE → recollection, patient self-upload
-- 14-day expiry, critical values detection
+### Task 1: Razorpay Integration (41 tests)
+- Create Razorpay order (amount in paise, not rupees)
+- Verify payment webhook signature (valid → process, invalid → reject)
+- Payment success → create consultation
+- Payment failure → no consultation created
+- Supported methods: UPI, card, net banking, wallets
+- Idempotency: same webhook received twice → only processes once
+- Pricing validation for all verticals
 
-### Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
-- Patient slot booking (date + 2hr window + address)
-- Slot availability check (no overbooking)
-- Patient cancel/reschedule (4-hour cutoff for PHLEBOTOMIST_ASSIGNED)
-- Coordinator assigns phlebotomist (service area validation)
-- Phlebotomist "Running Late" → ETA update
-- Phlebotomist "Patient Unavailable" → COLLECTION_FAILED with reason
-- Get today's assignments for phlebotomist
+### Task 2: Subscription System (49 tests)
+- Subscription plans with pricing for all verticals:
+  - Hair Loss: ₹999/month, ₹2,499/quarter, ₹8,999/year
+  - ED: ₹1,299/month, ₹3,299/quarter, ₹11,999/year
+  - Weight: ₹2,999/month, ₹7,999/quarter, ₹9,999/month (GLP-1 premium)
+  - PCOS: ₹1,499/month, ₹3,799/quarter, ₹13,999/year
+- Auto-renewal via Razorpay Subscriptions API
+- Failed payment: 3-day grace period, retries on day 1, 3, 7
+- Subscription cancel: patient can cancel anytime, active until period ends
+- Subscription renew → triggers auto-reorder (connects to Order system)
+- Pause/Resume subscription support
 
-### Task 3: Lab Processing & Results (48 tests)
-- Lab marks "Received" → confirms tube count → SAMPLE_RECEIVED
-- Tube count mismatch flag if received differs from collected
-- Lab reports "Issue" → reason → SAMPLE_ISSUE → auto-creates free recollection order
-- Lab marks "Processing Started" → PROCESSING
-- Lab uploads results PDF → flags per test (NORMAL/HIGH/LOW/CRITICAL) → RESULTS_READY
-- Critical values detection → criticalValues flag
-- Doctor reviews → DOCTOR_REVIEWED → CLOSED
-- Patient self-upload path → RESULTS_UPLOADED → DOCTOR_REVIEWED
+### Task 3: Wallet & Refunds (34 tests)
+- Wallet balance stored in paise (integer, never float)
+- Credit types: refund (never expires), promo (90 days), comeback
+- Wallet applied first at checkout, remainder via Razorpay
+- Refund triggers per spec:
+  - Doctor not suitable: 100% refund
+  - Patient cancels <24hrs: 100% refund
+  - Cancel after review: 50% refund
+  - Delivery issue: 100% refund
+  - Technical error: 100% auto refund
+- Patient choice: wallet credit (instant) or original payment (5-7 days)
+- Wallet transaction log (every credit and debit recorded)
 
-### Task 4: SLA Escalation (30 tests)
-- Patient booking overdue (3d reminder, 7d second, 14d expired)
-- Phlebotomist assignment overdue (2h threshold)
-- Lab receipt overdue (4h threshold)
-- Lab results overdue (48h warning, 72h critical)
-- Doctor review overdue (24h reminder, 48h reassign)
-- Breach summary for dashboard
+## PHASE 5 COMPLETE!
 
-### Task 5: Partner Management (47 tests)
-- Diagnostic Centre CRUD (create, read, list, update, activate/deactivate)
-- Phlebotomist CRUD (create, read, list, update, activate/deactivate)
-- Pharmacy CRUD (create, read, list, update, activate/deactivate)
-- Find nearest partners by pincode
-- Portal auth (find by portal phone for OTP login)
-- Partner statistics and ratings
-
-### Task 6: Order & Delivery System (40 tests)
-- 12 order statuses per spec Section 8.3
-- Status transition validation
-- Send to pharmacy flow
-- Pharmacy preparing → ready → issue handling
-- Pickup arrangement with 4-digit delivery OTP generation
-- Out for delivery tracking
-- Delivery confirmation with OTP validation
-- Delivery failed → reschedule flow
-- Order cancellation (before delivery only)
-- Monthly reorder creation from delivered orders
-- Get orders due for reorder
-- Delivery rating (1-5 validation)
-
-## PHASE 4 COMPLETE!
-
-All 6 tasks completed with 279 tests total for Phase 4.
+All 3 tasks completed with 124 tests total for Phase 5.
 
 ## Next Up:
-- Phase 5: Delivery & Payment (if needed)
-  - Razorpay payments + subscriptions
-  - Admin dashboard (unified lab + delivery views)
+- Phase 6: Patient Tracking & Mobile Screens
+  - Activity tab with unified tracking
+  - Blood work progress stepper
+  - Delivery progress stepper
+  - Results viewer
+  - Cancel/reschedule flows
+- Phase 7-9: Additional Conditions (ED, Weight, PCOS)
+- Phase 10: Polish (Notifications, SLA engine, Landing page)
 
-## Git Commits Made (Phase 4):
+## Git Commits Made (Phase 5):
 ```
-feat(lab-order): add Lab Order Status Machine with 70 tests
-feat(lab-order): add Slot Booking & Phlebotomist Assignment with 44 tests
-feat(lab-order): add Lab Processing & Results with 48 tests
-feat(lab-order): add SLA Escalation with 30 tests
-feat(partner): add Partner Management with 47 tests
-feat(order): add Order & Delivery System with 40 tests
+feat(payment): add Razorpay Payment Integration with 41 tests
+feat(subscription): add Subscription System with 49 tests
+feat(wallet): add Wallet & Refunds System with 34 tests
 ```
 
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 696 passed)
+pnpm test           # Run all tests (should show 820 passed)
 pnpm test:cov       # Run with coverage
 ```
 
