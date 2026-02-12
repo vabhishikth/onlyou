@@ -9,11 +9,32 @@ import {
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing, borderRadius, typography } from '@/styles/theme';
 
-// Placeholder - will be built in Task 8
+interface MenuItemProps {
+    icon: string;
+    label: string;
+    description: string;
+    onPress: () => void;
+}
+
+function MenuItem({ icon, label, description, onPress }: MenuItemProps) {
+    return (
+        <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+            <Text style={styles.menuIcon}>{icon}</Text>
+            <View style={styles.menuContent}>
+                <Text style={styles.menuLabel}>{label}</Text>
+                <Text style={styles.menuDesc}>{description}</Text>
+            </View>
+            <Text style={styles.menuChevron}>›</Text>
+        </TouchableOpacity>
+    );
+}
+
 export default function ProfileScreen() {
+    const router = useRouter();
     const { user, logout } = useAuth();
 
     const handleLogout = () => {
@@ -40,7 +61,11 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* User info card */}
-                <View style={styles.userCard}>
+                <TouchableOpacity
+                    style={styles.userCard}
+                    onPress={() => router.push('/profile/edit' as never)}
+                    activeOpacity={0.7}
+                >
                     <View style={styles.avatarContainer}>
                         <Text style={styles.avatarText}>
                             {user?.name?.[0]?.toUpperCase() || '?'}
@@ -54,57 +79,75 @@ export default function ProfileScreen() {
                         {!user?.isProfileComplete && (
                             <View style={styles.incompleteBadge}>
                                 <Text style={styles.incompleteBadgeText}>
-                                    Profile incomplete
+                                    Tap to complete
                                 </Text>
                             </View>
                         )}
                     </View>
-                </View>
+                    <Text style={styles.editChevron}>›</Text>
+                </TouchableOpacity>
 
-                {/* Placeholder sections */}
-                <View style={styles.placeholder}>
-                    <Text style={styles.placeholderIcon}>👤</Text>
-                    <Text style={styles.placeholderTitle}>Profile & Settings</Text>
-                    <Text style={styles.placeholderText}>
-                        Full profile management, subscriptions, wallet, and preferences coming soon
-                    </Text>
-                </View>
-
-                {/* Quick menu items */}
+                {/* Account section */}
                 <View style={styles.menuSection}>
-                    <Text style={styles.menuTitle}>Coming Soon</Text>
+                    <Text style={styles.menuTitle}>Account</Text>
 
-                    <View style={styles.menuItem}>
-                        <Text style={styles.menuIcon}>📝</Text>
-                        <View style={styles.menuContent}>
-                            <Text style={styles.menuLabel}>Personal Information</Text>
-                            <Text style={styles.menuDesc}>Name, email, address, ID</Text>
-                        </View>
-                    </View>
+                    <MenuItem
+                        icon="📝"
+                        label="Personal Information"
+                        description="Name, email, address, ID"
+                        onPress={() => router.push('/profile/edit' as never)}
+                    />
 
-                    <View style={styles.menuItem}>
-                        <Text style={styles.menuIcon}>💳</Text>
-                        <View style={styles.menuContent}>
-                            <Text style={styles.menuLabel}>Subscriptions</Text>
-                            <Text style={styles.menuDesc}>Manage your treatment plans</Text>
-                        </View>
-                    </View>
+                    <MenuItem
+                        icon="💳"
+                        label="Subscriptions"
+                        description="Manage your treatment plans"
+                        onPress={() => router.push('/profile/subscriptions' as never)}
+                    />
 
-                    <View style={styles.menuItem}>
-                        <Text style={styles.menuIcon}>💰</Text>
-                        <View style={styles.menuContent}>
-                            <Text style={styles.menuLabel}>Wallet</Text>
-                            <Text style={styles.menuDesc}>Referral credits and refunds</Text>
-                        </View>
-                    </View>
+                    <MenuItem
+                        icon="💰"
+                        label="Wallet"
+                        description="Referral credits and refunds"
+                        onPress={() => router.push('/profile/wallet' as never)}
+                    />
+                </View>
 
-                    <View style={styles.menuItem}>
-                        <Text style={styles.menuIcon}>🔔</Text>
-                        <View style={styles.menuContent}>
-                            <Text style={styles.menuLabel}>Notifications</Text>
-                            <Text style={styles.menuDesc}>Push, SMS, WhatsApp, Email</Text>
-                        </View>
-                    </View>
+                {/* Preferences section */}
+                <View style={styles.menuSection}>
+                    <Text style={styles.menuTitle}>Preferences</Text>
+
+                    <MenuItem
+                        icon="🔔"
+                        label="Notifications"
+                        description="Push, SMS, WhatsApp, Email"
+                        onPress={() => router.push('/profile/notifications' as never)}
+                    />
+                </View>
+
+                {/* Support section */}
+                <View style={styles.menuSection}>
+                    <Text style={styles.menuTitle}>Support</Text>
+
+                    <MenuItem
+                        icon="❓"
+                        label="Help & FAQs"
+                        description="Common questions and guides"
+                        onPress={() => Alert.alert('Help', 'Help center coming soon')}
+                    />
+
+                    <MenuItem
+                        icon="📞"
+                        label="Contact Support"
+                        description="Chat or call us"
+                        onPress={() => Alert.alert('Support', 'Email: support@onlyou.life\nPhone: 1800-XXX-XXXX')}
+                    />
+                </View>
+
+                {/* App info */}
+                <View style={styles.appInfo}>
+                    <Text style={styles.appVersion}>Onlyou v1.0.0</Text>
+                    <Text style={styles.appCopyright}>© 2026 Onlyou Health</Text>
                 </View>
 
                 {/* Logout button */}
@@ -145,7 +188,7 @@ const styles = StyleSheet.create({
     userCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceElevated,
         borderRadius: borderRadius.xl,
         padding: spacing.lg,
         marginBottom: spacing.xl,
@@ -178,7 +221,7 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     incompleteBadge: {
-        backgroundColor: colors.warningLight,
+        backgroundColor: colors.primaryLight,
         paddingHorizontal: spacing.sm,
         paddingVertical: 2,
         borderRadius: borderRadius.sm,
@@ -187,53 +230,34 @@ const styles = StyleSheet.create({
     },
     incompleteBadgeText: {
         ...typography.label,
-        color: colors.warning,
+        color: colors.primary,
     },
-    placeholder: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: spacing.xxl,
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderStyle: 'dashed',
-        marginBottom: spacing.xl,
-    },
-    placeholderIcon: {
-        fontSize: 48,
-        marginBottom: spacing.md,
-    },
-    placeholderTitle: {
-        ...typography.headingMedium,
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    placeholderText: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        paddingHorizontal: spacing.xl,
+    editChevron: {
+        fontSize: 24,
+        color: colors.textTertiary,
     },
     menuSection: {
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceElevated,
         borderRadius: borderRadius.xl,
-        padding: spacing.lg,
-        marginBottom: spacing.xl,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
         borderWidth: 1,
         borderColor: colors.border,
     },
     menuTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
-        marginBottom: spacing.md,
+        ...typography.label,
+        color: colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: spacing.sm,
+        paddingHorizontal: spacing.sm,
     },
     menuItem: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
     },
     menuIcon: {
         fontSize: 24,
@@ -244,13 +268,30 @@ const styles = StyleSheet.create({
     },
     menuLabel: {
         ...typography.bodyMedium,
-        fontWeight: '600',
+        fontWeight: '500',
         color: colors.text,
-        marginBottom: 2,
     },
     menuDesc: {
         ...typography.bodySmall,
         color: colors.textSecondary,
+        marginTop: 1,
+    },
+    menuChevron: {
+        fontSize: 20,
+        color: colors.textTertiary,
+    },
+    appInfo: {
+        alignItems: 'center',
+        paddingVertical: spacing.lg,
+    },
+    appVersion: {
+        ...typography.bodySmall,
+        color: colors.textTertiary,
+    },
+    appCopyright: {
+        ...typography.label,
+        color: colors.textTertiary,
+        marginTop: spacing.xs,
     },
     logoutButton: {
         backgroundColor: colors.surface,
@@ -258,7 +299,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.error,
     },
     logoutButtonText: {
         ...typography.button,

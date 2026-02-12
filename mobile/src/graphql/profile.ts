@@ -1,0 +1,234 @@
+import { gql } from '@apollo/client';
+
+// User profile types
+export interface PatientProfile {
+    id: string;
+    userId: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    governmentIdType?: string;
+    governmentIdNumber?: string;
+    governmentIdFileUrl?: string;
+}
+
+export interface UserProfile {
+    id: string;
+    phone: string;
+    name?: string;
+    email?: string;
+    isProfileComplete: boolean;
+    patientProfile?: PatientProfile;
+    createdAt: string;
+}
+
+// Subscription types
+export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'EXPIRED';
+
+export interface Subscription {
+    id: string;
+    vertical: string;
+    plan: string;
+    status: SubscriptionStatus;
+    startDate: string;
+    nextBillingDate?: string;
+    amount: number; // in paise
+    autoRenew: boolean;
+}
+
+// Wallet types
+export type TransactionType = 'CREDIT' | 'DEBIT' | 'REFERRAL' | 'REFUND';
+
+export interface WalletTransaction {
+    id: string;
+    type: TransactionType;
+    amount: number; // in paise
+    description: string;
+    createdAt: string;
+}
+
+export interface Wallet {
+    balance: number; // in paise
+    referralCode: string;
+    totalReferrals: number;
+    transactions: WalletTransaction[];
+}
+
+// Notification preferences
+export interface NotificationPreferences {
+    pushEnabled: boolean;
+    smsEnabled: boolean;
+    whatsappEnabled: boolean;
+    emailEnabled: boolean;
+    marketingEnabled: boolean;
+}
+
+// Response types
+export interface GetProfileResponse {
+    me: UserProfile;
+}
+
+export interface GetSubscriptionsResponse {
+    mySubscriptions: Subscription[];
+}
+
+export interface GetWalletResponse {
+    myWallet: Wallet;
+}
+
+export interface GetNotificationPreferencesResponse {
+    notificationPreferences: NotificationPreferences;
+}
+
+// Queries
+export const GET_PROFILE = gql`
+    query GetProfile {
+        me {
+            id
+            phone
+            name
+            email
+            isProfileComplete
+            patientProfile {
+                id
+                dateOfBirth
+                gender
+                addressLine1
+                addressLine2
+                city
+                state
+                pincode
+                governmentIdType
+                governmentIdNumber
+                governmentIdFileUrl
+            }
+            createdAt
+        }
+    }
+`;
+
+export const GET_SUBSCRIPTIONS = gql`
+    query GetSubscriptions {
+        mySubscriptions {
+            id
+            vertical
+            plan
+            status
+            startDate
+            nextBillingDate
+            amount
+            autoRenew
+        }
+    }
+`;
+
+export const GET_WALLET = gql`
+    query GetWallet {
+        myWallet {
+            balance
+            referralCode
+            totalReferrals
+            transactions {
+                id
+                type
+                amount
+                description
+                createdAt
+            }
+        }
+    }
+`;
+
+export const GET_NOTIFICATION_PREFERENCES = gql`
+    query GetNotificationPreferences {
+        notificationPreferences {
+            pushEnabled
+            smsEnabled
+            whatsappEnabled
+            emailEnabled
+            marketingEnabled
+        }
+    }
+`;
+
+// Mutations
+export const UPDATE_PROFILE = gql`
+    mutation UpdateProfile($input: UpdateProfileInput!) {
+        updateProfile(input: $input) {
+            id
+            name
+            email
+            isProfileComplete
+            patientProfile {
+                dateOfBirth
+                gender
+                addressLine1
+                addressLine2
+                city
+                state
+                pincode
+            }
+        }
+    }
+`;
+
+export const TOGGLE_SUBSCRIPTION = gql`
+    mutation ToggleSubscription($id: ID!, $pause: Boolean!) {
+        toggleSubscription(id: $id, pause: $pause) {
+            id
+            status
+        }
+    }
+`;
+
+export const CANCEL_SUBSCRIPTION = gql`
+    mutation CancelSubscription($id: ID!, $reason: String!) {
+        cancelSubscription(id: $id, reason: $reason) {
+            id
+            status
+        }
+    }
+`;
+
+export const UPDATE_NOTIFICATION_PREFERENCES = gql`
+    mutation UpdateNotificationPreferences($input: NotificationPreferencesInput!) {
+        updateNotificationPreferences(input: $input) {
+            pushEnabled
+            smsEnabled
+            whatsappEnabled
+            emailEnabled
+            marketingEnabled
+        }
+    }
+`;
+
+// Helper: Format amount from paise to rupees
+export function formatAmount(paise: number): string {
+    const rupees = paise / 100;
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(rupees);
+}
+
+// Helper: Vertical display names
+export const VERTICAL_NAMES: Record<string, string> = {
+    HAIR_LOSS: 'Hair Loss',
+    SEXUAL_HEALTH: 'Sexual Health',
+    PCOS: 'PCOS',
+    WEIGHT_MANAGEMENT: 'Weight Management',
+};
+
+// Helper: Subscription status labels
+export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, { label: string; color: string }> = {
+    ACTIVE: { label: 'Active', color: 'success' },
+    PAUSED: { label: 'Paused', color: 'warning' },
+    CANCELLED: { label: 'Cancelled', color: 'error' },
+    EXPIRED: { label: 'Expired', color: 'textTertiary' },
+};
