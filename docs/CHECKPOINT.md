@@ -1,8 +1,8 @@
-# CHECKPOINT — Last Updated: 2026-02-12 10:00 IST
+# CHECKPOINT — Last Updated: 2026-02-12 10:20 IST
 
 ## Current Phase: Phase 4 - Blood Work, Partners & Delivery
-## Current Task: Task 2 - Slot Booking & Phlebotomist Assignment
-## Status: IN PROGRESS
+## Current Task: Task 4 - SLA Escalation
+## Status: PENDING
 
 ## What's Done (checked = complete, unchecked = not started):
 - [x] Phase 1 Foundation — ALL 112 TESTS PASSING
@@ -15,27 +15,27 @@
   - [x] Task 1: Dashboard Backend APIs (46 tests)
   - [x] Task 2: Prescription System (46 tests)
   - [x] Task 3: Messaging (33 tests)
-- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (70/??? tests)
+- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (162/??? tests)
   - [x] Task 1: Lab Order Status Machine (70 tests)
-  - [ ] Task 2: Slot Booking & Phlebotomist Assignment
-  - [ ] Task 3: Lab Processing & Results
+  - [x] Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
+  - [x] Task 3: Lab Processing & Results (48 tests)
   - [ ] Task 4: SLA Escalation
   - [ ] Task 5: Partner Management
   - [ ] Task 6: Order & Delivery System
 
 ## Last Completed:
-- Feature: Lab Order Status Machine
+- Feature: Lab Processing & Results
 - Files created/modified:
-  - `backend/src/lab-order/lab-order.service.ts` (70 tests)
-  - `backend/src/lab-order/lab-order.service.spec.ts`
-  - `backend/src/lab-order/lab-order.module.ts`
-  - `backend/prisma/schema.prisma` (added LabOrderStatus enum, LabOrder, PartnerDiagnosticCentre, Phlebotomist, LabSlot models)
+  - `backend/src/lab-order/lab-processing.service.ts` (NEW - 48 tests)
+  - `backend/src/lab-order/lab-processing.service.spec.ts` (NEW)
+  - `backend/src/lab-order/lab-order.module.ts` (updated)
+  - `backend/prisma/schema.prisma` (added tubeCountMismatch, doctorReviewNotes)
 
 ## Test Summary:
 ```
-Test Suites: 14 passed, 14 total
-Tests:       487 passed, 487 total (0 skipped, 0 failing)
-Time:        ~7.2 seconds
+Test Suites: 16 passed, 16 total
+Tests:       579 passed, 579 total (0 skipped, 0 failing)
+Time:        ~7.7 seconds
 ```
 
 ## Test Breakdown:
@@ -52,43 +52,48 @@ Time:        ~7.2 seconds
 - dashboard.service.spec.ts: 46 tests
 - prescription.service.spec.ts: 46 tests
 - messaging.service.spec.ts: 33 tests
-- lab-order.service.spec.ts: 70 tests (NEW)
+- lab-order.service.spec.ts: 70 tests
+- slot-booking.service.spec.ts: 44 tests
+- lab-processing.service.spec.ts: 48 tests (NEW)
 
-## Phase 4 Task 1 Complete Summary:
+## Phase 4 Completed Tasks Summary:
 
-### Lab Order Status Machine (70 tests)
-- 15 statuses: ORDERED, SLOT_BOOKED, PHLEBOTOMIST_ASSIGNED, SAMPLE_COLLECTED, COLLECTION_FAILED, DELIVERED_TO_LAB, SAMPLE_RECEIVED, SAMPLE_ISSUE, PROCESSING, RESULTS_READY, RESULTS_UPLOADED, DOCTOR_REVIEWED, CLOSED, CANCELLED, EXPIRED
-- Valid transitions only (ORDERED → SLOT_BOOKED ✅, ORDERED → DELIVERED ❌)
-- Every transition logs a timestamp (orderedAt, slotBookedAt, sampleCollectedAt, etc.)
-- COLLECTION_FAILED → rebook → SLOT_BOOKED branch
-- SAMPLE_ISSUE → auto-create recollection order → ORDERED branch
-- RESULTS_UPLOADED (patient self-upload) → DOCTOR_REVIEWED branch
-- 14-day expiry for ORDERED status
-- Critical values detection
+### Task 1: Lab Order Status Machine (70 tests)
+- 15 statuses per spec Section 7.3
+- Valid transitions with timestamps
+- COLLECTION_FAILED → rebook, SAMPLE_ISSUE → recollection, patient self-upload
+- 14-day expiry, critical values detection
 
-### Prisma Schema Additions:
-- `LabOrderStatus` enum (15 values)
-- `LabOrder` model with all timestamps per spec
-- `PartnerDiagnosticCentre` model
-- `Phlebotomist` model
-- `LabSlot` model
+### Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
+- Patient slot booking (date + 2hr window + address)
+- Slot availability check (no overbooking)
+- Patient cancel/reschedule (4-hour cutoff for PHLEBOTOMIST_ASSIGNED)
+- Coordinator assigns phlebotomist (service area validation)
+- Phlebotomist "Running Late" → ETA update
+- Phlebotomist "Patient Unavailable" → COLLECTION_FAILED with reason
+- Get today's assignments for phlebotomist
+
+### Task 3: Lab Processing & Results (48 tests)
+- Lab marks "Received" → confirms tube count → SAMPLE_RECEIVED
+- Tube count mismatch flag if received differs from collected
+- Lab reports "Issue" → reason → SAMPLE_ISSUE → auto-creates free recollection order
+- Lab marks "Processing Started" → PROCESSING
+- Lab uploads results PDF → flags per test (NORMAL/HIGH/LOW/CRITICAL) → RESULTS_READY
+- Critical values detection → criticalValues flag
+- Doctor reviews → DOCTOR_REVIEWED → CLOSED
+- Patient self-upload path → RESULTS_UPLOADED → DOCTOR_REVIEWED
+- Phlebotomist marks sample collected (with tube count)
+- Phlebotomist delivers to lab
+- Get lab orders for lab (with status/date filters)
+- Get pending results for doctor (prioritizes critical values)
 
 ## Next Up:
-- Task 2: Slot Booking & Phlebotomist Assignment
-  - LabSlot model (date, time, phlebotomist, max bookings, serviceable areas)
-  - Patient books slot → picks date + 2hr window + confirms address
-  - Slot availability check (don't overbook)
-  - Coordinator assigns phlebotomist from available list
-  - Patient cancel: allowed until 4 hours before slot
-  - Patient reschedule: picks new slot, old slot freed
-  - After 4-hour cutoff: cancel/reschedule blocked
-  - Phlebotomist "Running Late" → updates ETA
-  - Phlebotomist "Patient Unavailable" → COLLECTION_FAILED with reason
+- Task 4: SLA Escalation
+  - Reminder thresholds per spec Section 7.4
+  - Escalation rules (24hr → reminder, 48hr → escalate)
+  - Notification triggers
 
 ## Spec References:
-- Lab Order Status: master spec Section 7.3
-- Slot Booking: master spec Section 7.2 Steps 2-3
-- Phlebotomist Assignment: master spec Section 7.2 Step 3
 - SLA Escalation: master spec Section 7.4
 
 ## Known Issues:
@@ -97,7 +102,7 @@ Time:        ~7.2 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 487 passed)
+pnpm test           # Run all tests (should show 579 passed)
 pnpm test:cov       # Run with coverage
 ```
 
