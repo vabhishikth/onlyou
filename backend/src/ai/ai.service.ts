@@ -43,6 +43,33 @@ export const ED_CLASSIFICATIONS: EDClassificationCategory[] = [
   'premature_ejaculation_primary',
 ];
 
+// Classification categories for Weight Management (10 total)
+// Spec: Weight Management spec Section 5 — Classification Categories
+export type WeightClassificationCategory =
+  | 'lifestyle_obesity'
+  | 'insulin_resistant'
+  | 'thyroid_suspected'
+  | 'pcos_related'
+  | 'medication_induced'
+  | 'eating_disorder_flag'
+  | 'binge_eating'
+  | 'bariatric_candidate'
+  | 'glp1_candidate'
+  | 'underweight_concern';
+
+export const WEIGHT_CLASSIFICATIONS: WeightClassificationCategory[] = [
+  'lifestyle_obesity',
+  'insulin_resistant',
+  'thyroid_suspected',
+  'pcos_related',
+  'medication_induced',
+  'eating_disorder_flag',
+  'binge_eating',
+  'bariatric_candidate',
+  'glp1_candidate',
+  'underweight_concern',
+];
+
 export const HAIR_LOSS_CLASSIFICATIONS: ClassificationCategory[] = [
   'androgenetic_alopecia',
   'telogen_effluvium_suspected',
@@ -1018,5 +1045,531 @@ Respond ONLY with valid JSON matching this schema:
     if (score >= 8) return 'moderate';
     if (score >= 5) return 'severe';
     return 'invalid';
+  }
+
+  // ============================================
+  // WEIGHT MANAGEMENT-SPECIFIC METHODS
+  // Spec: Weight Management spec Section 5 (AI Pre-Assessment)
+  // ============================================
+
+  /**
+   * Get Weight classification categories
+   * Spec: Weight Management spec Section 5 — 10 classification categories
+   */
+  getWeightClassificationCategories(): WeightClassificationCategory[] {
+    return WEIGHT_CLASSIFICATIONS;
+  }
+
+  /**
+   * Detect Weight-specific red flags
+   * Spec: Weight Management spec Section 5 — Red Flags
+   */
+  detectWeightRedFlags(responses: Record<string, any>): string[] {
+    const flags: string[] = [];
+
+    // Calculate BMI
+    const height = responses.Q5;
+    const weight = responses.Q6;
+    let bmi: number | null = null;
+    if (height && weight && height > 0) {
+      const heightM = height / 100;
+      bmi = weight / (heightM * heightM);
+    }
+
+    // CRITICAL: BMI <18.5 requesting weight loss
+    if (bmi !== null && bmi < 18.5) {
+      flags.push('BMI <18.5 requesting weight loss (eating disorder concern)');
+    }
+
+    // CRITICAL: Active or recent eating disorder
+    const conditions = responses.Q13 || [];
+    if (Array.isArray(conditions)) {
+      const hasEatingDisorder = conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('eating disorder') ||
+          c.toLowerCase().includes('anorexia') ||
+          c.toLowerCase().includes('bulimia'),
+      );
+      if (hasEatingDisorder) {
+        flags.push('Active or recent eating disorder');
+      }
+    }
+
+    // History of pancreatitis (GLP-1 contraindicated)
+    if (responses.Q16 === 'Yes') {
+      flags.push('History of pancreatitis (GLP-1 contraindicated)');
+    }
+
+    // Family history of MTC/MEN2 (GLP-1 contraindicated)
+    if (responses.Q17 === 'Yes') {
+      flags.push('Family history of medullary thyroid carcinoma/MEN2 (GLP-1 contraindicated)');
+    }
+
+    // Pregnant or breastfeeding
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      flags.push('Pregnant or breastfeeding (weight loss meds contraindicated)');
+    }
+
+    // Very rapid weight gain
+    if (
+      responses.Q9 === 'Went up sharply in the last 6-12 months' &&
+      responses.Q10 &&
+      (responses.Q10.includes('month') || responses.Q10.includes('weeks'))
+    ) {
+      flags.push('Very rapid weight gain (>5kg in 1 month without explanation)');
+    }
+
+    // Gallstones + requesting medication
+    if (
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) => c.toLowerCase().includes('gallbladder') || c.toLowerCase().includes('gallstone'),
+      )
+    ) {
+      flags.push('Gallstones present (Orlistat caution)');
+    }
+
+    return flags;
+  }
+
+  /**
+   * Check GLP-1 eligibility
+   * Spec: Weight Management spec Section 5 — GLP-1 eligibility: BMI ≥30 or ≥27 with comorbidities
+   */
+  checkGLP1Eligibility(responses: Record<string, any>): {
+    eligible: boolean;
+    reason: string;
+  } {
+    // Calculate BMI
+    const height = responses.Q5;
+    const weight = responses.Q6;
+    if (!height || !weight || height <= 0) {
+      return { eligible: false, reason: 'Unable to calculate BMI' };
+    }
+    const heightM = height / 100;
+    const bmi = weight / (heightM * heightM);
+
+    // Check contraindications first
+    if (responses.Q16 === 'Yes') {
+      return { eligible: false, reason: 'History of pancreatitis — GLP-1 contraindicated' };
+    }
+
+    if (responses.Q17 === 'Yes') {
+      return { eligible: false, reason: 'History of thyroid cancer/MEN2 — GLP-1 contraindicated' };
+    }
+
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      return { eligible: false, reason: 'Pregnant or breastfeeding — GLP-1 contraindicated during pregnancy' };
+    }
+
+    const conditions = responses.Q13 || [];
+    if (Array.isArray(conditions)) {
+      const hasEatingDisorder = conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('eating disorder') ||
+          c.toLowerCase().includes('anorexia') ||
+          c.toLowerCase().includes('bulimia'),
+      );
+      if (hasEatingDisorder) {
+        return { eligible: false, reason: 'History of eating disorder — GLP-1 not appropriate' };
+      }
+    }
+
+    // BMI ≥30 = eligible
+    if (bmi >= 30) {
+      return { eligible: true, reason: 'BMI ≥30 — meets GLP-1 criteria' };
+    }
+
+    // BMI ≥27 with comorbidities = eligible
+    if (bmi >= 27) {
+      const comorbidities = [
+        'type 2 diabetes',
+        'pre-diabetes',
+        'insulin resistance',
+        'high blood pressure',
+        'high cholesterol',
+        'sleep apnea',
+      ];
+      const hasComorbidity =
+        Array.isArray(conditions) &&
+        conditions.some((c: string) =>
+          comorbidities.some((cm) => c.toLowerCase().includes(cm)),
+        );
+
+      if (hasComorbidity) {
+        return { eligible: true, reason: 'BMI ≥27 with comorbidity — meets GLP-1 criteria' };
+      }
+    }
+
+    return { eligible: false, reason: 'BMI below threshold for GLP-1 eligibility' };
+  }
+
+  /**
+   * Check GLP-1 contraindications
+   * Spec: Weight Management spec Section 5 — Contraindication Matrix for GLP-1
+   */
+  checkGLP1Contraindications(responses: Record<string, any>): ContraindicationResult {
+    const concerns: string[] = [];
+
+    // ABSOLUTE BLOCK: Pancreatitis history
+    if (responses.Q16 === 'Yes') {
+      concerns.push('History of pancreatitis');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // ABSOLUTE BLOCK: MTC/MEN2 history
+    if (responses.Q17 === 'Yes') {
+      concerns.push('History of medullary thyroid carcinoma or MEN2');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy/breastfeeding
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Active eating disorder
+    const conditions = responses.Q13 || [];
+    if (Array.isArray(conditions)) {
+      const hasEatingDisorder = conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('eating disorder') ||
+          c.toLowerCase().includes('anorexia') ||
+          c.toLowerCase().includes('bulimia'),
+      );
+      if (hasEatingDisorder) {
+        concerns.push('Eating disorder history');
+        return { safe: false, action: 'BLOCK', concerns };
+      }
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check Orlistat contraindications
+   * Spec: Weight Management spec Section 5 — Orlistat contraindications
+   */
+  checkOrlistatContraindications(responses: Record<string, any>): ContraindicationResult {
+    const concerns: string[] = [];
+    let action: ContraindicationResult['action'] | undefined;
+
+    const conditions = responses.Q13 || [];
+
+    // BLOCK: Chronic malabsorption syndrome
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('malabsorption'))
+    ) {
+      concerns.push('Chronic malabsorption syndrome');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Cholestasis
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('cholestasis'))
+    ) {
+      concerns.push('Cholestasis');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // CAUTION: Gallstones
+    if (
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('gallbladder') || c.toLowerCase().includes('gallstone'),
+      )
+    ) {
+      concerns.push('Gallstones present');
+      action = 'CAUTION';
+    }
+
+    // CAUTION: Kidney disease (oxalate stones)
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('kidney'))
+    ) {
+      concerns.push('Kidney disease — oxalate stones risk');
+      action = 'CAUTION';
+    }
+
+    if (concerns.length > 0) {
+      return { safe: false, action: action || 'CAUTION', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check Metformin contraindications
+   * Spec: Weight Management spec Section 5 — Metformin contraindications
+   */
+  checkMetforminContraindications(responses: Record<string, any>): ContraindicationResult {
+    const concerns: string[] = [];
+
+    const conditions = responses.Q13 || [];
+
+    // BLOCK: Severe kidney disease
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('kidney'))
+    ) {
+      concerns.push('Kidney disease');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // CAUTION: Liver disease
+    if (
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('liver') || c.toLowerCase().includes('fatty liver'),
+      )
+    ) {
+      concerns.push('Liver disease');
+      return { safe: false, action: 'CAUTION', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Calculate Weight metrics from responses
+   * Spec: Weight Management spec Section 5 — BMI, metabolic risk, etc.
+   */
+  calculateWeightMetrics(responses: Record<string, any>): {
+    bmi: number | null;
+    bmi_category: string;
+    bmi_category_asian: string;
+    waist_circumference_risk: string | null;
+    insulin_resistance_likely: boolean;
+    thyroid_check_recommended: boolean;
+    pcos_screening_recommended: boolean;
+    bariatric_discussion_warranted: boolean;
+  } {
+    // Calculate BMI
+    const height = responses.Q5;
+    const weight = responses.Q6;
+    let bmi: number | null = null;
+    let bmiCategory = 'unknown';
+    let bmiCategoryAsian = 'unknown';
+
+    if (height && weight && height > 0) {
+      const heightM = height / 100;
+      bmi = weight / (heightM * heightM);
+
+      // Standard WHO
+      if (bmi < 18.5) bmiCategory = 'underweight';
+      else if (bmi < 25) bmiCategory = 'normal';
+      else if (bmi < 30) bmiCategory = 'overweight';
+      else if (bmi < 35) bmiCategory = 'obese_class_i';
+      else if (bmi < 40) bmiCategory = 'obese_class_ii';
+      else bmiCategory = 'obese_class_iii';
+
+      // WHO Asian criteria
+      if (bmi < 18.5) bmiCategoryAsian = 'underweight';
+      else if (bmi < 23) bmiCategoryAsian = 'normal';
+      else if (bmi < 25) bmiCategoryAsian = 'overweight';
+      else if (bmi < 30) bmiCategoryAsian = 'obese_class_i';
+      else if (bmi < 35) bmiCategoryAsian = 'obese_class_ii';
+      else bmiCategoryAsian = 'obese_class_iii';
+    }
+
+    // Waist circumference risk
+    let waistRisk: string | null = null;
+    const waist = responses.Q7;
+    const sex = responses.Q2;
+    if (waist) {
+      if (sex === 'Male') {
+        if (waist > 102) waistRisk = 'high';
+        else if (waist >= 94) waistRisk = 'elevated';
+        else waistRisk = 'normal';
+      } else if (sex === 'Female') {
+        if (waist > 88) waistRisk = 'high';
+        else if (waist >= 80) waistRisk = 'elevated';
+        else waistRisk = 'normal';
+      }
+    }
+
+    // Insulin resistance indicators
+    const conditions = responses.Q13 || [];
+    const insulinResistanceLikely =
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('pre-diabetes') ||
+          c.toLowerCase().includes('insulin resistance') ||
+          c.toLowerCase().includes('type 2 diabetes'),
+      );
+
+    // Thyroid check recommended
+    const thyroidCheckRecommended =
+      (responses.Q9 === 'Went up sharply in the last 6-12 months' ||
+        responses.Q3 === 'I have difficulty losing weight and suspect a medical reason') &&
+      !(
+        Array.isArray(conditions) &&
+        conditions.some((c: string) => c.toLowerCase().includes('thyroid'))
+      );
+
+    // PCOS screening recommended (women with irregular periods + weight gain + hirsutism)
+    const pcosScreeningRecommended =
+      sex === 'Female' &&
+      (responses.Q8 === 'Irregular (vary a lot)' ||
+        responses.Q8 === 'Very infrequent (every few months)') &&
+      responses.Q8b === 'Yes';
+
+    // Bariatric discussion warranted
+    let bariatricDiscussion = false;
+    if (bmi !== null) {
+      if (bmi >= 40) {
+        bariatricDiscussion = true;
+      } else if (bmi >= 35) {
+        // BMI ≥35 with comorbidities
+        const comorbidities = ['diabetes', 'blood pressure', 'sleep apnea'];
+        const hasComorbidity =
+          Array.isArray(conditions) &&
+          conditions.some((c: string) =>
+            comorbidities.some((cm) => c.toLowerCase().includes(cm)),
+          );
+        if (hasComorbidity) {
+          bariatricDiscussion = true;
+        }
+      }
+    }
+
+    return {
+      bmi,
+      bmi_category: bmiCategory,
+      bmi_category_asian: bmiCategoryAsian,
+      waist_circumference_risk: waistRisk,
+      insulin_resistance_likely: insulinResistanceLikely,
+      thyroid_check_recommended: thyroidCheckRecommended,
+      pcos_screening_recommended: pcosScreeningRecommended,
+      bariatric_discussion_warranted: bariatricDiscussion,
+    };
+  }
+
+  /**
+   * Build Weight AI prompt
+   * Spec: Weight Management spec Section 5
+   */
+  buildWeightPrompt(responses: Record<string, any>): string {
+    const classifications = WEIGHT_CLASSIFICATIONS.join(', ');
+    const metrics = this.calculateWeightMetrics(responses);
+    const glp1Eligibility = this.checkGLP1Eligibility(responses);
+
+    const prompt = `You are a clinical pre-screening AI for a weight management telehealth platform in India.
+You are NOT a doctor. You screen, classify, and flag. The doctor makes all decisions.
+
+Given the patient's questionnaire:
+1. Classify weight condition type (${classifications})
+2. Detect red flags
+3. Check metabolic_risk_level (low/moderate/high)
+4. Assess insulin_resistance_likely (true/false)
+5. Note thyroid_check_recommended (true/false)
+6. Note bariatric_discussion_warranted (true/false)
+7. List recommended_blood_panels
+8. Rate doctor_attention_level: low/medium/high/critical
+
+Be conservative. Eating disorders = CRITICAL attention. Underweight requesting weight loss = DO NOT PRESCRIBE.
+
+Current metrics:
+BMI: ${metrics.bmi?.toFixed(1) || 'Not calculated'}
+BMI Category (Asian criteria): ${metrics.bmi_category_asian}
+Waist Risk: ${metrics.waist_circumference_risk || 'Not provided'}
+Insulin Resistance Likely: ${metrics.insulin_resistance_likely}
+GLP-1 Eligible: ${glp1Eligibility.eligible} (${glp1Eligibility.reason})
+
+Patient data:
+${JSON.stringify(responses, null, 2)}
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "classification": {
+    "likely_condition": string,
+    "confidence": "high" | "medium" | "low",
+    "alternative_considerations": string[]
+  },
+  "bmi": number,
+  "bmi_category": string,
+  "waist_circumference_risk": string,
+  "metabolic_risk_level": "low" | "moderate" | "high",
+  "insulin_resistance_likely": boolean,
+  "thyroid_check_recommended": boolean,
+  "pcos_screening_recommended": boolean,
+  "eating_disorder_flag": boolean,
+  "glp1_eligible": boolean,
+  "bariatric_discussion_warranted": boolean,
+  "recommended_blood_panels": string[],
+  "red_flags": string[],
+  "contraindications": {
+    "orlistat": { "safe": boolean, "concerns": string[] },
+    "metformin": { "safe": boolean, "concerns": string[] },
+    "glp1": { "safe": boolean, "concerns": string[] }
+  },
+  "risk_factors": string[],
+  "recommended_protocol": {
+    "primary": string,
+    "medications": [{ "name": string, "dose": string, "frequency": string }],
+    "additional": string[]
+  },
+  "doctor_attention_level": "low" | "medium" | "high" | "critical",
+  "summary": string
+}`;
+
+    return prompt;
+  }
+
+  /**
+   * Calculate Weight attention level
+   * Spec: Weight Management spec Section 5
+   */
+  calculateWeightAttentionLevel(
+    assessment: Record<string, any>
+  ): 'low' | 'medium' | 'high' | 'critical' {
+    const condition = assessment.classification?.likely_condition;
+
+    // CRITICAL: Eating disorder or underweight concern
+    if (condition === 'eating_disorder_flag' || condition === 'underweight_concern') {
+      return 'critical';
+    }
+
+    // HIGH: Thyroid, PCOS, bariatric, medication-induced
+    if (
+      condition === 'thyroid_suspected' ||
+      condition === 'pcos_related' ||
+      condition === 'bariatric_candidate' ||
+      condition === 'medication_induced' ||
+      assessment.metabolic_risk_level === 'high'
+    ) {
+      return 'high';
+    }
+
+    // MEDIUM: Insulin resistant, binge eating, GLP-1 candidate
+    if (
+      condition === 'insulin_resistant' ||
+      condition === 'binge_eating' ||
+      condition === 'glp1_candidate'
+    ) {
+      return 'medium';
+    }
+
+    // LOW: Lifestyle obesity with low metabolic risk
+    return 'low';
   }
 }

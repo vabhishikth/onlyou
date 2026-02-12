@@ -1,6 +1,6 @@
-# CHECKPOINT — Last Updated: 2026-02-12 (Session 5)
+# CHECKPOINT — Last Updated: 2026-02-12 (Session 6)
 
-## Current Phase: Phase 7 - ED Vertical
+## Current Phase: Phase 8 - Weight Management Vertical
 ## Current Task: Task 1 & 2 COMPLETE
 ## Status: COMPLETE
 
@@ -31,25 +31,28 @@
   - [x] Task 2: Patient Actions Per Status (34 tests)
   - [x] Task 3: Notification System (52 tests)
   - [x] Task 4: Notification Preferences (38 tests)
-- [x] Phase 7 ED Vertical — ALL 150 TESTS ADDED (1143 total)
+- [x] Phase 7 ED Vertical — ALL 150 TESTS ADDED
   - [x] Task 1: ED Questionnaire + AI (107 tests)
   - [x] Task 2: ED Prescriptions + Referrals (43 tests)
+- [x] Phase 8 Weight Management Vertical — ALL 182 TESTS ADDED (1325 total)
+  - [x] Task 1: Weight Questionnaire + AI (139 tests)
+  - [x] Task 2: Weight Prescriptions + Referrals (43 tests)
 
 ## Last Completed:
-- Feature: ED Vertical (Questionnaire, AI Assessment, Prescriptions, Referrals)
+- Feature: Weight Management Vertical (Questionnaire, AI Assessment, Prescriptions, Referrals)
 - Files created/modified:
-  - `backend/src/questionnaire/data/erectile-dysfunction.ts` (NEW - 28 questions, IIEF-5 scoring)
-  - `backend/src/questionnaire/data/erectile-dysfunction.spec.ts` (NEW - 48 tests)
-  - `backend/src/ai/ai.service.ts` (UPDATED - added ED classifications, red flags, contraindications)
-  - `backend/src/ai/ai.service.spec.ts` (UPDATED - added 58 ED tests, total 112)
-  - `backend/src/prescription/prescription.service.ts` (UPDATED - added ED templates, contraindications, referrals)
-  - `backend/src/prescription/prescription.service.spec.ts` (UPDATED - added 43 ED tests, total 89)
+  - `backend/src/questionnaire/data/weight-management.ts` (NEW - 30 questions, BMI calculation)
+  - `backend/src/questionnaire/data/weight-management.spec.ts` (NEW - 74 tests)
+  - `backend/src/ai/ai.service.ts` (UPDATED - added Weight classifications, GLP-1 eligibility, metabolic risk)
+  - `backend/src/ai/ai.service.spec.ts` (UPDATED - added 65 Weight tests, total 177)
+  - `backend/src/prescription/prescription.service.ts` (UPDATED - added Weight templates, contraindications, referrals)
+  - `backend/src/prescription/prescription.service.spec.ts` (UPDATED - added 43 Weight tests, total 132)
 
 ## Test Summary:
 ```
-Test Suites: 27 passed, 27 total
-Tests:       1143 passed, 1143 total (0 skipped, 0 failing)
-Time:        ~11 seconds
+Test Suites: 28 passed, 28 total
+Tests:       1325 passed, 1325 total (0 skipped, 0 failing)
+Time:        ~13 seconds
 ```
 
 ## Test Breakdown:
@@ -59,13 +62,14 @@ Time:        ~11 seconds
 - upload.service.spec.ts: 22 tests
 - user.service.spec.ts: 31 tests
 - questionnaire.service.spec.ts: 32 tests
-- erectile-dysfunction.spec.ts: 48 tests (NEW)
+- erectile-dysfunction.spec.ts: 48 tests
+- weight-management.spec.ts: 74 tests (NEW)
 - intake.service.spec.ts: 18 tests
-- ai.service.spec.ts: 112 tests (was 53, +59 ED tests)
+- ai.service.spec.ts: 177 tests (was 112, +65 Weight tests)
 - consultation.service.spec.ts: 30 tests
 - photo-requirements.service.spec.ts: 47 tests
 - dashboard.service.spec.ts: 46 tests
-- prescription.service.spec.ts: 89 tests (was 46, +43 ED tests)
+- prescription.service.spec.ts: 132 tests (was 89, +43 Weight tests)
 - messaging.service.spec.ts: 33 tests
 - lab-order.service.spec.ts: 70 tests
 - slot-booking.service.spec.ts: 44 tests
@@ -81,89 +85,79 @@ Time:        ~11 seconds
 - notification.service.spec.ts: 52 tests
 - notification-preference.service.spec.ts: 38 tests
 
-## Phase 7 Summary:
+## Phase 8 Summary:
 
-### Task 1: ED Questionnaire + AI (107 tests)
-- ED Question Data File (28 questions per spec):
-  - Section 1: Basics (Q1-Q3) - age, sex, primary concern
-  - Section 2: IIEF-5 Assessment (Q4-Q8) - 5 questions, scale 1-5
-  - Section 3: Onset & Pattern (Q9-Q12) - timing, onset type, morning erections, situational
-  - Section 4: Cardiovascular Screening (Q13-Q19) - conditions, medications, BP, cardiac history
-  - Section 5: Psychological & Lifestyle (Q20-Q24) - psych factors, smoking, alcohol, exercise
-  - Section 6: Treatment History (Q25-Q28) - previous treatments, side effects, goals
+### Task 1: Weight Questionnaire + AI (139 tests)
+- Weight Question Data File (30 questions + Q8b conditional):
+  - Section 1: Basics (Q1-Q4) - age, sex, primary concern, weight loss goal
+  - Section 2: Body Measurements (Q5-Q8b) - height, weight, waist circumference, menstrual regularity
+  - Section 3: Weight History (Q9-Q12) - weight pattern, max weight, yo-yo dieting, triggers
+  - Section 4: Medical Screening (Q13-Q18) - conditions, medications, pregnancy, pancreatitis, MTC, allergies
+  - Section 5: Diet & Lifestyle (Q19-Q23) - eating habits, meals/day, diet type, activity, sleep
+  - Section 6: Treatment History (Q24-Q27) - previous attempts, medication experience, side effects, blood work
+  - Section 7: Motivation & Expectations (Q28-Q30) - challenges, medication interest, timeline
 - Skip Logic Rules:
-  - Q3 "never_able" → skip Q4, Q5
-  - Q14 "none" → skip Q15
-  - Q25 "none" → skip Q26, Q27
-  - Q13 "none" → Q14 optional
-- IIEF-5 Scoring (sum Q4-Q8, range 5-25):
-  - 22-25: No ED
-  - 17-21: Mild ED
-  - 12-16: Mild-Moderate ED
-  - 8-11: Moderate ED
-  - 5-7: Severe ED
-- ED AI Classifications (10 types):
-  - vascular_ed, psychological_ed, mixed_ed
-  - medication_induced_ed, hormonal_ed_suspected, neurological_ed_suspected
-  - peyronie_related, cardiovascular_risk, nitrate_contraindication
-  - premature_ejaculation_primary
-- ED Red Flags (11 types):
-  - Nitrates (CRITICAL - fatal interaction)
-  - Recent cardiac event <6 months
-  - Chest pain during activity
-  - Heart not strong enough
-  - Severe hypotension (BP <90/50)
-  - Priapism history
-  - Sudden onset + no psychological triggers
-  - Age <25 with severe ED + no psych factors
-  - Vision/hearing changes from prior PDE5 use
-  - Peyronie's disease
-  - Unknown BP + multiple cardiac meds
-- Cardiovascular Risk Assessment (low/moderate/high/contraindicated)
-- Morning Erections Indicator (psychological vs organic etiology)
-- ED Photo Requirement: ZERO (privacy feature)
+  - Q2 "Male" → skip Q8, Q8b
+  - Q8 "Yes, regular" or "Post-menopausal" → skip Q8b
+  - Q24 "None" → skip Q25, Q26
+- BMI Calculation (WHO Asian criteria):
+  - Standard WHO: Underweight <18.5, Normal 18.5-24.9, Overweight 25-29.9, Obese I 30-34.9, Obese II 35-39.9, Obese III ≥40
+  - WHO Asian: Underweight <18.5, Normal 18.5-22.9, Overweight 23-24.9, Obese I 25-29.9, Obese II 30-34.9, Obese III ≥35
+- Waist Circumference Risk:
+  - Men: Normal <94cm, Elevated 94-102cm, High >102cm
+  - Women: Normal <80cm, Elevated 80-88cm, High >88cm
+- Weight AI Classifications (10 types):
+  - lifestyle_obesity, insulin_resistant, thyroid_suspected, pcos_related
+  - medication_induced, eating_disorder_flag, binge_eating
+  - bariatric_candidate, glp1_candidate, underweight_concern
+- Weight Red Flags:
+  - BMI <18.5 requesting weight loss (CRITICAL - eating disorder)
+  - Active or recent eating disorder (CRITICAL)
+  - History of pancreatitis (GLP-1 contraindicated)
+  - Family history of MTC/MEN2 (GLP-1 contraindicated)
+  - Pregnant/breastfeeding
+  - Very rapid weight gain
+  - Gallstones + Orlistat
+- GLP-1 Eligibility:
+  - Eligible: BMI ≥30 OR BMI ≥27 with comorbidities
+  - Contraindicated: pancreatitis, MTC/MEN2, pregnancy, eating disorder
+- Photo Requirements: 2 required (full_body_front, full_body_side), 1 optional (waist_measurement)
 
-### Task 2: ED Prescriptions + Referrals (43 tests)
-- 7 ED Prescription Templates:
-  - ON_DEMAND_SILDENAFIL_50: Sildenafil 50mg (standard first-line)
-  - ON_DEMAND_SILDENAFIL_100: Sildenafil 100mg (50mg insufficient)
-  - ON_DEMAND_TADALAFIL_10: Tadalafil 10mg (longer window)
-  - ON_DEMAND_TADALAFIL_20: Tadalafil 20mg (10mg insufficient)
-  - DAILY_TADALAFIL_5: Tadalafil 5mg daily (spontaneity)
-  - CONSERVATIVE_25: Sildenafil 25mg (older patients, alpha-blockers)
-  - ED_CUSTOM: Custom prescription
-- ED Contraindication Matrix:
-  - ABSOLUTE_BLOCK: Nitrates (any form)
-  - BLOCK: Recent cardiac event, chest pain, heart not strong enough, severe hypotension
-  - CAUTION: Alpha-blockers (4hr separation), HIV protease inhibitors (dose reduction),
-    liver disease, kidney disease, sickle cell (priapism risk), priapism history, heavy alcohol
-- 6 ED Canned Messages:
-  - ed_prescribed: Prescription instructions
-  - ed_daily_tadalafil: Daily tadalafil recommendation
-  - ed_counseling: Counseling recommendation
-  - ed_testosterone_check: Blood work referral
-  - ed_cardiology_clearance: Cardiology clearance
-  - ed_dose_adjustment: Dose adjustment
-- ED Referral Logic:
-  - Nitrates: Full refund, refer to cardiologist
-  - Cardiac clearance: Refer to cardiologist
-  - Peyronie's: Refer to urologist in-person
-  - Low testosterone: Blood work (testosterone, LH, FSH, prolactin)
-  - Severe ED in young: Refer to urologist
-  - Psychological: Prescribe with counseling recommendation
-  - PE primary: Different treatment pathway
-  - Priapism history: Caution, lowest dose
+### Task 2: Weight Prescriptions + Referrals (43 tests)
+- 6 Weight Prescription Templates:
+  - LIFESTYLE_ONLY: Diet + exercise + supplements (Vitamin D, Fiber)
+  - STANDARD_ORLISTAT: Orlistat 120mg 3x/day + Multivitamin
+  - METFORMIN_ADDON: Metformin 500mg→1000mg + Orlistat + Multivitamin
+  - GLP1_STANDARD: Semaglutide 0.25mg→2.4mg weekly (premium tier)
+  - GLP1_METFORMIN: Semaglutide + Metformin
+  - WEIGHT_CUSTOM: Custom prescription
+- Weight Contraindication Matrix:
+  - Orlistat: BLOCK for malabsorption/cholestasis/pregnancy, CAUTION for gallstones/kidney stones
+  - Metformin: BLOCK for kidney disease/pregnancy, CAUTION for liver disease
+  - GLP-1: ABSOLUTE_BLOCK for pancreatitis/MTC, BLOCK for pregnancy/eating disorder
+- 7 Weight Canned Messages:
+  - weight_orlistat_started: Orlistat introduction with GI side effect warning
+  - weight_glp1_intro: Semaglutide injection instructions
+  - weight_lifestyle_focus: Lifestyle-focused approach
+  - weight_metformin_info: Metformin information
+  - weight_blood_work_needed: Baseline labs required
+  - weight_thyroid_check: Thyroid panel needed
+  - weight_progress_check: Follow-up message
+- Weight Referral Logic:
+  - BMI ≥40: Bariatric surgery discussion
+  - BMI ≥35 + comorbidities: Bariatric surgery discussion
+  - Thyroid suspected: Blood work + endocrinology
+  - PCOS related: Redirect to PCOS vertical
+  - Eating disorder: DO NOT PRESCRIBE, refer to mental health
+  - Medication induced: Refer back to prescriber
 - Template Selection Logic:
-  - Default: ON_DEMAND_SILDENAFIL_50
-  - Older (>65) or alpha-blockers: CONSERVATIVE_25
-  - Spontaneity preference: DAILY_TADALAFIL_5
-  - Longer window preference: ON_DEMAND_TADALAFIL_10
-  - Previous 50mg insufficient: ON_DEMAND_SILDENAFIL_100
+  - Default: STANDARD_ORLISTAT
+  - Lifestyle preference: LIFESTYLE_ONLY
+  - Insulin resistance: METFORMIN_ADDON
+  - GLP-1 preference + eligible: GLP1_STANDARD
+  - GLP-1 + insulin resistance: GLP1_METFORMIN
 
 ## Next Up:
-- Phase 8: Weight Management Vertical
-  - Task 1: Weight Questionnaire + AI (30 questions, BMI calculation, eating disorder screening)
-  - Task 2: Weight Prescriptions + Referrals (6 templates, GLP-1 eligibility)
 - Phase 9: PCOS Vertical
   - Task 1: PCOS Questionnaire + AI (32 questions, Rotterdam criteria, fertility intent)
   - Task 2: PCOS Prescriptions + Referrals (7 + 4 templates for trying/not trying to conceive)
@@ -174,7 +168,7 @@ Time:        ~11 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 1143 passed)
+pnpm test           # Run all tests (should show 1325 passed)
 pnpm test:cov       # Run with coverage
 ```
 

@@ -994,4 +994,574 @@ describe('AIService', () => {
       expect(level).toBe('low');
     });
   });
+
+  // ============================================
+  // WEIGHT MANAGEMENT-SPECIFIC TESTS
+  // Spec: Weight Management spec Section 5 (AI Pre-Assessment)
+  // ============================================
+  describe('Weight Classification Categories', () => {
+    // Spec: Weight Management spec Section 5 — 10 classification categories
+    const expectedWeightCategories = [
+      'lifestyle_obesity',
+      'insulin_resistant',
+      'thyroid_suspected',
+      'pcos_related',
+      'medication_induced',
+      'eating_disorder_flag',
+      'binge_eating',
+      'bariatric_candidate',
+      'glp1_candidate',
+      'underweight_concern',
+    ];
+
+    it('should have exactly 10 classification categories for weight management', () => {
+      const categories = service.getWeightClassificationCategories();
+      expect(categories.length).toBe(10);
+    });
+
+    it.each(expectedWeightCategories)('should include %s classification', (category) => {
+      const categories = service.getWeightClassificationCategories();
+      expect(categories).toContain(category);
+    });
+  });
+
+  describe('Weight Red Flags Detection', () => {
+    // Spec: Weight Management spec Section 5 — Red Flags
+    it('should detect underweight requesting weight loss as CRITICAL', () => {
+      const responses = {
+        Q5: 170, // height cm
+        Q6: 45, // weight kg - BMI ~15.6
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('BMI <18.5 requesting weight loss (eating disorder concern)');
+    });
+
+    it('should detect active or recent eating disorder as CRITICAL', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 70,
+        Q13: ['Eating disorder (current or past: anorexia, bulimia, binge eating)'],
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('Active or recent eating disorder');
+    });
+
+    it('should detect history of pancreatitis', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 85,
+        Q16: 'Yes',
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('History of pancreatitis (GLP-1 contraindicated)');
+    });
+
+    it('should detect family history of MTC/MEN2', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 85,
+        Q17: 'Yes',
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('Family history of medullary thyroid carcinoma/MEN2 (GLP-1 contraindicated)');
+    });
+
+    it('should detect pregnant/breastfeeding', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 75,
+        Q15: 'Yes',
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('Pregnant or breastfeeding (weight loss meds contraindicated)');
+    });
+
+    it('should detect very rapid weight gain', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 85,
+        Q9: 'Went up sharply in the last 6-12 months',
+        Q10: '95 kg, 2 months ago',
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags.some(f => f.includes('rapid weight gain'))).toBe(true);
+    });
+
+    it('should detect gallstones + requesting Orlistat', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 85,
+        Q13: ['Gallbladder disease / gallstones'],
+        Q29: "Yes — I've struggled with lifestyle changes alone",
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags).toContain('Gallstones present (Orlistat caution)');
+    });
+
+    it('should return empty array for healthy profile', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 175,
+        Q6: 85, // BMI ~27.8 - overweight
+        Q13: ['None of these'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const flags = service.detectWeightRedFlags(responses);
+      expect(flags.length).toBe(0);
+    });
+  });
+
+  describe('GLP-1 Eligibility Check', () => {
+    // Spec: Weight Management spec Section 5 — GLP-1 eligibility
+    it('should be eligible for BMI ≥30', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 170,
+        Q6: 90, // BMI ~31.1
+        Q13: ['None of these'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(true);
+      expect(result.reason).toContain('BMI ≥30');
+    });
+
+    it('should be eligible for BMI ≥27 with comorbidities', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 175,
+        Q6: 85, // BMI ~27.8
+        Q13: ['Type 2 diabetes'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(true);
+      expect(result.reason).toContain('BMI ≥27 with comorbidity');
+    });
+
+    it('should NOT be eligible for BMI <27', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 175,
+        Q6: 75, // BMI ~24.5
+        Q13: ['None of these'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('BMI below threshold');
+    });
+
+    it('should NOT be eligible with pancreatitis history', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 170,
+        Q6: 95, // BMI ~32.9
+        Q13: ['History of pancreatitis'],
+        Q16: 'Yes',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('pancreatitis');
+    });
+
+    it('should NOT be eligible with MTC/MEN2 history', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 170,
+        Q6: 95,
+        Q13: ['None of these'],
+        Q16: 'No',
+        Q17: 'Yes',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('thyroid cancer');
+    });
+
+    it('should NOT be eligible when pregnant/breastfeeding', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 85, // BMI ~31.2
+        Q13: ['None of these'],
+        Q15: 'Yes',
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('pregnancy');
+    });
+
+    it('should NOT be eligible with eating disorder', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 85,
+        Q13: ['Eating disorder (current or past: anorexia, bulimia, binge eating)'],
+        Q15: 'No',
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Eligibility(responses);
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('eating disorder');
+    });
+  });
+
+  describe('GLP-1 Contraindication Matrix', () => {
+    // Spec: Weight Management spec Section 5 — Contraindication Matrix for GLP-1
+    it('should ABSOLUTE BLOCK for pancreatitis history', () => {
+      const responses = { Q16: 'Yes' };
+      const result = service.checkGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.concerns).toContain('History of pancreatitis');
+    });
+
+    it('should ABSOLUTE BLOCK for MTC/MEN2 history', () => {
+      const responses = { Q16: 'No', Q17: 'Yes' };
+      const result = service.checkGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.concerns).toContain('History of medullary thyroid carcinoma or MEN2');
+    });
+
+    it('should BLOCK for pregnancy/breastfeeding', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q16: 'No', Q17: 'No' };
+      const result = service.checkGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for active eating disorder', () => {
+      const responses = {
+        Q13: ['Eating disorder (current or past: anorexia, bulimia, binge eating)'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe with no contraindications', () => {
+      const responses = {
+        Q2: 'Male',
+        Q13: ['None of these'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkGLP1Contraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('Orlistat Contraindication Matrix', () => {
+    // Spec: Weight Management spec Section 5 — Orlistat contraindications
+    it('should BLOCK for chronic malabsorption syndrome', () => {
+      const responses = { Q13: ['Chronic malabsorption syndrome'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for cholestasis', () => {
+      const responses = { Q13: ['Cholestasis'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for pregnancy', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q13: ['None of these'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should CAUTION for gallstones', () => {
+      const responses = { Q13: ['Gallbladder disease / gallstones'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('Gallstones present');
+    });
+
+    it('should CAUTION for oxalate kidney stones', () => {
+      const responses = { Q13: ['Kidney disease'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.action).toBe('CAUTION');
+    });
+
+    it('should return safe with no contraindications', () => {
+      const responses = { Q2: 'Male', Q13: ['None of these'] };
+      const result = service.checkOrlistatContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('Metformin Contraindication Matrix', () => {
+    // Spec: Weight Management spec Section 5 — Metformin contraindications
+    it('should BLOCK for severe kidney disease', () => {
+      const responses = { Q13: ['Kidney disease'] };
+      const result = service.checkMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+      expect(result.concerns).toContain('Kidney disease');
+    });
+
+    it('should BLOCK for severe liver disease', () => {
+      const responses = { Q13: ['Fatty liver disease'] };
+      const result = service.checkMetforminContraindications(responses);
+      expect(result.action).toBe('CAUTION');
+    });
+
+    it('should BLOCK for pregnancy', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q13: ['None of these'] };
+      const result = service.checkMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe with no contraindications', () => {
+      const responses = { Q2: 'Male', Q13: ['None of these'] };
+      const result = service.checkMetforminContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('Weight BMI and Metabolic Risk Assessment', () => {
+    // Spec: Weight Management spec Section 5 — BMI and metabolic risk
+    it('should calculate BMI from responses', () => {
+      const responses = {
+        Q5: 170, // height cm
+        Q6: 70, // weight kg
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.bmi).toBeCloseTo(24.22, 1);
+    });
+
+    it('should use WHO Asian criteria for BMI category', () => {
+      const responses = {
+        Q5: 170,
+        Q6: 70, // BMI ~24.22
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.bmi_category_asian).toBe('overweight'); // 23-24.9 is overweight in Asian criteria
+    });
+
+    it('should assess waist circumference risk for men', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 175,
+        Q6: 85,
+        Q7: 105, // >102cm = high risk
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.waist_circumference_risk).toBe('high');
+    });
+
+    it('should assess waist circumference risk for women', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 75,
+        Q7: 90, // >88cm = high risk
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.waist_circumference_risk).toBe('high');
+    });
+
+    it('should detect insulin resistance indicators', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 170,
+        Q6: 90,
+        Q13: ['Pre-diabetes / insulin resistance'],
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.insulin_resistance_likely).toBe(true);
+    });
+
+    it('should recommend thyroid check when suspected', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 85,
+        Q9: 'Went up sharply in the last 6-12 months',
+        Q3: 'I have difficulty losing weight and suspect a medical reason',
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.thyroid_check_recommended).toBe(true);
+    });
+
+    it('should recommend PCOS screening for women with irregular periods + weight gain', () => {
+      const responses = {
+        Q2: 'Female',
+        Q5: 165,
+        Q6: 85,
+        Q8: 'Irregular (vary a lot)',
+        Q8b: 'Yes',
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.pcos_screening_recommended).toBe(true);
+    });
+
+    it('should flag bariatric discussion for BMI ≥40', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 170,
+        Q6: 120, // BMI ~41.5
+        Q13: ['None of these'],
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.bariatric_discussion_warranted).toBe(true);
+    });
+
+    it('should flag bariatric discussion for BMI ≥35 with comorbidities', () => {
+      const responses = {
+        Q2: 'Male',
+        Q5: 175,
+        Q6: 110, // BMI ~35.9
+        Q13: ['Type 2 diabetes', 'High blood pressure'],
+      };
+      const result = service.calculateWeightMetrics(responses);
+      expect(result.bariatric_discussion_warranted).toBe(true);
+    });
+  });
+
+  describe('Weight AI Prompt Building', () => {
+    it('should include weight classification categories in prompt', () => {
+      const responses = { Q1: 35, Q5: 170, Q6: 85 };
+      const prompt = service.buildWeightPrompt(responses);
+      expect(prompt).toContain('lifestyle_obesity');
+      expect(prompt).toContain('insulin_resistant');
+      expect(prompt).toContain('glp1_candidate');
+    });
+
+    it('should include BMI and metrics in prompt', () => {
+      const responses = { Q1: 35, Q5: 170, Q6: 85, Q2: 'Male' };
+      const prompt = service.buildWeightPrompt(responses);
+      expect(prompt).toContain('BMI');
+      expect(prompt).toContain('29.4'); // 85 / (1.7)^2
+    });
+
+    it('should include GLP-1 eligibility in prompt', () => {
+      const responses = { Q1: 35, Q5: 170, Q6: 95, Q2: 'Male', Q13: ['None of these'], Q16: 'No', Q17: 'No' };
+      const prompt = service.buildWeightPrompt(responses);
+      expect(prompt).toContain('GLP-1');
+    });
+
+    it('should request JSON response format with weight-specific fields', () => {
+      const responses = { Q1: 35, Q5: 170, Q6: 85 };
+      const prompt = service.buildWeightPrompt(responses);
+      expect(prompt).toContain('JSON');
+      expect(prompt).toContain('metabolic_risk_level');
+      expect(prompt).toContain('insulin_resistance_likely');
+      expect(prompt).toContain('recommended_blood_panels');
+    });
+  });
+
+  describe('Weight Attention Level Calculation', () => {
+    it('should return CRITICAL for eating_disorder_flag', () => {
+      const assessment = {
+        classification: { likely_condition: 'eating_disorder_flag' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('critical');
+    });
+
+    it('should return CRITICAL for underweight_concern', () => {
+      const assessment = {
+        classification: { likely_condition: 'underweight_concern' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('critical');
+    });
+
+    it('should return HIGH for thyroid_suspected', () => {
+      const assessment = {
+        classification: { likely_condition: 'thyroid_suspected' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for bariatric_candidate', () => {
+      const assessment = {
+        classification: { likely_condition: 'bariatric_candidate' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for pcos_related', () => {
+      const assessment = {
+        classification: { likely_condition: 'pcos_related' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for medication_induced', () => {
+      const assessment = {
+        classification: { likely_condition: 'medication_induced' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return MEDIUM for insulin_resistant', () => {
+      const assessment = {
+        classification: { likely_condition: 'insulin_resistant' },
+        metabolic_risk_level: 'moderate',
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return MEDIUM for binge_eating', () => {
+      const assessment = {
+        classification: { likely_condition: 'binge_eating' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return MEDIUM for glp1_candidate', () => {
+      const assessment = {
+        classification: { likely_condition: 'glp1_candidate' },
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return LOW for lifestyle_obesity', () => {
+      const assessment = {
+        classification: { likely_condition: 'lifestyle_obesity' },
+        metabolic_risk_level: 'low',
+        red_flags: [],
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('low');
+    });
+
+    it('should upgrade to HIGH if metabolic_risk_level is high', () => {
+      const assessment = {
+        classification: { likely_condition: 'lifestyle_obesity' },
+        metabolic_risk_level: 'high',
+        red_flags: [],
+      };
+      const level = service.calculateWeightAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+  });
 });

@@ -815,6 +815,308 @@ export class PrescriptionService {
       diastolic: parseInt(match[2], 10),
     };
   }
+
+  // ============================================
+  // WEIGHT MANAGEMENT METHODS
+  // Spec: Weight Management spec Section 6 (Prescription Templates)
+  // ============================================
+
+  /**
+   * Get Weight prescription templates
+   * Spec: Weight Management spec Section 6 — 6 templates
+   */
+  getWeightTemplates(): Record<string, WeightTemplateDefinition> {
+    return WEIGHT_TEMPLATES;
+  }
+
+  /**
+   * Get Weight canned messages
+   */
+  getWeightCannedMessages(): WeightCannedMessage[] {
+    return WEIGHT_CANNED_MESSAGES;
+  }
+
+  /**
+   * Check Weight Orlistat contraindications
+   * Spec: Weight Management spec Section 5 — Orlistat contraindications
+   */
+  checkWeightOrlistatContraindications(responses: Record<string, any>): {
+    safe: boolean;
+    action?: 'BLOCK' | 'CAUTION';
+    concerns: string[];
+  } {
+    const concerns: string[] = [];
+    const conditions = responses.Q13 || [];
+
+    // BLOCK: Chronic malabsorption syndrome
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('malabsorption'))
+    ) {
+      concerns.push('Chronic malabsorption syndrome');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Cholestasis
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('cholestasis'))
+    ) {
+      concerns.push('Cholestasis');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // CAUTION: Gallstones
+    if (
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('gallbladder') || c.toLowerCase().includes('gallstone'),
+      )
+    ) {
+      concerns.push('Gallstones present — may worsen');
+      return { safe: false, action: 'CAUTION', concerns };
+    }
+
+    // CAUTION: Kidney disease (oxalate stones)
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('kidney'))
+    ) {
+      concerns.push('Kidney disease — oxalate stone risk');
+      return { safe: false, action: 'CAUTION', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check Weight GLP-1 contraindications
+   * Spec: Weight Management spec Section 5 — GLP-1 contraindications
+   */
+  checkWeightGLP1Contraindications(responses: Record<string, any>): {
+    safe: boolean;
+    action?: 'ABSOLUTE_BLOCK' | 'BLOCK';
+    concerns: string[];
+  } {
+    const concerns: string[] = [];
+
+    // ABSOLUTE BLOCK: Pancreatitis history
+    if (responses.Q16 === 'Yes') {
+      concerns.push('History of pancreatitis');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // ABSOLUTE BLOCK: MTC/MEN2 history
+    if (responses.Q17 === 'Yes') {
+      concerns.push('History of medullary thyroid carcinoma or MEN2');
+      return { safe: false, action: 'ABSOLUTE_BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Eating disorder
+    const conditions = responses.Q13 || [];
+    if (Array.isArray(conditions)) {
+      const hasEatingDisorder = conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('eating disorder') ||
+          c.toLowerCase().includes('anorexia') ||
+          c.toLowerCase().includes('bulimia'),
+      );
+      if (hasEatingDisorder) {
+        concerns.push('Eating disorder history');
+        return { safe: false, action: 'BLOCK', concerns };
+      }
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check Weight Metformin contraindications
+   * Spec: Weight Management spec Section 5 — Metformin contraindications
+   */
+  checkWeightMetforminContraindications(responses: Record<string, any>): {
+    safe: boolean;
+    action?: 'BLOCK' | 'CAUTION';
+    concerns: string[];
+  } {
+    const concerns: string[] = [];
+    const conditions = responses.Q13 || [];
+
+    // BLOCK: Severe kidney disease
+    if (
+      Array.isArray(conditions) &&
+      conditions.some((c: string) => c.toLowerCase().includes('kidney'))
+    ) {
+      concerns.push('Kidney disease');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // BLOCK: Pregnancy
+    if (responses.Q2 === 'Female' && responses.Q15 === 'Yes') {
+      concerns.push('Pregnant or breastfeeding');
+      return { safe: false, action: 'BLOCK', concerns };
+    }
+
+    // CAUTION: Liver disease
+    if (
+      Array.isArray(conditions) &&
+      conditions.some(
+        (c: string) =>
+          c.toLowerCase().includes('liver') || c.toLowerCase().includes('fatty liver'),
+      )
+    ) {
+      concerns.push('Liver disease');
+      return { safe: false, action: 'CAUTION', concerns };
+    }
+
+    return { safe: true, concerns: [] };
+  }
+
+  /**
+   * Check Weight referral needs
+   * Spec: Weight Management spec Section 8 — Referral Edge Cases
+   */
+  checkWeightReferral(profile: {
+    bmi: number;
+    conditions: string[];
+    glp1Eligible: boolean;
+    classification?: string;
+  }): WeightReferralResult {
+    // Eating disorder flag = DO NOT PRESCRIBE
+    if (profile.classification === 'eating_disorder_flag') {
+      return {
+        referralNeeded: true,
+        referralType: 'mental_health',
+        specialties: ['PSYCHIATRY', 'EATING_DISORDER_SPECIALIST'],
+        action: 'DO_NOT_PRESCRIBE',
+        message:
+          'We want to help you with your weight goals safely. Given your history, I recommend working with a counselor who specializes in eating and body image before starting medication.',
+      };
+    }
+
+    // BMI ≥40 = bariatric surgery discussion
+    if (profile.bmi >= 40) {
+      return {
+        referralNeeded: true,
+        referralType: 'bariatric_surgery_discussion',
+        specialties: ['BARIATRIC_SURGERY'],
+        message:
+          'Medication can help, but at your BMI, bariatric surgery may offer more significant, lasting results. We can refer you to a surgeon while also starting medication.',
+      };
+    }
+
+    // BMI ≥35 with comorbidities = bariatric surgery discussion
+    if (profile.bmi >= 35) {
+      const comorbidities = ['diabetes', 'blood pressure', 'sleep apnea'];
+      const hasComorbidity = profile.conditions.some((c) =>
+        comorbidities.some((cm) => c.toLowerCase().includes(cm)),
+      );
+      if (hasComorbidity) {
+        return {
+          referralNeeded: true,
+          referralType: 'bariatric_surgery_discussion',
+          specialties: ['BARIATRIC_SURGERY'],
+          message:
+            'Given your BMI and health conditions, bariatric surgery may be beneficial alongside medication.',
+        };
+      }
+    }
+
+    // Thyroid suspected
+    if (profile.classification === 'thyroid_suspected') {
+      return {
+        referralNeeded: true,
+        referralType: 'blood_work_thyroid',
+        specialties: ['ENDOCRINOLOGY'],
+        message:
+          "Let's check your thyroid first — it could be the main reason for weight gain.",
+      };
+    }
+
+    // PCOS related
+    if (
+      profile.classification === 'pcos_related' ||
+      profile.conditions.some((c) => c.toLowerCase().includes('pcos'))
+    ) {
+      return {
+        referralNeeded: true,
+        referralType: 'pcos_vertical_redirect',
+        specialties: ['GYNECOLOGY', 'ENDOCRINOLOGY'],
+        message:
+          'Your symptoms suggest PCOS may be contributing to weight gain. Our PCOS program addresses both hormones and weight together.',
+      };
+    }
+
+    // Medication induced
+    if (profile.classification === 'medication_induced') {
+      return {
+        referralNeeded: true,
+        referralType: 'prescriber_consult',
+        message:
+          "Your weight gain may be related to your medication. I'd recommend discussing alternatives with your prescribing doctor. Meanwhile, we can support you with lifestyle strategies.",
+      };
+    }
+
+    return { referralNeeded: false };
+  }
+
+  /**
+   * Suggest appropriate Weight template
+   * Spec: Weight Management spec Section 6 — Template selection logic
+   */
+  suggestWeightTemplate(profile: {
+    bmi: number;
+    conditions: string[];
+    patientPreference: 'lifestyle_only' | 'medication' | 'glp1';
+    glp1Eligible: boolean;
+  }): string {
+    // If patient prefers lifestyle only
+    if (profile.patientPreference === 'lifestyle_only') {
+      return 'LIFESTYLE_ONLY';
+    }
+
+    // Check for insulin resistance / pre-diabetes
+    const hasInsulinResistance = profile.conditions.some(
+      (c) =>
+        c.toLowerCase().includes('pre-diabetes') ||
+        c.toLowerCase().includes('insulin resistance') ||
+        c.toLowerCase().includes('type 2 diabetes'),
+    );
+
+    // GLP-1 preference and eligible
+    if (profile.patientPreference === 'glp1' && profile.glp1Eligible) {
+      if (hasInsulinResistance) {
+        return 'GLP1_METFORMIN';
+      }
+      return 'GLP1_STANDARD';
+    }
+
+    // If BMI 25-27.9 with no comorbidities, suggest lifestyle
+    if (profile.bmi < 28 && profile.conditions.length === 0) {
+      return 'LIFESTYLE_ONLY';
+    }
+
+    // If has insulin resistance, add metformin
+    if (hasInsulinResistance) {
+      return 'METFORMIN_ADDON';
+    }
+
+    // Default: standard orlistat
+    return 'STANDARD_ORLISTAT';
+  }
 }
 
 // ============================================
@@ -996,3 +1298,201 @@ export const ED_CANNED_MESSAGES: EDCannedMessage[] = [
       "I've adjusted your dose to [new dose]. Let me know how it works at the next check-in.",
   },
 ];
+
+// ============================================
+// WEIGHT MANAGEMENT TEMPLATES
+// Spec: Weight Management spec Section 6 (Prescription Templates)
+// ============================================
+
+export interface WeightTemplateDefinition {
+  name: string;
+  description: string;
+  whenToUse: string;
+  medications: Medication[];
+  dietGuidelines?: string;
+  exerciseRecommendation?: string;
+}
+
+// Spec: Weight Management spec Section 6 — 6 templates
+export const WEIGHT_TEMPLATES: Record<string, WeightTemplateDefinition> = {
+  LIFESTYLE_ONLY: {
+    name: 'Lifestyle Only',
+    description: 'Diet plan + exercise plan + supplements',
+    whenToUse: 'BMI 25-27.9, no comorbidities, patient prefers no meds',
+    medications: [
+      {
+        name: 'Vitamin D',
+        dosage: '1000 IU',
+        frequency: 'Once daily',
+        instructions: 'Take with food for better absorption',
+      },
+      {
+        name: 'Fiber Supplement',
+        dosage: '5g',
+        frequency: 'Once daily',
+        instructions: 'Mix with water, take before main meal',
+      },
+    ],
+    dietGuidelines: 'Personalized calorie target based on BMR, high protein emphasis',
+    exerciseRecommendation: '150 minutes moderate activity per week',
+  },
+  STANDARD_ORLISTAT: {
+    name: 'Standard (Orlistat)',
+    description: 'Orlistat with each main meal + multivitamin',
+    whenToUse: 'BMI ≥28 or ≥25 with comorbidities',
+    medications: [
+      {
+        name: 'Orlistat',
+        dosage: '120mg',
+        frequency: 'With each main meal (3x daily)',
+        instructions: 'Take during or up to 1 hour after meals containing fat. Skip dose if meal has no fat.',
+      },
+      {
+        name: 'Multivitamin',
+        dosage: '1 tablet',
+        frequency: 'Once daily at bedtime',
+        instructions: 'Take 2+ hours away from Orlistat to ensure vitamin absorption',
+      },
+    ],
+    dietGuidelines: 'Low-fat diet (<30% calories from fat) to reduce GI side effects',
+    exerciseRecommendation: '150 minutes moderate activity per week',
+  },
+  METFORMIN_ADDON: {
+    name: 'Metformin Add-On',
+    description: 'Metformin + Orlistat for insulin resistant patients',
+    whenToUse: 'Pre-diabetes, insulin resistance, PCOS co-management',
+    medications: [
+      {
+        name: 'Metformin',
+        dosage: '500mg',
+        frequency: 'Once daily with dinner, titrate to 1000mg after 2 weeks if tolerated',
+        instructions: 'Take with food to reduce GI upset',
+      },
+      {
+        name: 'Orlistat',
+        dosage: '120mg',
+        frequency: 'With each main meal (3x daily)',
+        instructions: 'Take during or up to 1 hour after meals containing fat',
+      },
+      {
+        name: 'Multivitamin',
+        dosage: '1 tablet',
+        frequency: 'Once daily at bedtime',
+        instructions: 'Take 2+ hours away from Orlistat',
+      },
+    ],
+    dietGuidelines: 'Low-carb, low-fat diet. Monitor blood sugar.',
+    exerciseRecommendation: '150 minutes moderate activity per week',
+  },
+  GLP1_STANDARD: {
+    name: 'GLP-1 Standard',
+    description: 'Semaglutide injection (premium tier)',
+    whenToUse: 'BMI ≥30 or ≥27 with comorbidities, premium tier',
+    medications: [
+      {
+        name: 'Semaglutide',
+        dosage: '0.25mg',
+        frequency: 'Once weekly (subcutaneous injection)',
+        instructions: 'Start at 0.25mg, increase to 0.5mg after 4 weeks, then 1mg, then up to 2.4mg based on tolerance',
+      },
+    ],
+    dietGuidelines: 'Balanced diet with protein emphasis. Smaller, more frequent meals.',
+    exerciseRecommendation: '150 minutes moderate activity per week',
+  },
+  GLP1_METFORMIN: {
+    name: 'GLP-1 + Metformin',
+    description: 'Semaglutide + Metformin for insulin resistant patients',
+    whenToUse: 'Insulin resistant + premium tier',
+    medications: [
+      {
+        name: 'Semaglutide',
+        dosage: '0.25mg',
+        frequency: 'Once weekly (subcutaneous injection)',
+        instructions: 'Start at 0.25mg, titrate up based on tolerance',
+      },
+      {
+        name: 'Metformin',
+        dosage: '500mg',
+        frequency: 'Once daily with dinner, titrate to 1000mg after 2 weeks',
+        instructions: 'Take with food to reduce GI upset',
+      },
+    ],
+    dietGuidelines: 'Low-carb balanced diet. Monitor blood sugar.',
+    exerciseRecommendation: '150 minutes moderate activity per week',
+  },
+  WEIGHT_CUSTOM: {
+    name: 'Custom',
+    description: 'Doctor builds from scratch',
+    whenToUse: 'Complex cases',
+    medications: [],
+  },
+};
+
+// Spec: Weight Management spec Section 7 — Canned messages
+export interface WeightCannedMessage {
+  id: string;
+  name: string;
+  template: string;
+  category: string;
+}
+
+export const WEIGHT_CANNED_MESSAGES: WeightCannedMessage[] = [
+  {
+    id: 'weight_orlistat_started',
+    name: 'Orlistat Introduction',
+    template:
+      "I've started you on Orlistat 120mg. Take it with each meal containing fat. You may experience GI side effects (oily stools, urgency) — these reduce with a low-fat diet. Take your multivitamin at bedtime.",
+    category: 'medication',
+  },
+  {
+    id: 'weight_glp1_intro',
+    name: 'GLP-1 Introduction',
+    template:
+      "I've prescribed Semaglutide (weekly injection). Start at 0.25mg for 4 weeks, then increase to 0.5mg. Nausea is common initially but usually improves. Eat smaller meals and stay hydrated.",
+    category: 'medication',
+  },
+  {
+    id: 'weight_lifestyle_focus',
+    name: 'Lifestyle Focus',
+    template:
+      "I'm starting with a lifestyle-focused approach. Your personalized diet plan targets [calories] calories daily with [protein]g protein. Aim for 150 minutes of moderate exercise weekly. We'll reassess in 3 months.",
+    category: 'lifestyle',
+  },
+  {
+    id: 'weight_metformin_info',
+    name: 'Metformin Information',
+    template:
+      "I've added Metformin to help with insulin resistance. Start with 500mg daily with dinner. We'll increase to 1000mg after 2 weeks if tolerated. Take with food to minimize GI upset.",
+    category: 'medication',
+  },
+  {
+    id: 'weight_blood_work_needed',
+    name: 'Blood Work Required',
+    template:
+      "Before starting medication, I need baseline blood work: fasting glucose, HbA1c, lipid panel, and thyroid function. Please complete this within the next week.",
+    category: 'lab',
+  },
+  {
+    id: 'weight_thyroid_check',
+    name: 'Thyroid Check',
+    template:
+      "Your symptoms suggest possible thyroid involvement. Let's check your TSH, T3, and T4 levels before starting weight loss medication. This will help us address any underlying cause.",
+    category: 'lab',
+  },
+  {
+    id: 'weight_progress_check',
+    name: 'Progress Check',
+    template:
+      "It's been [weeks] weeks. How are you finding the medication? Any side effects? What's your current weight? Let's discuss your progress and any adjustments needed.",
+    category: 'followup',
+  },
+];
+
+// Weight referral result interface
+export interface WeightReferralResult {
+  referralNeeded: boolean;
+  referralType?: string;
+  specialties?: string[];
+  message?: string;
+  action?: string;
+}

@@ -1211,4 +1211,374 @@ describe('PrescriptionService', () => {
       expect(suggestion).toBe('ON_DEMAND_SILDENAFIL_100');
     });
   });
+
+  // ============================================
+  // WEIGHT MANAGEMENT PRESCRIPTION TESTS
+  // Spec: Weight Management spec Section 6 (Prescription Templates)
+  // ============================================
+  describe('Weight Management Templates', () => {
+    it('should have exactly 6 weight prescription templates', () => {
+      const templates = service.getWeightTemplates();
+      expect(Object.keys(templates).length).toBe(6);
+    });
+
+    it('should include LIFESTYLE_ONLY template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.LIFESTYLE_ONLY).toBeDefined();
+      expect(templates.LIFESTYLE_ONLY.name.toLowerCase()).toContain('lifestyle');
+    });
+
+    it('should include STANDARD_ORLISTAT template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.STANDARD_ORLISTAT).toBeDefined();
+      expect(templates.STANDARD_ORLISTAT.medications.length).toBeGreaterThan(0);
+      expect(
+        templates.STANDARD_ORLISTAT.medications.some((m) =>
+          m.name.toLowerCase().includes('orlistat'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should include METFORMIN_ADDON template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.METFORMIN_ADDON).toBeDefined();
+      expect(
+        templates.METFORMIN_ADDON.medications.some((m) =>
+          m.name.toLowerCase().includes('metformin'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should include GLP1_STANDARD template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.GLP1_STANDARD).toBeDefined();
+      expect(
+        templates.GLP1_STANDARD.medications.some((m) =>
+          m.name.toLowerCase().includes('semaglutide'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should include GLP1_METFORMIN template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.GLP1_METFORMIN).toBeDefined();
+      const meds = templates.GLP1_METFORMIN.medications;
+      expect(meds.some((m) => m.name.toLowerCase().includes('semaglutide'))).toBe(true);
+      expect(meds.some((m) => m.name.toLowerCase().includes('metformin'))).toBe(true);
+    });
+
+    it('should include WEIGHT_CUSTOM template', () => {
+      const templates = service.getWeightTemplates();
+      expect(templates.WEIGHT_CUSTOM).toBeDefined();
+    });
+
+    it('Orlistat dosage should be 120mg with each main meal', () => {
+      const templates = service.getWeightTemplates();
+      const orlistat = templates.STANDARD_ORLISTAT.medications.find((m) =>
+        m.name.toLowerCase().includes('orlistat'),
+      );
+      expect(orlistat).toBeDefined();
+      expect(orlistat!.dosage).toBe('120mg');
+      expect(orlistat!.frequency.toLowerCase()).toContain('meal');
+    });
+
+    it('Semaglutide should start at 0.25mg weekly', () => {
+      const templates = service.getWeightTemplates();
+      const semaglutide = templates.GLP1_STANDARD.medications.find((m) =>
+        m.name.toLowerCase().includes('semaglutide'),
+      );
+      expect(semaglutide).toBeDefined();
+      expect(semaglutide!.dosage).toBe('0.25mg');
+      expect(semaglutide!.frequency.toLowerCase()).toContain('week');
+    });
+
+    it('LIFESTYLE_ONLY should include supplements', () => {
+      const templates = service.getWeightTemplates();
+      const supplements = templates.LIFESTYLE_ONLY.medications.filter(
+        (m) =>
+          m.name.toLowerCase().includes('vitamin') ||
+          m.name.toLowerCase().includes('fiber'),
+      );
+      expect(supplements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Weight Contraindication Checks', () => {
+    it('should BLOCK Orlistat for pregnancy', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q13: ['None of these'] };
+      const result = service.checkWeightOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK Orlistat for chronic malabsorption', () => {
+      const responses = { Q13: ['Chronic malabsorption syndrome'] };
+      const result = service.checkWeightOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should CAUTION Orlistat for gallstones', () => {
+      const responses = { Q13: ['Gallbladder disease / gallstones'] };
+      const result = service.checkWeightOrlistatContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('Gallstones present — may worsen');
+    });
+
+    it('should return safe for Orlistat with no contraindications', () => {
+      const responses = { Q2: 'Male', Q13: ['None of these'] };
+      const result = service.checkWeightOrlistatContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+
+    it('should BLOCK GLP-1 for pancreatitis history', () => {
+      const responses = { Q16: 'Yes' };
+      const result = service.checkWeightGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK GLP-1 for MTC/MEN2 history', () => {
+      const responses = { Q16: 'No', Q17: 'Yes' };
+      const result = service.checkWeightGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK GLP-1 for pregnancy', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q16: 'No', Q17: 'No' };
+      const result = service.checkWeightGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK GLP-1 for eating disorder', () => {
+      const responses = {
+        Q13: ['Eating disorder (current or past: anorexia, bulimia, binge eating)'],
+        Q16: 'No',
+        Q17: 'No',
+      };
+      const result = service.checkWeightGLP1Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should return safe for GLP-1 with no contraindications', () => {
+      const responses = { Q2: 'Male', Q13: ['None of these'], Q16: 'No', Q17: 'No' };
+      const result = service.checkWeightGLP1Contraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+
+    it('should BLOCK Metformin for kidney disease', () => {
+      const responses = { Q13: ['Kidney disease'] };
+      const result = service.checkWeightMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK Metformin for pregnancy', () => {
+      const responses = { Q2: 'Female', Q15: 'Yes', Q13: ['None of these'] };
+      const result = service.checkWeightMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should CAUTION Metformin for liver disease', () => {
+      const responses = { Q13: ['Fatty liver disease'] };
+      const result = service.checkWeightMetforminContraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('CAUTION');
+    });
+
+    it('should return safe for Metformin with no contraindications', () => {
+      const responses = { Q2: 'Male', Q13: ['None of these'] };
+      const result = service.checkWeightMetforminContraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('Weight Canned Messages', () => {
+    it('should have at least 5 weight canned messages', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('should have weight_orlistat_started message', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.some((m) => m.id === 'weight_orlistat_started')).toBe(true);
+    });
+
+    it('should have weight_glp1_intro message', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.some((m) => m.id === 'weight_glp1_intro')).toBe(true);
+    });
+
+    it('should have weight_lifestyle_focus message', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.some((m) => m.id === 'weight_lifestyle_focus')).toBe(true);
+    });
+
+    it('should have weight_metformin_info message', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.some((m) => m.id === 'weight_metformin_info')).toBe(true);
+    });
+
+    it('should have weight_blood_work_needed message', () => {
+      const messages = service.getWeightCannedMessages();
+      expect(messages.some((m) => m.id === 'weight_blood_work_needed')).toBe(true);
+    });
+
+    it('each message should have id, template, and category', () => {
+      const messages = service.getWeightCannedMessages();
+      messages.forEach((m) => {
+        expect(m.id).toBeDefined();
+        expect(m.template).toBeDefined();
+        expect(m.template.length).toBeGreaterThan(10);
+        expect(m.category).toBeDefined();
+      });
+    });
+  });
+
+  describe('Weight Referral Logic', () => {
+    it('should refer to bariatric surgeon for BMI ≥40', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 42,
+        conditions: [],
+        glp1Eligible: true,
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('bariatric_surgery_discussion');
+      expect(referral.specialties).toContain('BARIATRIC_SURGERY');
+    });
+
+    it('should refer to bariatric surgeon for BMI ≥35 with comorbidities', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 36,
+        conditions: ['Type 2 diabetes', 'High blood pressure'],
+        glp1Eligible: true,
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('bariatric_surgery_discussion');
+    });
+
+    it('should refer to endocrinologist for thyroid suspected', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 30,
+        conditions: [],
+        glp1Eligible: true,
+        classification: 'thyroid_suspected',
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('blood_work_thyroid');
+      expect(referral.specialties).toContain('ENDOCRINOLOGY');
+    });
+
+    it('should redirect to PCOS vertical for PCOS suspected', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 28,
+        conditions: ['PCOS (women)'],
+        glp1Eligible: false,
+        classification: 'pcos_related',
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('pcos_vertical_redirect');
+    });
+
+    it('should refer to mental health for eating disorder flag', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 22,
+        conditions: ['Eating disorder (current or past: anorexia, bulimia, binge eating)'],
+        glp1Eligible: false,
+        classification: 'eating_disorder_flag',
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('mental_health');
+      expect(referral.action).toBe('DO_NOT_PRESCRIBE');
+    });
+
+    it('should refer patient back to prescriber for medication-induced', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 32,
+        conditions: [],
+        glp1Eligible: true,
+        classification: 'medication_induced',
+      });
+      expect(referral.referralNeeded).toBe(true);
+      expect(referral.referralType).toBe('prescriber_consult');
+      expect(referral.message).toContain('prescribing doctor');
+    });
+
+    it('should not need referral for lifestyle_obesity', () => {
+      const referral = service.checkWeightReferral({
+        bmi: 28,
+        conditions: [],
+        glp1Eligible: false,
+        classification: 'lifestyle_obesity',
+      });
+      expect(referral.referralNeeded).toBe(false);
+    });
+  });
+
+  describe('Weight Template Suggestion', () => {
+    it('should suggest LIFESTYLE_ONLY for BMI 25-27.9 with no comorbidities', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 26,
+        conditions: [],
+        patientPreference: 'lifestyle_only',
+        glp1Eligible: false,
+      });
+      expect(suggestion).toBe('LIFESTYLE_ONLY');
+    });
+
+    it('should suggest STANDARD_ORLISTAT for BMI ≥28 without insulin resistance', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 30,
+        conditions: [],
+        patientPreference: 'medication',
+        glp1Eligible: false,
+      });
+      expect(suggestion).toBe('STANDARD_ORLISTAT');
+    });
+
+    it('should suggest METFORMIN_ADDON for pre-diabetes/insulin resistance', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 32,
+        conditions: ['Pre-diabetes / insulin resistance'],
+        patientPreference: 'medication',
+        glp1Eligible: false,
+      });
+      expect(suggestion).toBe('METFORMIN_ADDON');
+    });
+
+    it('should suggest GLP1_STANDARD for GLP-1 eligible patients preferring GLP-1', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 35,
+        conditions: [],
+        patientPreference: 'glp1',
+        glp1Eligible: true,
+      });
+      expect(suggestion).toBe('GLP1_STANDARD');
+    });
+
+    it('should suggest GLP1_METFORMIN for GLP-1 eligible with insulin resistance', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 35,
+        conditions: ['Type 2 diabetes'],
+        patientPreference: 'glp1',
+        glp1Eligible: true,
+      });
+      expect(suggestion).toBe('GLP1_METFORMIN');
+    });
+
+    it('should suggest LIFESTYLE_ONLY when patient prefers no medication', () => {
+      const suggestion = service.suggestWeightTemplate({
+        bmi: 32,
+        conditions: [],
+        patientPreference: 'lifestyle_only',
+        glp1Eligible: true,
+      });
+      expect(suggestion).toBe('LIFESTYLE_ONLY');
+    });
+  });
 });
