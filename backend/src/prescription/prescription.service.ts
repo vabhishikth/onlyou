@@ -553,4 +553,446 @@ export class PrescriptionService {
     // Default to standard
     return PrescriptionTemplate.STANDARD;
   }
+
+  // ============================================
+  // ED-SPECIFIC METHODS
+  // Spec: ED spec Section 6 (Prescription Templates)
+  // ============================================
+
+  /**
+   * Get ED prescription templates
+   * Spec: ED spec Section 6 — 7 templates
+   */
+  getEDTemplates(): Record<string, EDTemplateDefinition> {
+    return ED_TEMPLATES;
+  }
+
+  /**
+   * Check ED (PDE5) contraindications
+   * Spec: ED spec Section 5 — Contraindication Matrix
+   */
+  async checkEDContraindications(
+    responses: Record<string, any>
+  ): Promise<EDContraindicationCheckResult> {
+    const result: EDContraindicationCheckResult = {
+      isBlocked: false,
+      requiresCaution: false,
+      action: undefined,
+      reasons: [],
+      flags: [],
+    };
+
+    // ABSOLUTE BLOCK: Nitrates
+    const medications = responses.Q14 || [];
+    if (Array.isArray(medications) && medications.includes('nitrates')) {
+      result.isBlocked = true;
+      result.action = 'ABSOLUTE_BLOCK';
+      result.reasons.push('Nitrates: CANNOT prescribe ANY PDE5 inhibitor');
+      return result;
+    }
+
+    // BLOCK: Recent cardiac hospitalization
+    if (responses.Q16 === 'yes') {
+      result.isBlocked = true;
+      result.action = 'BLOCK';
+      result.reasons.push('Recent cardiac event: cardiology clearance required');
+      return result;
+    }
+
+    // BLOCK: Chest pain during activity
+    if (responses.Q17 === 'yes') {
+      result.isBlocked = true;
+      result.action = 'BLOCK';
+      result.reasons.push('Chest pain during activity: cardiac evaluation needed');
+      return result;
+    }
+
+    // BLOCK: Heart not strong enough
+    if (responses.Q18 === 'yes') {
+      result.isBlocked = true;
+      result.action = 'BLOCK';
+      result.reasons.push('Heart not strong enough for sexual activity');
+      return result;
+    }
+
+    // BLOCK: Severe hypotension
+    if (responses.Q15) {
+      const bp = this.parseBP(responses.Q15);
+      if (bp && bp.systolic < 90) {
+        result.isBlocked = true;
+        result.action = 'BLOCK';
+        result.reasons.push('Severe hypotension');
+        return result;
+      }
+    }
+
+    // CAUTION: Alpha-blockers
+    if (Array.isArray(medications) && medications.includes('alpha_blockers')) {
+      result.requiresCaution = true;
+      result.flags.push('Alpha-blockers: 4-hour separation required, start lowest dose');
+    }
+
+    // CAUTION: HIV protease inhibitors
+    if (Array.isArray(medications) && medications.includes('hiv_protease')) {
+      result.requiresCaution = true;
+      result.flags.push('HIV protease inhibitors: reduce PDE5 dose significantly');
+    }
+
+    // CAUTION: Liver disease
+    const conditions = responses.Q13 || [];
+    if (Array.isArray(conditions) && conditions.includes('liver_disease')) {
+      result.requiresCaution = true;
+      result.flags.push('Liver disease: lower dose, monitor');
+    }
+
+    // CAUTION: Kidney disease
+    if (Array.isArray(conditions) && conditions.includes('kidney_disease')) {
+      result.requiresCaution = true;
+      result.flags.push('Kidney disease: lower dose');
+    }
+
+    // CAUTION: Sickle cell
+    if (Array.isArray(conditions) && conditions.includes('sickle_cell')) {
+      result.requiresCaution = true;
+      result.flags.push('Sickle cell: priapism risk');
+    }
+
+    // CAUTION: Priapism history
+    const sideEffects = responses.Q27 || [];
+    if (Array.isArray(sideEffects) && sideEffects.includes('priapism')) {
+      result.requiresCaution = true;
+      result.flags.push('Priapism history: start lowest dose, warn patient');
+    }
+
+    // CAUTION: Heavy alcohol
+    if (responses.Q22 === 'heavy') {
+      result.requiresCaution = true;
+      result.flags.push('Heavy alcohol: increased hypotension risk');
+    }
+
+    return result;
+  }
+
+  /**
+   * Get ED canned messages
+   * Spec: ED spec Section 7 — 6 canned messages
+   */
+  getEDCannedMessages(): EDCannedMessage[] {
+    return ED_CANNED_MESSAGES;
+  }
+
+  /**
+   * Generate ED referral
+   * Spec: ED spec Section 8 — Referral Edge Cases
+   */
+  generateEDReferral(
+    referralType: string
+  ): EDReferralResult {
+    switch (referralType) {
+      case 'nitrates':
+        return {
+          action: 'FULL_REFUND',
+          reason: 'Patient on nitrate medication',
+          message:
+            'ED medications interact dangerously with your nitrate medication. Please discuss alternatives with your cardiologist.',
+        };
+
+      case 'cardiac_clearance':
+        return {
+          action: 'REFERRAL',
+          referTo: 'cardiologist',
+          reason: 'Cardiac clearance required',
+          message:
+            "For your safety, we need your cardiologist's clearance before prescribing.",
+        };
+
+      case 'peyronies':
+        return {
+          action: 'REFERRAL',
+          referTo: 'urologist',
+          reason: "Peyronie's disease",
+          message: 'Your condition benefits from an in-person urology evaluation.',
+        };
+
+      case 'low_testosterone':
+        return {
+          action: 'BLOOD_WORK',
+          tests: ['testosterone', 'LH', 'FSH', 'prolactin'],
+          reason: 'Low testosterone suspected',
+          message: "Let's check your hormone levels first.",
+        };
+
+      case 'severe_ed_young':
+        return {
+          action: 'REFERRAL',
+          referTo: 'urologist',
+          reason: 'Severe ED in young patient',
+          message:
+            'Given the severity, I recommend an in-person evaluation.',
+        };
+
+      case 'psychological':
+        return {
+          action: 'PRESCRIBE_WITH_COUNSELING',
+          reason: 'Primary psychological ED',
+          message:
+            'Medication will help in the short term, but addressing the underlying anxiety will give lasting results.',
+        };
+
+      case 'pe_primary':
+        return {
+          action: 'DIFFERENT_PATHWAY',
+          reason: 'Primary premature ejaculation',
+          message:
+            'Your primary concern seems to be premature ejaculation rather than erectile difficulty. I\'ll adjust your treatment plan accordingly.',
+        };
+
+      case 'priapism_history':
+        return {
+          action: 'CAUTION',
+          reason: 'Priapism history',
+          message:
+            'Given your history, we\'ll take a very cautious approach.',
+        };
+
+      default:
+        return {
+          action: 'UNKNOWN',
+          reason: 'Unknown referral type',
+          message: 'Please contact support.',
+        };
+    }
+  }
+
+  /**
+   * Suggest appropriate ED template
+   * Spec: ED spec Section 6 — Template selection logic
+   */
+  suggestEDTemplate(profile: {
+    age: number;
+    iief5Severity: string;
+    cardiovascularRisk: string;
+    patientPreference: string | null;
+    previousTreatment: { medication: string; response: string } | null;
+    onAlphaBlockers?: boolean;
+  }): string {
+    // Conservative for older patients (>65) or alpha-blocker users
+    if (profile.age > 65 || profile.onAlphaBlockers) {
+      return 'CONSERVATIVE_25';
+    }
+
+    // Check for spontaneity preference
+    if (profile.patientPreference === 'spontaneity') {
+      return 'DAILY_TADALAFIL_5';
+    }
+
+    // Check for longer window preference
+    if (profile.patientPreference === 'longer_window') {
+      return 'ON_DEMAND_TADALAFIL_10';
+    }
+
+    // Check if previous 50mg sildenafil was insufficient
+    if (
+      profile.previousTreatment?.medication === 'sildenafil_50' &&
+      profile.previousTreatment?.response === 'insufficient'
+    ) {
+      return 'ON_DEMAND_SILDENAFIL_100';
+    }
+
+    // Default first-line: on-demand sildenafil 50mg
+    return 'ON_DEMAND_SILDENAFIL_50';
+  }
+
+  /**
+   * Parse blood pressure string
+   */
+  private parseBP(bpString: string): { systolic: number; diastolic: number } | null {
+    if (!bpString || typeof bpString !== 'string') return null;
+    const match = bpString.match(/(\d+)\s*[\/]\s*(\d+)/);
+    if (!match) return null;
+    return {
+      systolic: parseInt(match[1], 10),
+      diastolic: parseInt(match[2], 10),
+    };
+  }
 }
+
+// ============================================
+// ED TYPES AND TEMPLATES
+// ============================================
+
+// ED template definition with counseling text
+export interface EDTemplateDefinition {
+  name: string;
+  description: string;
+  medications: Medication[];
+  whenToUse: string;
+  counselingText?: string;
+}
+
+// ED contraindication result
+export interface EDContraindicationCheckResult {
+  isBlocked: boolean;
+  requiresCaution: boolean;
+  action?: 'ABSOLUTE_BLOCK' | 'BLOCK' | 'CAUTION';
+  reasons: string[];
+  flags: string[];
+}
+
+// ED canned message
+export interface EDCannedMessage {
+  id: string;
+  name: string;
+  template: string;
+}
+
+// ED referral result
+export interface EDReferralResult {
+  action: string;
+  reason: string;
+  message: string;
+  referTo?: string;
+  tests?: string[];
+}
+
+// Standard counseling text for all ED prescriptions
+const ED_COUNSELING_TEXT = `Take on empty stomach for faster effect (sildenafil) / can take with food (tadalafil).
+sexual stimulation still required — medication does not cause automatic erection.
+Do NOT combine with nitrates, recreational "poppers," or other PDE5 inhibitors.
+Seek emergency help if erection lasts >4 hours.
+Common side effects: headache, flushing, nasal congestion — usually mild and temporary.
+Avoid grapefruit juice (affects metabolism).`;
+
+// Spec: ED spec Section 6 — 7 templates
+export const ED_TEMPLATES: Record<string, EDTemplateDefinition> = {
+  ON_DEMAND_SILDENAFIL_50: {
+    name: 'On-Demand Sildenafil',
+    description: 'Standard first-line treatment',
+    whenToUse: 'Standard first-line. Works 4-6hrs.',
+    medications: [
+      {
+        name: 'Sildenafil',
+        dosage: '50mg',
+        frequency: 'Take 30-60min before sexual activity, max once daily',
+        instructions: 'Take on empty stomach for faster effect',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  ON_DEMAND_SILDENAFIL_100: {
+    name: 'On-Demand Sildenafil (High)',
+    description: 'Higher dose sildenafil',
+    whenToUse: 'Previous 50mg insufficient after 6-8 attempts',
+    medications: [
+      {
+        name: 'Sildenafil',
+        dosage: '100mg',
+        frequency: 'Take 30-60min before sexual activity, max once daily',
+        instructions: 'Take on empty stomach for faster effect',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  ON_DEMAND_TADALAFIL_10: {
+    name: 'On-Demand Tadalafil',
+    description: 'Tadalafil for longer window',
+    whenToUse: 'Patient wants longer window / spontaneity',
+    medications: [
+      {
+        name: 'Tadalafil',
+        dosage: '10mg',
+        frequency: 'Take 30min before, effective up to 36hrs',
+        instructions: 'Can take with or without food',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  ON_DEMAND_TADALAFIL_20: {
+    name: 'On-Demand Tadalafil (High)',
+    description: 'Higher dose tadalafil',
+    whenToUse: 'Previous 10mg insufficient',
+    medications: [
+      {
+        name: 'Tadalafil',
+        dosage: '20mg',
+        frequency: 'Take 30min before, effective up to 36hrs',
+        instructions: 'Can take with or without food',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  DAILY_TADALAFIL_5: {
+    name: 'Daily Tadalafil',
+    description: 'Daily low-dose for spontaneity',
+    whenToUse: 'Patient wants spontaneity, frequent sexual activity, also has BPH symptoms',
+    medications: [
+      {
+        name: 'Tadalafil',
+        dosage: '5mg',
+        frequency: 'Take once daily (every day, regardless of activity)',
+        instructions: 'Take at the same time each day',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  CONSERVATIVE_25: {
+    name: 'Conservative Start',
+    description: 'Lower dose for older patients or those on alpha-blockers',
+    whenToUse: 'older patient, on alpha-blockers, liver/kidney concerns',
+    medications: [
+      {
+        name: 'Sildenafil',
+        dosage: '25mg',
+        frequency: 'Take 30-60min before sexual activity, max once daily',
+        instructions: 'Take on empty stomach for faster effect',
+      },
+    ],
+    counselingText: ED_COUNSELING_TEXT,
+  },
+  ED_CUSTOM: {
+    name: 'Custom',
+    description: 'Doctor builds from scratch',
+    whenToUse: 'Complex cases',
+    medications: [],
+  },
+};
+
+// Spec: ED spec Section 7 — 6 canned messages
+export const ED_CANNED_MESSAGES: EDCannedMessage[] = [
+  {
+    id: 'ed_prescribed',
+    name: 'Prescription Instructions',
+    template:
+      "I've prescribed [medication] for you. Take it [instructions]. Give it 6-8 attempts before judging effectiveness.",
+  },
+  {
+    id: 'ed_daily_tadalafil',
+    name: 'Daily Tadalafil Recommendation',
+    template:
+      "Based on your responses, I'd recommend trying daily low-dose tadalafil for more spontaneity.",
+  },
+  {
+    id: 'ed_counseling',
+    name: 'Counseling Recommendation',
+    template:
+      'Your symptoms suggest a significant stress/anxiety component. I recommend combining medication with counseling.',
+  },
+  {
+    id: 'ed_testosterone_check',
+    name: 'Testosterone Check',
+    template:
+      'I need to check your testosterone levels before prescribing. Please complete the blood panel.',
+  },
+  {
+    id: 'ed_cardiology_clearance',
+    name: 'Cardiology Clearance',
+    template:
+      'Please see your cardiologist for clearance before I can safely prescribe ED medication.',
+  },
+  {
+    id: 'ed_dose_adjustment',
+    name: 'Dose Adjustment',
+    template:
+      "I've adjusted your dose to [new dose]. Let me know how it works at the next check-in.",
+  },
+];

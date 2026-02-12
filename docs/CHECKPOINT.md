@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-12 (Session 4)
+# CHECKPOINT — Last Updated: 2026-02-12 (Session 5)
 
-## Current Phase: Phase 6 - Patient Tracking & Notification
-## Current Task: ALL TASKS COMPLETE
+## Current Phase: Phase 7 - ED Vertical
+## Current Task: Task 1 & 2 COMPLETE
 ## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
@@ -31,21 +31,24 @@
   - [x] Task 2: Patient Actions Per Status (34 tests)
   - [x] Task 3: Notification System (52 tests)
   - [x] Task 4: Notification Preferences (38 tests)
+- [x] Phase 7 ED Vertical — ALL 150 TESTS ADDED (1143 total)
+  - [x] Task 1: ED Questionnaire + AI (107 tests)
+  - [x] Task 2: ED Prescriptions + Referrals (43 tests)
 
 ## Last Completed:
-- Feature: Notification System + Notification Preferences
-- Files created:
-  - `backend/prisma/schema.prisma` (UPDATED - added Notification, NotificationPreference models)
-  - `backend/src/notification/notification.service.ts` (NEW - 52 tests)
-  - `backend/src/notification/notification.service.spec.ts` (NEW)
-  - `backend/src/notification/notification-preference.service.ts` (NEW - 38 tests)
-  - `backend/src/notification/notification-preference.service.spec.ts` (NEW)
-  - `backend/src/notification/notification.module.ts` (NEW)
+- Feature: ED Vertical (Questionnaire, AI Assessment, Prescriptions, Referrals)
+- Files created/modified:
+  - `backend/src/questionnaire/data/erectile-dysfunction.ts` (NEW - 28 questions, IIEF-5 scoring)
+  - `backend/src/questionnaire/data/erectile-dysfunction.spec.ts` (NEW - 48 tests)
+  - `backend/src/ai/ai.service.ts` (UPDATED - added ED classifications, red flags, contraindications)
+  - `backend/src/ai/ai.service.spec.ts` (UPDATED - added 58 ED tests, total 112)
+  - `backend/src/prescription/prescription.service.ts` (UPDATED - added ED templates, contraindications, referrals)
+  - `backend/src/prescription/prescription.service.spec.ts` (UPDATED - added 43 ED tests, total 89)
 
 ## Test Summary:
 ```
-Test Suites: 26 passed, 26 total
-Tests:       993 passed, 993 total (0 skipped, 0 failing)
+Test Suites: 27 passed, 27 total
+Tests:       1143 passed, 1143 total (0 skipped, 0 failing)
 Time:        ~11 seconds
 ```
 
@@ -56,12 +59,13 @@ Time:        ~11 seconds
 - upload.service.spec.ts: 22 tests
 - user.service.spec.ts: 31 tests
 - questionnaire.service.spec.ts: 32 tests
+- erectile-dysfunction.spec.ts: 48 tests (NEW)
 - intake.service.spec.ts: 18 tests
-- ai.service.spec.ts: 53 tests
+- ai.service.spec.ts: 112 tests (was 53, +59 ED tests)
 - consultation.service.spec.ts: 30 tests
 - photo-requirements.service.spec.ts: 47 tests
 - dashboard.service.spec.ts: 46 tests
-- prescription.service.spec.ts: 46 tests
+- prescription.service.spec.ts: 89 tests (was 46, +43 ED tests)
 - messaging.service.spec.ts: 33 tests
 - lab-order.service.spec.ts: 70 tests
 - slot-booking.service.spec.ts: 44 tests
@@ -74,89 +78,95 @@ Time:        ~11 seconds
 - wallet.service.spec.ts: 34 tests
 - tracking.service.spec.ts: 49 tests
 - patient-actions.service.spec.ts: 34 tests
-- notification.service.spec.ts: 52 tests (NEW)
-- notification-preference.service.spec.ts: 38 tests (NEW)
+- notification.service.spec.ts: 52 tests
+- notification-preference.service.spec.ts: 38 tests
 
-## Phase 6 Summary:
+## Phase 7 Summary:
 
-### Task 1: Patient Activity Feed (49 tests)
-- Get active items (lab orders + delivery orders) for patient
-- Get completed/historical items (most recent first)
-- Lab status mapping (all 12 statuses → patient-friendly labels + icons)
-- Delivery status mapping (all 9 statuses → patient-friendly labels + icons)
-- Urgency sorting (items needing patient action first)
-- Home screen banner when active orders exist
-- Progress stepper data for lab orders and delivery orders
+### Task 1: ED Questionnaire + AI (107 tests)
+- ED Question Data File (28 questions per spec):
+  - Section 1: Basics (Q1-Q3) - age, sex, primary concern
+  - Section 2: IIEF-5 Assessment (Q4-Q8) - 5 questions, scale 1-5
+  - Section 3: Onset & Pattern (Q9-Q12) - timing, onset type, morning erections, situational
+  - Section 4: Cardiovascular Screening (Q13-Q19) - conditions, medications, BP, cardiac history
+  - Section 5: Psychological & Lifestyle (Q20-Q24) - psych factors, smoking, alcohol, exercise
+  - Section 6: Treatment History (Q25-Q28) - previous treatments, side effects, goals
+- Skip Logic Rules:
+  - Q3 "never_able" → skip Q4, Q5
+  - Q14 "none" → skip Q15
+  - Q25 "none" → skip Q26, Q27
+  - Q13 "none" → Q14 optional
+- IIEF-5 Scoring (sum Q4-Q8, range 5-25):
+  - 22-25: No ED
+  - 17-21: Mild ED
+  - 12-16: Mild-Moderate ED
+  - 8-11: Moderate ED
+  - 5-7: Severe ED
+- ED AI Classifications (10 types):
+  - vascular_ed, psychological_ed, mixed_ed
+  - medication_induced_ed, hormonal_ed_suspected, neurological_ed_suspected
+  - peyronie_related, cardiovascular_risk, nitrate_contraindication
+  - premature_ejaculation_primary
+- ED Red Flags (11 types):
+  - Nitrates (CRITICAL - fatal interaction)
+  - Recent cardiac event <6 months
+  - Chest pain during activity
+  - Heart not strong enough
+  - Severe hypotension (BP <90/50)
+  - Priapism history
+  - Sudden onset + no psychological triggers
+  - Age <25 with severe ED + no psych factors
+  - Vision/hearing changes from prior PDE5 use
+  - Peyronie's disease
+  - Unknown BP + multiple cardiac meds
+- Cardiovascular Risk Assessment (low/moderate/high/contraindicated)
+- Morning Erections Indicator (psychological vs organic etiology)
+- ED Photo Requirement: ZERO (privacy feature)
 
-### Task 2: Patient Actions Per Status (34 tests)
-- Lab ORDERED: book_slot, upload_results
-- Lab SLOT_BOOKED: reschedule, cancel (4hr+ cutoff)
-- Lab PHLEBOTOMIST_ASSIGNED: reschedule, cancel (4hr+ cutoff)
-- Lab SAMPLE_COLLECTED onwards: view-only
-- Lab RESULTS_READY: view_pdf, download
-- Lab COLLECTION_FAILED: rebook
-- Delivery OUT_FOR_DELIVERY: call_delivery_person
-- Delivery DELIVERED: enter_otp, rate_delivery
-- Delivery DELIVERY_FAILED: contact_support (auto-reschedule)
-- 4-hour cutoff validation for cancel/reschedule
-
-### Task 3: Notification System (52 tests)
-- Notification model (channel, recipient, type, content, status, timestamps)
-- Blood work notifications (all events from spec Section 11):
-  - LAB_TESTS_ORDERED, LAB_SLOT_BOOKED, LAB_PHLEBOTOMIST_ASSIGNED
-  - LAB_COLLECTION_REMINDER (30 min before), LAB_RUNNING_LATE
-  - LAB_SAMPLE_COLLECTED, LAB_COLLECTION_FAILED
-  - LAB_SAMPLE_RECEIVED, LAB_SAMPLE_ISSUE
-  - LAB_RESULTS_READY (multi-channel: Push + WhatsApp + Email)
-  - LAB_CRITICAL_VALUES (URGENT to patient + doctor + coordinator)
-  - LAB_DOCTOR_REVIEWED
-  - LAB_BOOKING_REMINDER_3DAY, LAB_BOOKING_REMINDER_14DAY
-  - LAB_OVERDUE_48HR, LAB_OVERDUE_72HR (escalation)
-- Delivery notifications (all events):
-  - DELIVERY_PRESCRIPTION_CREATED, DELIVERY_PHARMACY_READY
-  - DELIVERY_PHARMACY_ISSUE (URGENT), DELIVERY_OUT_FOR_DELIVERY
-  - DELIVERY_DELIVERED, DELIVERY_FAILED, DELIVERY_MONTHLY_REORDER
-- In-app notification bell (unread count, mark as read)
-- Discreet mode support (generic text)
-- Critical alerts bypass preferences
-
-### Task 4: Notification Preferences (38 tests)
-- Get/create default preferences (all channels ON)
-- Update individual channel toggles (Push/WhatsApp/SMS/Email)
-- Toggle discreet mode (show "Onlyou: You have an update")
-- Critical event types identified (cannot be disabled)
-- Check if channel is enabled
-- Get all enabled channels for a user
-- Reset to defaults functionality
-
-## Database Schema Additions:
-```prisma
-enum NotificationChannel { PUSH, WHATSAPP, SMS, EMAIL, IN_APP }
-enum NotificationStatus { PENDING, SENT, DELIVERED, READ, FAILED }
-enum NotificationEventType { LAB_TESTS_ORDERED, LAB_SLOT_BOOKED, ... }
-
-model Notification {
-  id, recipientId, recipientRole, channel, eventType
-  title, body, data, status, isDiscreet
-  labOrderId?, orderId?, consultationId?, subscriptionId?
-  sentAt?, deliveredAt?, readAt?, failedAt?, failureReason?
-  createdAt, updatedAt
-}
-
-model NotificationPreference {
-  id, userId (unique)
-  pushEnabled, whatsappEnabled, smsEnabled, emailEnabled
-  discreetMode
-  createdAt, updatedAt
-}
-```
+### Task 2: ED Prescriptions + Referrals (43 tests)
+- 7 ED Prescription Templates:
+  - ON_DEMAND_SILDENAFIL_50: Sildenafil 50mg (standard first-line)
+  - ON_DEMAND_SILDENAFIL_100: Sildenafil 100mg (50mg insufficient)
+  - ON_DEMAND_TADALAFIL_10: Tadalafil 10mg (longer window)
+  - ON_DEMAND_TADALAFIL_20: Tadalafil 20mg (10mg insufficient)
+  - DAILY_TADALAFIL_5: Tadalafil 5mg daily (spontaneity)
+  - CONSERVATIVE_25: Sildenafil 25mg (older patients, alpha-blockers)
+  - ED_CUSTOM: Custom prescription
+- ED Contraindication Matrix:
+  - ABSOLUTE_BLOCK: Nitrates (any form)
+  - BLOCK: Recent cardiac event, chest pain, heart not strong enough, severe hypotension
+  - CAUTION: Alpha-blockers (4hr separation), HIV protease inhibitors (dose reduction),
+    liver disease, kidney disease, sickle cell (priapism risk), priapism history, heavy alcohol
+- 6 ED Canned Messages:
+  - ed_prescribed: Prescription instructions
+  - ed_daily_tadalafil: Daily tadalafil recommendation
+  - ed_counseling: Counseling recommendation
+  - ed_testosterone_check: Blood work referral
+  - ed_cardiology_clearance: Cardiology clearance
+  - ed_dose_adjustment: Dose adjustment
+- ED Referral Logic:
+  - Nitrates: Full refund, refer to cardiologist
+  - Cardiac clearance: Refer to cardiologist
+  - Peyronie's: Refer to urologist in-person
+  - Low testosterone: Blood work (testosterone, LH, FSH, prolactin)
+  - Severe ED in young: Refer to urologist
+  - Psychological: Prescribe with counseling recommendation
+  - PE primary: Different treatment pathway
+  - Priapism history: Caution, lowest dose
+- Template Selection Logic:
+  - Default: ON_DEMAND_SILDENAFIL_50
+  - Older (>65) or alpha-blockers: CONSERVATIVE_25
+  - Spontaneity preference: DAILY_TADALAFIL_5
+  - Longer window preference: ON_DEMAND_TADALAFIL_10
+  - Previous 50mg insufficient: ON_DEMAND_SILDENAFIL_100
 
 ## Next Up:
-- Phase 7: GraphQL Resolvers & API Layer
-  - Wire up all services to GraphQL schema
-  - Add authentication/authorization to resolvers
-  - Create input/output DTOs
-  - Add pagination to list queries
+- Phase 8: Weight Management Vertical
+  - Task 1: Weight Questionnaire + AI (30 questions, BMI calculation, eating disorder screening)
+  - Task 2: Weight Prescriptions + Referrals (6 templates, GLP-1 eligibility)
+- Phase 9: PCOS Vertical
+  - Task 1: PCOS Questionnaire + AI (32 questions, Rotterdam criteria, fertility intent)
+  - Task 2: PCOS Prescriptions + Referrals (7 + 4 templates for trying/not trying to conceive)
 
 ## Known Issues:
 - None currently
@@ -164,7 +174,7 @@ model NotificationPreference {
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 993 passed)
+pnpm test           # Run all tests (should show 1143 passed)
 pnpm test:cov       # Run with coverage
 ```
 

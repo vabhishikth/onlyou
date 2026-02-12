@@ -524,5 +524,474 @@ describe('AIService', () => {
       const specializations = service.getDoctorSpecializations(HealthVertical.HAIR_LOSS);
       expect(specializations).toEqual(['DERMATOLOGY', 'TRICHOLOGY']);
     });
+
+    it('should route ED to urology, andrology, and sexual medicine', () => {
+      const specializations = service.getDoctorSpecializations(HealthVertical.SEXUAL_HEALTH);
+      expect(specializations).toEqual(['UROLOGY', 'ANDROLOGY', 'SEXUAL_MEDICINE']);
+    });
+  });
+
+  // ============================================
+  // ED-SPECIFIC TESTS
+  // Spec: ED spec Section 5 (AI Pre-Assessment)
+  // ============================================
+  describe('ED Classification Categories', () => {
+    // Spec: ED spec Section 5 — 10 classification categories
+    const expectedEDCategories = [
+      'vascular_ed',
+      'psychological_ed',
+      'mixed_ed',
+      'medication_induced_ed',
+      'hormonal_ed_suspected',
+      'neurological_ed_suspected',
+      'peyronie_related',
+      'cardiovascular_risk',
+      'nitrate_contraindication',
+      'premature_ejaculation_primary',
+    ];
+
+    it('should have exactly 10 classification categories for ED', () => {
+      const categories = service.getEDClassificationCategories();
+      expect(categories.length).toBe(10);
+    });
+
+    it.each(expectedEDCategories)('should include %s classification', (category) => {
+      const categories = service.getEDClassificationCategories();
+      expect(categories).toContain(category);
+    });
+  });
+
+  describe('ED Red Flags Detection', () => {
+    // Spec: ED spec Section 5 — Red Flags (any = HIGH or CRITICAL)
+    it('should detect nitrates as CRITICAL red flag', () => {
+      const responses = {
+        Q14: ['nitrates'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Currently taking nitrates (CRITICAL — fatal interaction)');
+    });
+
+    it('should detect recent cardiac event <6 months as red flag', () => {
+      const responses = {
+        Q16: 'yes', // hospitalized for heart in last 6 months
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Recent heart attack or stroke (<6 months)');
+    });
+
+    it('should detect chest pain during sexual activity as red flag', () => {
+      const responses = {
+        Q17: 'yes',
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Chest pain during sexual activity');
+    });
+
+    it('should detect heart not strong enough for sex as red flag', () => {
+      const responses = {
+        Q18: 'yes',
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Told heart not strong enough for sex');
+    });
+
+    it('should detect severe hypotension as red flag', () => {
+      const responses = {
+        Q15: '85/50', // BP below 90/50
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('BP <90/50 (severe hypotension)');
+    });
+
+    it('should detect priapism history as red flag', () => {
+      const responses = {
+        Q27: ['priapism'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Priapism history');
+    });
+
+    it('should detect sudden onset without psychological triggers as red flag', () => {
+      const responses = {
+        Q9: '<3_months',
+        Q10: 'sudden',
+        Q20: ['none'], // No psychological factors
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Sudden onset + no psychological triggers (possible vascular event)');
+    });
+
+    it('should detect young age with severe ED and no psych factors as red flag', () => {
+      const responses = {
+        Q1: 22,
+        Q4: 1, Q5: 1, Q6: 1, Q7: 1, Q8: 1, // IIEF-5 = 5 (severe)
+        Q20: ['none'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Age <25 with severe ED + no psychological factors');
+    });
+
+    it('should detect vision or hearing changes from prior PDE5 use as red flag', () => {
+      const responses = {
+        Q27: ['vision_changes'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Vision or hearing changes from prior PDE5 use');
+    });
+
+    it('should detect Peyronies disease as red flag', () => {
+      const responses = {
+        Q13: ['peyronies'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain("Peyronie's disease");
+    });
+
+    it('should detect unknown BP with multiple cardiac meds as red flag', () => {
+      const responses = {
+        Q13: ['heart_disease', 'hypertension'],
+        Q14: ['bp_medications', 'alpha_blockers'],
+        Q15: "don't know",
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags).toContain('Blood pressure unknown + on multiple cardiac meds');
+    });
+
+    it('should return empty array when no red flags present', () => {
+      const responses = {
+        Q1: 35,
+        Q4: 4, Q5: 4, Q6: 4, Q7: 4, Q8: 4, // IIEF-5 = 20 (mild)
+        Q13: ['none'],
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+        Q20: ['work_stress'],
+        Q27: ['none'],
+      };
+      const flags = service.detectEDRedFlags(responses);
+      expect(flags.length).toBe(0);
+    });
+  });
+
+  describe('ED Nitrate Check', () => {
+    // Spec: NITRATES = ABSOLUTE CONTRAINDICATION (fatal hypotension risk)
+    it('should ABSOLUTE BLOCK for nitrates (nitroglycerin)', () => {
+      const responses = {
+        Q14: ['nitrates'],
+      };
+      const result = service.checkNitrateContraindication(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.message).toContain('CANNOT prescribe ANY PDE5 inhibitor');
+    });
+
+    it('should return clear when no nitrates', () => {
+      const responses = {
+        Q14: ['bp_medications', 'alpha_blockers'],
+      };
+      const result = service.checkNitrateContraindication(responses);
+      expect(result.safe).toBe(true);
+      expect(result.status).toBe('clear');
+    });
+
+    it('should return clear when Q14 is none', () => {
+      const responses = {
+        Q14: ['none'],
+      };
+      const result = service.checkNitrateContraindication(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('ED Cardiovascular Risk Assessment', () => {
+    // Spec: ED spec Section 5 — Cardiovascular risk: low/moderate/high/contraindicated
+    it('should return "contraindicated" for nitrates', () => {
+      const responses = {
+        Q14: ['nitrates'],
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('contraindicated');
+    });
+
+    it('should return "contraindicated" for recent cardiac event', () => {
+      const responses = {
+        Q14: ['none'],
+        Q16: 'yes', // hospitalized last 6 months
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('contraindicated');
+    });
+
+    it('should return "contraindicated" for chest pain during activity', () => {
+      const responses = {
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'yes',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('contraindicated');
+    });
+
+    it('should return "contraindicated" for heart not strong enough', () => {
+      const responses = {
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'yes',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('contraindicated');
+    });
+
+    it('should return "high" for heart disease + diabetes', () => {
+      const responses = {
+        Q13: ['heart_disease', 'diabetes'],
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('high');
+    });
+
+    it('should return "high" for severe hypotension', () => {
+      const responses = {
+        Q13: ['hypotension'],
+        Q14: ['bp_medications'],
+        Q15: '85/50',
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('high');
+    });
+
+    it('should return "moderate" for controlled hypertension', () => {
+      const responses = {
+        Q13: ['hypertension'],
+        Q14: ['bp_medications'],
+        Q15: '130/85',
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('moderate');
+    });
+
+    it('should return "low" for no cardiovascular conditions', () => {
+      const responses = {
+        Q13: ['none'],
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+      };
+      const result = service.assessCardiovascularRisk(responses);
+      expect(result.level).toBe('low');
+    });
+  });
+
+  describe('ED PDE5 Contraindication Matrix', () => {
+    // Spec: ED spec Section 5 — Contraindication Matrix
+    it('should ABSOLUTE BLOCK for nitrates', () => {
+      const responses = { Q14: ['nitrates'] };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+    });
+
+    it('should BLOCK for recent cardiac event', () => {
+      const responses = { Q14: ['none'], Q16: 'yes' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+      expect(result.concerns).toContain('Cardiology clearance required');
+    });
+
+    it('should BLOCK for chest pain during activity', () => {
+      const responses = { Q14: ['none'], Q16: 'no', Q17: 'yes' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for severe hypotension', () => {
+      const responses = { Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q15: '85/50' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should CAUTION for alpha-blockers (4hr separation required)', () => {
+      const responses = { Q14: ['alpha_blockers'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(false);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('Alpha-blockers: 4-hour separation, start lowest dose');
+    });
+
+    it('should CAUTION for HIV protease inhibitors (dose reduction)', () => {
+      const responses = { Q14: ['hiv_protease'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('HIV protease inhibitors: reduce PDE5 dose');
+    });
+
+    it('should CAUTION for severe liver disease', () => {
+      const responses = { Q13: ['liver_disease'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.action).toBe('CAUTION');
+    });
+
+    it('should CAUTION for sickle cell disease (priapism risk)', () => {
+      const responses = { Q13: ['sickle_cell'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('Sickle cell: priapism risk');
+    });
+
+    it('should CAUTION for priapism history', () => {
+      const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q27: ['priapism'] };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.action).toBe('CAUTION');
+    });
+
+    it('should CAUTION for heavy alcohol use', () => {
+      const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q22: 'heavy' };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.action).toBe('CAUTION');
+      expect(result.concerns).toContain('Heavy alcohol: increased hypotension risk');
+    });
+
+    it('should return safe for no contraindications', () => {
+      const responses = {
+        Q13: ['none'],
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+        Q22: 'occasionally',
+        Q27: ['none'],
+      };
+      const result = service.checkPDE5Contraindications(responses);
+      expect(result.safe).toBe(true);
+    });
+  });
+
+  describe('ED Morning Erections Indicator', () => {
+    // Spec: Morning erections present → likely psychological cause
+    it('should indicate psychological cause when morning erections present', () => {
+      const responses = {
+        Q11: ['morning_erections'],
+      };
+      const result = service.analyzeEtiologyIndicators(responses);
+      expect(result.morningErections).toBe(true);
+      expect(result.likelyEtiology).toBe('psychological');
+    });
+
+    it('should indicate organic cause when no erections in any situation', () => {
+      const responses = {
+        Q11: ['rarely_never'],
+      };
+      const result = service.analyzeEtiologyIndicators(responses);
+      expect(result.morningErections).toBe(false);
+      expect(result.likelyEtiology).toBe('organic');
+    });
+
+    it('should indicate performance anxiety when masturbation works but sex doesnt', () => {
+      const responses = {
+        Q11: ['masturbation_only'],
+      };
+      const result = service.analyzeEtiologyIndicators(responses);
+      expect(result.likelyEtiology).toBe('performance_anxiety');
+    });
+
+    it('should indicate mixed when situational', () => {
+      const responses = {
+        Q11: ['morning_erections', 'visual_stimulation'],
+        Q12: 'situational',
+      };
+      const result = service.analyzeEtiologyIndicators(responses);
+      expect(result.likelyEtiology).toBe('mixed');
+    });
+  });
+
+  describe('ED AI Prompt Building', () => {
+    it('should include ED classification categories in prompt', () => {
+      const prompt = service.buildEDPrompt({ Q1: 35 }, null);
+      expect(prompt).toContain('vascular_ed');
+      expect(prompt).toContain('psychological_ed');
+      expect(prompt).toContain('nitrate_contraindication');
+    });
+
+    it('should include IIEF-5 score in prompt when available', () => {
+      const responses = { Q1: 35, Q4: 3, Q5: 3, Q6: 3, Q7: 3, Q8: 3 };
+      const prompt = service.buildEDPrompt(responses, 15);
+      expect(prompt).toContain('IIEF-5 Score: 15');
+      expect(prompt).toContain('mild_moderate');
+    });
+
+    it('should request nitrate check and CV risk in JSON output', () => {
+      const prompt = service.buildEDPrompt({ Q1: 35 }, null);
+      expect(prompt).toContain('nitrate_check');
+      expect(prompt).toContain('cardiovascular_risk');
+      expect(prompt).toContain('morning_erections');
+    });
+
+    it('should indicate NO PHOTOS for ED', () => {
+      const prompt = service.buildEDPrompt({ Q1: 35 }, null);
+      expect(prompt).toContain('NO PHOTOS');
+    });
+  });
+
+  describe('ED Attention Level Calculation', () => {
+    it('should return CRITICAL for nitrate contraindication', () => {
+      const assessment = {
+        classification: { likely_condition: 'nitrate_contraindication' },
+        nitrate_check: 'BLOCKED',
+      };
+      const level = service.calculateEDAttentionLevel(assessment);
+      expect(level).toBe('critical');
+    });
+
+    it('should return HIGH for cardiovascular_risk', () => {
+      const assessment = {
+        classification: { likely_condition: 'cardiovascular_risk' },
+        cardiovascular_risk: 'high',
+      };
+      const level = service.calculateEDAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return HIGH for peyronie_related', () => {
+      const assessment = {
+        classification: { likely_condition: 'peyronie_related' },
+      };
+      const level = service.calculateEDAttentionLevel(assessment);
+      expect(level).toBe('high');
+    });
+
+    it('should return MEDIUM for psychological_ed', () => {
+      const assessment = {
+        classification: { likely_condition: 'psychological_ed' },
+        cardiovascular_risk: 'low',
+      };
+      const level = service.calculateEDAttentionLevel(assessment);
+      expect(level).toBe('medium');
+    });
+
+    it('should return LOW for vascular_ed with low CV risk', () => {
+      const assessment = {
+        classification: { likely_condition: 'vascular_ed' },
+        cardiovascular_risk: 'low',
+        red_flags: [],
+      };
+      const level = service.calculateEDAttentionLevel(assessment);
+      expect(level).toBe('low');
+    });
   });
 });

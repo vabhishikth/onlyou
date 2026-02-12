@@ -811,4 +811,404 @@ describe('PrescriptionService', () => {
       expect(suggestion).toBe(PrescriptionTemplate.MINOXIDIL_ONLY);
     });
   });
+
+  // ============================================
+  // ED PRESCRIPTION TESTS
+  // Spec: ED spec Section 6 (Prescription Templates)
+  // ============================================
+
+  describe('ED Prescription Templates', () => {
+    // Spec: ED spec Section 6 — 7 prescription templates
+
+    it('should have 7 ED prescription templates', () => {
+      const edTemplates = service.getEDTemplates();
+      expect(Object.keys(edTemplates)).toHaveLength(7);
+    });
+
+    it('should have On-Demand Sildenafil 50mg template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['ON_DEMAND_SILDENAFIL_50'];
+      expect(template).toBeDefined();
+      expect(template.name).toBe('On-Demand Sildenafil');
+      expect(template.medications[0].name).toBe('Sildenafil');
+      expect(template.medications[0].dosage).toBe('50mg');
+      expect(template.medications[0].frequency).toContain('before sexual activity');
+    });
+
+    it('should have On-Demand Sildenafil 100mg (High) template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['ON_DEMAND_SILDENAFIL_100'];
+      expect(template).toBeDefined();
+      expect(template.name).toBe('On-Demand Sildenafil (High)');
+      expect(template.medications[0].dosage).toBe('100mg');
+      expect(template.whenToUse).toContain('50mg insufficient');
+    });
+
+    it('should have On-Demand Tadalafil 10mg template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['ON_DEMAND_TADALAFIL_10'];
+      expect(template).toBeDefined();
+      expect(template.medications[0].name).toBe('Tadalafil');
+      expect(template.medications[0].dosage).toBe('10mg');
+      expect(template.whenToUse).toContain('longer window');
+    });
+
+    it('should have On-Demand Tadalafil 20mg (High) template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['ON_DEMAND_TADALAFIL_20'];
+      expect(template).toBeDefined();
+      expect(template.medications[0].dosage).toBe('20mg');
+    });
+
+    it('should have Daily Tadalafil 5mg template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['DAILY_TADALAFIL_5'];
+      expect(template).toBeDefined();
+      expect(template.name).toBe('Daily Tadalafil');
+      expect(template.medications[0].dosage).toBe('5mg');
+      expect(template.medications[0].frequency).toContain('daily');
+      expect(template.whenToUse).toContain('spontaneity');
+    });
+
+    it('should have Conservative Start (Sildenafil 25mg) template', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['CONSERVATIVE_25'];
+      expect(template).toBeDefined();
+      expect(template.name).toBe('Conservative Start');
+      expect(template.medications[0].name).toBe('Sildenafil');
+      expect(template.medications[0].dosage).toBe('25mg');
+      expect(template.whenToUse).toContain('older');
+    });
+
+    it('should have Custom template with empty medications', () => {
+      const templates = service.getEDTemplates();
+      const template = templates['ED_CUSTOM'];
+      expect(template).toBeDefined();
+      expect(template.name).toBe('Custom');
+      expect(template.medications).toHaveLength(0);
+    });
+
+    it('should include standard counseling text in all ED templates', () => {
+      const templates = service.getEDTemplates();
+      for (const key of Object.keys(templates)) {
+        if (key !== 'ED_CUSTOM') {
+          const template = templates[key];
+          expect(template.counselingText).toBeDefined();
+          expect(template.counselingText).toContain('sexual stimulation');
+        }
+      }
+    });
+  });
+
+  describe('ED PDE5 Contraindication Checks', () => {
+    // Spec: ED spec Section 5 — Contraindication Matrix
+
+    it('should ABSOLUTE BLOCK for nitrates', async () => {
+      const responses = { Q14: ['nitrates'] };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(true);
+      expect(result.action).toBe('ABSOLUTE_BLOCK');
+      expect(result.reasons).toContain('Nitrates: CANNOT prescribe ANY PDE5 inhibitor');
+    });
+
+    it('should BLOCK for recent cardiac hospitalization (<6 months)', async () => {
+      const responses = { Q14: ['none'], Q16: 'yes' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(true);
+      expect(result.action).toBe('BLOCK');
+      expect(result.reasons).toContain('Recent cardiac event: cardiology clearance required');
+    });
+
+    it('should BLOCK for chest pain during activity', async () => {
+      const responses = { Q14: ['none'], Q16: 'no', Q17: 'yes' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(true);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for heart not strong enough for sex', async () => {
+      const responses = { Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'yes' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(true);
+      expect(result.action).toBe('BLOCK');
+    });
+
+    it('should BLOCK for severe hypotension (BP <90/50)', async () => {
+      const responses = { Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q15: '85/50' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(true);
+      expect(result.action).toBe('BLOCK');
+      expect(result.reasons).toContain('Severe hypotension');
+    });
+
+    it('should CAUTION for alpha-blockers with 4hr separation note', async () => {
+      const responses = { Q14: ['alpha_blockers'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(false);
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Alpha-blockers: 4-hour separation required, start lowest dose');
+    });
+
+    it('should CAUTION for HIV protease inhibitors with dose reduction note', async () => {
+      const responses = { Q14: ['hiv_protease'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('HIV protease inhibitors: reduce PDE5 dose significantly');
+    });
+
+    it('should CAUTION for severe liver disease', async () => {
+      const responses = { Q13: ['liver_disease'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Liver disease: lower dose, monitor');
+    });
+
+    it('should CAUTION for severe kidney disease', async () => {
+      const responses = { Q13: ['kidney_disease'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Kidney disease: lower dose');
+    });
+
+    it('should CAUTION for sickle cell disease (priapism risk)', async () => {
+      const responses = { Q13: ['sickle_cell'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Sickle cell: priapism risk');
+    });
+
+    it('should CAUTION for priapism history', async () => {
+      const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q27: ['priapism'] };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Priapism history: start lowest dose, warn patient');
+    });
+
+    it('should CAUTION for heavy alcohol use', async () => {
+      const responses = { Q13: ['none'], Q14: ['none'], Q16: 'no', Q17: 'no', Q18: 'no', Q22: 'heavy' };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.requiresCaution).toBe(true);
+      expect(result.flags).toContain('Heavy alcohol: increased hypotension risk');
+    });
+
+    it('should allow PDE5 inhibitors for healthy patient', async () => {
+      const responses = {
+        Q13: ['none'],
+        Q14: ['none'],
+        Q16: 'no',
+        Q17: 'no',
+        Q18: 'no',
+        Q22: 'occasionally',
+        Q27: ['none'],
+      };
+      const result = await service.checkEDContraindications(responses);
+
+      expect(result.isBlocked).toBe(false);
+      expect(result.requiresCaution).toBe(false);
+    });
+  });
+
+  describe('ED Canned Messages', () => {
+    // Spec: ED spec Section 7 — 6 canned messages
+
+    it('should have 6 ED canned messages', () => {
+      const messages = service.getEDCannedMessages();
+      expect(messages).toHaveLength(6);
+    });
+
+    it('should have prescription instructions message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_prescribed');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('[medication]');
+      expect(msg.template).toContain('6-8 attempts');
+    });
+
+    it('should have daily tadalafil recommendation message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_daily_tadalafil');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('daily low-dose tadalafil');
+      expect(msg.template).toContain('spontaneity');
+    });
+
+    it('should have counseling recommendation message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_counseling');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('stress/anxiety');
+      expect(msg.template).toContain('counseling');
+    });
+
+    it('should have testosterone check message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_testosterone_check');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('testosterone levels');
+      expect(msg.template).toContain('blood panel');
+    });
+
+    it('should have cardiology clearance message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_cardiology_clearance');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('cardiologist');
+      expect(msg.template).toContain('clearance');
+    });
+
+    it('should have dose adjustment message', () => {
+      const messages = service.getEDCannedMessages();
+      const msg = messages.find((m) => m.id === 'ed_dose_adjustment');
+      expect(msg).toBeDefined();
+      expect(msg.template).toContain('[new dose]');
+      expect(msg.template).toContain('check-in');
+    });
+  });
+
+  describe('ED Referrals', () => {
+    // Spec: ED spec Section 8 — Referral Edge Cases
+
+    it('should generate full refund referral for nitrates patient', () => {
+      const referral = service.generateEDReferral('nitrates');
+      expect(referral.action).toBe('FULL_REFUND');
+      expect(referral.reason).toContain('nitrate medication');
+      expect(referral.message).toContain('interact dangerously');
+      expect(referral.message).toContain('cardiologist');
+    });
+
+    it('should generate cardiology referral for cardiac clearance', () => {
+      const referral = service.generateEDReferral('cardiac_clearance');
+      expect(referral.action).toBe('REFERRAL');
+      expect(referral.referTo).toBe('cardiologist');
+      expect(referral.message).toContain("cardiologist's clearance");
+    });
+
+    it('should generate urology referral for Peyronies disease', () => {
+      const referral = service.generateEDReferral('peyronies');
+      expect(referral.action).toBe('REFERRAL');
+      expect(referral.referTo).toBe('urologist');
+      expect(referral.message).toContain('in-person urology evaluation');
+    });
+
+    it('should generate blood work referral for low testosterone suspected', () => {
+      const referral = service.generateEDReferral('low_testosterone');
+      expect(referral.action).toBe('BLOOD_WORK');
+      expect(referral.tests).toContain('testosterone');
+      expect(referral.message).toContain('hormone levels');
+    });
+
+    it('should generate urology referral for severe ED in young patient', () => {
+      const referral = service.generateEDReferral('severe_ed_young');
+      expect(referral.action).toBe('REFERRAL');
+      expect(referral.referTo).toBe('urologist');
+      expect(referral.message).toContain('in-person evaluation');
+    });
+
+    it('should generate counseling recommendation for psychological ED', () => {
+      const referral = service.generateEDReferral('psychological');
+      expect(referral.action).toBe('PRESCRIBE_WITH_COUNSELING');
+      expect(referral.message).toContain('short term');
+      expect(referral.message).toContain('underlying anxiety');
+    });
+
+    it('should generate PE pathway note for premature ejaculation primary', () => {
+      const referral = service.generateEDReferral('pe_primary');
+      expect(referral.action).toBe('DIFFERENT_PATHWAY');
+      expect(referral.message).toContain('premature ejaculation');
+      expect(referral.message).toContain('adjust your treatment plan');
+    });
+
+    it('should generate caution referral for priapism history', () => {
+      const referral = service.generateEDReferral('priapism_history');
+      expect(referral.action).toBe('CAUTION');
+      expect(referral.message).toContain('cautious approach');
+    });
+  });
+
+  describe('ED Template Selection', () => {
+    it('should suggest on-demand sildenafil 50mg as default first-line', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 40,
+        iief5Severity: 'mild_moderate',
+        cardiovascularRisk: 'low',
+        patientPreference: null,
+        previousTreatment: null,
+      });
+
+      expect(suggestion).toBe('ON_DEMAND_SILDENAFIL_50');
+    });
+
+    it('should suggest daily tadalafil for spontaneity preference', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 45,
+        iief5Severity: 'mild',
+        cardiovascularRisk: 'low',
+        patientPreference: 'spontaneity',
+        previousTreatment: null,
+      });
+
+      expect(suggestion).toBe('DAILY_TADALAFIL_5');
+    });
+
+    it('should suggest conservative 25mg for older patients (>65)', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 68,
+        iief5Severity: 'moderate',
+        cardiovascularRisk: 'low',
+        patientPreference: null,
+        previousTreatment: null,
+      });
+
+      expect(suggestion).toBe('CONSERVATIVE_25');
+    });
+
+    it('should suggest conservative 25mg for alpha-blocker users', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 55,
+        iief5Severity: 'mild_moderate',
+        cardiovascularRisk: 'low',
+        patientPreference: null,
+        previousTreatment: null,
+        onAlphaBlockers: true,
+      });
+
+      expect(suggestion).toBe('CONSERVATIVE_25');
+    });
+
+    it('should suggest tadalafil for longer window preference', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 40,
+        iief5Severity: 'mild',
+        cardiovascularRisk: 'low',
+        patientPreference: 'longer_window',
+        previousTreatment: null,
+      });
+
+      expect(suggestion).toBe('ON_DEMAND_TADALAFIL_10');
+    });
+
+    it('should suggest higher dose if previous 50mg insufficient', () => {
+      const suggestion = service.suggestEDTemplate({
+        age: 45,
+        iief5Severity: 'moderate',
+        cardiovascularRisk: 'low',
+        patientPreference: null,
+        previousTreatment: { medication: 'sildenafil_50', response: 'insufficient' },
+      });
+
+      expect(suggestion).toBe('ON_DEMAND_SILDENAFIL_100');
+    });
+  });
 });
