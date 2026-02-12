@@ -503,4 +503,568 @@ export class AdminService {
 
         return escalations;
     }
+
+    // =============================================
+    // LAB ORDERS MANAGEMENT
+    // Spec: master spec Section 7 — Blood Work & Diagnostics
+    // =============================================
+
+    /**
+     * Get lab orders with filters for admin management
+     */
+    async getAdminLabOrders(filter: {
+        statuses?: LabOrderStatus[];
+        dateFrom?: Date;
+        dateTo?: Date;
+        phlebotomistId?: string;
+        labId?: string;
+        vertical?: string;
+        search?: string;
+        page?: number;
+        pageSize?: number;
+    }): Promise<{
+        labOrders: Array<{
+            id: string;
+            patient: { id: string; name: string | null; phone: string | null };
+            vertical: string | null;
+            testPanel: string[];
+            panelName: string | null;
+            status: LabOrderStatus;
+            phlebotomist: { id: string; name: string; phone: string } | null;
+            lab: { id: string; name: string; phone: string | null } | null;
+            bookedDate: Date | null;
+            bookedTimeSlot: string | null;
+            collectionAddress: string;
+            collectionCity: string;
+            collectionPincode: string;
+            slaInfo: SLAInfo;
+            orderedAt: Date;
+            timeline: Array<{ status: string; timestamp: Date; details: string | null }>;
+        }>;
+        total: number;
+        page: number;
+        pageSize: number;
+    }> {
+        const page = filter.page || 1;
+        const pageSize = filter.pageSize || 20;
+        const skip = (page - 1) * pageSize;
+
+        // Build where clause
+        const where: Record<string, unknown> = {};
+
+        if (filter.statuses && filter.statuses.length > 0) {
+            where.status = { in: filter.statuses };
+        }
+
+        if (filter.dateFrom || filter.dateTo) {
+            where.bookedDate = {};
+            if (filter.dateFrom) {
+                (where.bookedDate as Record<string, unknown>).gte = filter.dateFrom;
+            }
+            if (filter.dateTo) {
+                (where.bookedDate as Record<string, unknown>).lte = filter.dateTo;
+            }
+        }
+
+        if (filter.phlebotomistId) {
+            where.phlebotomistId = filter.phlebotomistId;
+        }
+
+        if (filter.labId) {
+            where.diagnosticCentreId = filter.labId;
+        }
+
+        if (filter.vertical) {
+            where.consultation = { vertical: filter.vertical };
+        }
+
+        if (filter.search) {
+            where.patient = {
+                OR: [
+                    { name: { contains: filter.search, mode: 'insensitive' } },
+                    { phone: { contains: filter.search } },
+                ],
+            };
+        }
+
+        const [labOrders, total] = await Promise.all([
+            this.prisma.labOrder.findMany({
+                where,
+                include: {
+                    patient: true,
+                    consultation: true,
+                    phlebotomist: true,
+                    diagnosticCentre: true,
+                },
+                orderBy: [{ slaEscalatedAt: 'desc' }, { orderedAt: 'desc' }],
+                skip,
+                take: pageSize,
+            }),
+            this.prisma.labOrder.count({ where }),
+        ]);
+
+        const mappedOrders = labOrders.map((order) => {
+            const slaInfo = this.calculateLabOrderSLA({
+                status: order.status,
+                orderedAt: order.orderedAt,
+                slotBookedAt: order.slotBookedAt,
+                deliveredToLabAt: order.deliveredToLabAt,
+                sampleReceivedAt: order.sampleReceivedAt,
+                resultsUploadedAt: order.resultsUploadedAt,
+            });
+
+            const timeline = this.buildLabOrderTimeline(order);
+
+            return {
+                id: order.id,
+                patient: {
+                    id: order.patient.id,
+                    name: order.patient.name,
+                    phone: order.patient.phone,
+                },
+                vertical: order.consultation?.vertical || null,
+                testPanel: order.testPanel,
+                panelName: order.panelName,
+                status: order.status,
+                phlebotomist: order.phlebotomist
+                    ? {
+                          id: order.phlebotomist.id,
+                          name: order.phlebotomist.name,
+                          phone: order.phlebotomist.phone,
+                      }
+                    : null,
+                lab: order.diagnosticCentre
+                    ? {
+                          id: order.diagnosticCentre.id,
+                          name: order.diagnosticCentre.name,
+                          phone: order.diagnosticCentre.phone,
+                      }
+                    : null,
+                bookedDate: order.bookedDate,
+                bookedTimeSlot: order.bookedTimeSlot,
+                collectionAddress: order.collectionAddress,
+                collectionCity: order.collectionCity,
+                collectionPincode: order.collectionPincode,
+                slaInfo,
+                orderedAt: order.orderedAt,
+                timeline,
+            };
+        });
+
+        return {
+            labOrders: mappedOrders,
+            total,
+            page,
+            pageSize,
+        };
+    }
+
+    /**
+     * Build timeline of status changes for a lab order
+     */
+    private buildLabOrderTimeline(
+        order: Record<string, unknown>,
+    ): Array<{ status: string; timestamp: Date; details: string | null }> {
+        const timeline: Array<{ status: string; timestamp: Date; details: string | null }> = [];
+
+        if (order.orderedAt) {
+            timeline.push({
+                status: 'ORDERED',
+                timestamp: order.orderedAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.slotBookedAt) {
+            timeline.push({
+                status: 'SLOT_BOOKED',
+                timestamp: order.slotBookedAt as Date,
+                details: order.bookedTimeSlot
+                    ? `${order.bookedTimeSlot}`
+                    : null,
+            });
+        }
+
+        if (order.phlebotomistAssignedAt) {
+            timeline.push({
+                status: 'PHLEBOTOMIST_ASSIGNED',
+                timestamp: order.phlebotomistAssignedAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.sampleCollectedAt) {
+            timeline.push({
+                status: 'SAMPLE_COLLECTED',
+                timestamp: order.sampleCollectedAt as Date,
+                details: order.tubeCount ? `${order.tubeCount} tubes` : null,
+            });
+        }
+
+        if (order.collectionFailedAt) {
+            timeline.push({
+                status: 'COLLECTION_FAILED',
+                timestamp: order.collectionFailedAt as Date,
+                details: (order.collectionFailedReason as string) || null,
+            });
+        }
+
+        if (order.deliveredToLabAt) {
+            timeline.push({
+                status: 'DELIVERED_TO_LAB',
+                timestamp: order.deliveredToLabAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.sampleReceivedAt) {
+            timeline.push({
+                status: 'SAMPLE_RECEIVED',
+                timestamp: order.sampleReceivedAt as Date,
+                details: order.receivedTubeCount ? `${order.receivedTubeCount} tubes received` : null,
+            });
+        }
+
+        if (order.sampleIssueAt) {
+            timeline.push({
+                status: 'SAMPLE_ISSUE',
+                timestamp: order.sampleIssueAt as Date,
+                details: (order.sampleIssueReason as string) || null,
+            });
+        }
+
+        if (order.processingStartedAt) {
+            timeline.push({
+                status: 'PROCESSING',
+                timestamp: order.processingStartedAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.resultsUploadedAt) {
+            timeline.push({
+                status: 'RESULTS_READY',
+                timestamp: order.resultsUploadedAt as Date,
+                details: order.criticalValues ? 'Critical values detected' : null,
+            });
+        }
+
+        if (order.doctorReviewedAt) {
+            timeline.push({
+                status: 'DOCTOR_REVIEWED',
+                timestamp: order.doctorReviewedAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.closedAt) {
+            timeline.push({
+                status: 'CLOSED',
+                timestamp: order.closedAt as Date,
+                details: null,
+            });
+        }
+
+        if (order.cancelledAt) {
+            timeline.push({
+                status: 'CANCELLED',
+                timestamp: order.cancelledAt as Date,
+                details: (order.cancellationReason as string) || null,
+            });
+        }
+
+        if (order.expiredAt) {
+            timeline.push({
+                status: 'EXPIRED',
+                timestamp: order.expiredAt as Date,
+                details: null,
+            });
+        }
+
+        // Sort by timestamp
+        timeline.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+        return timeline;
+    }
+
+    /**
+     * Get available phlebotomists for assignment
+     * Spec: Section 7.2 Step 3 — filtered by patient's pincode + selected date
+     */
+    async getAvailablePhlebotomists(
+        pincode: string,
+        date: Date,
+    ): Promise<
+        Array<{
+            id: string;
+            name: string;
+            phone: string;
+            todayAssignments: number;
+            maxDailyCollections: number;
+            isAvailable: boolean;
+        }>
+    > {
+        const dayOfWeek = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][
+            date.getDay()
+        ];
+
+        // Find phlebotomists who:
+        // 1. Cover this pincode
+        // 2. Are available on this day of week
+        // 3. Are active
+        const phlebotomists = await this.prisma.phlebotomist.findMany({
+            where: {
+                isActive: true,
+                serviceableAreas: { has: pincode },
+                availableDays: { has: dayOfWeek },
+            },
+        });
+
+        // Get assignment counts for the date
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const assignmentCounts = await this.prisma.labOrder.groupBy({
+            by: ['phlebotomistId'],
+            where: {
+                phlebotomistId: { in: phlebotomists.map((p) => p.id) },
+                bookedDate: { gte: startOfDay, lte: endOfDay },
+                status: {
+                    notIn: [LabOrderStatus.CANCELLED, LabOrderStatus.EXPIRED, LabOrderStatus.COLLECTION_FAILED],
+                },
+            },
+            _count: { id: true },
+        });
+
+        const countMap = new Map(
+            assignmentCounts.map((c) => [c.phlebotomistId, c._count.id]),
+        );
+
+        return phlebotomists.map((p) => {
+            const todayAssignments = countMap.get(p.id) || 0;
+            return {
+                id: p.id,
+                name: p.name,
+                phone: p.phone,
+                todayAssignments,
+                maxDailyCollections: p.maxDailyCollections,
+                isAvailable: todayAssignments < p.maxDailyCollections,
+            };
+        });
+    }
+
+    /**
+     * Get available labs for assignment
+     */
+    async getAvailableLabs(city: string): Promise<
+        Array<{
+            id: string;
+            name: string;
+            address: string;
+            city: string;
+            avgTurnaroundHours: number;
+            testsOffered: string[];
+        }>
+    > {
+        const labs = await this.prisma.partnerDiagnosticCentre.findMany({
+            where: {
+                isActive: true,
+                city: { equals: city, mode: 'insensitive' },
+            },
+        });
+
+        return labs.map((lab) => ({
+            id: lab.id,
+            name: lab.name,
+            address: lab.address,
+            city: lab.city,
+            avgTurnaroundHours: lab.avgTurnaroundHours,
+            testsOffered: lab.testsOffered,
+        }));
+    }
+
+    /**
+     * Assign phlebotomist to a lab order
+     * Spec: Section 7.2 Step 3 — Coordinator Assigns Phlebotomist
+     */
+    async assignPhlebotomist(
+        labOrderId: string,
+        phlebotomistId: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const labOrder = await this.prisma.labOrder.findUnique({
+            where: { id: labOrderId },
+        });
+
+        if (!labOrder) {
+            return { success: false, message: 'Lab order not found' };
+        }
+
+        if (labOrder.status !== LabOrderStatus.SLOT_BOOKED) {
+            return {
+                success: false,
+                message: `Cannot assign phlebotomist in status: ${labOrder.status}`,
+            };
+        }
+
+        const phlebotomist = await this.prisma.phlebotomist.findUnique({
+            where: { id: phlebotomistId },
+        });
+
+        if (!phlebotomist) {
+            return { success: false, message: 'Phlebotomist not found' };
+        }
+
+        if (!phlebotomist.isActive) {
+            return { success: false, message: 'Phlebotomist is not active' };
+        }
+
+        await this.prisma.labOrder.update({
+            where: { id: labOrderId },
+            data: {
+                phlebotomistId,
+                phlebotomistAssignedAt: new Date(),
+                status: LabOrderStatus.PHLEBOTOMIST_ASSIGNED,
+            },
+        });
+
+        return { success: true, message: 'Phlebotomist assigned successfully' };
+    }
+
+    /**
+     * Bulk assign phlebotomist to multiple lab orders
+     */
+    async bulkAssignPhlebotomist(
+        labOrderIds: string[],
+        phlebotomistId: string,
+    ): Promise<{ success: boolean; message: string; updatedCount: number; failedIds: string[] }> {
+        const phlebotomist = await this.prisma.phlebotomist.findUnique({
+            where: { id: phlebotomistId },
+        });
+
+        if (!phlebotomist) {
+            return {
+                success: false,
+                message: 'Phlebotomist not found',
+                updatedCount: 0,
+                failedIds: labOrderIds,
+            };
+        }
+
+        const failedIds: string[] = [];
+        let updatedCount = 0;
+
+        for (const labOrderId of labOrderIds) {
+            const result = await this.assignPhlebotomist(labOrderId, phlebotomistId);
+            if (result.success) {
+                updatedCount++;
+            } else {
+                failedIds.push(labOrderId);
+            }
+        }
+
+        return {
+            success: failedIds.length === 0,
+            message:
+                failedIds.length === 0
+                    ? `Successfully assigned ${updatedCount} orders`
+                    : `Assigned ${updatedCount} orders, ${failedIds.length} failed`,
+            updatedCount,
+            failedIds,
+        };
+    }
+
+    /**
+     * Assign lab to a lab order
+     */
+    async assignLab(
+        labOrderId: string,
+        labId: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const labOrder = await this.prisma.labOrder.findUnique({
+            where: { id: labOrderId },
+        });
+
+        if (!labOrder) {
+            return { success: false, message: 'Lab order not found' };
+        }
+
+        const lab = await this.prisma.partnerDiagnosticCentre.findUnique({
+            where: { id: labId },
+        });
+
+        if (!lab) {
+            return { success: false, message: 'Diagnostic centre not found' };
+        }
+
+        if (!lab.isActive) {
+            return { success: false, message: 'Diagnostic centre is not active' };
+        }
+
+        await this.prisma.labOrder.update({
+            where: { id: labOrderId },
+            data: { diagnosticCentreId: labId },
+        });
+
+        return { success: true, message: 'Lab assigned successfully' };
+    }
+
+    /**
+     * Override lab order status (admin only, with reason)
+     */
+    async overrideLabOrderStatus(
+        labOrderId: string,
+        newStatus: LabOrderStatus,
+        reason: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const labOrder = await this.prisma.labOrder.findUnique({
+            where: { id: labOrderId },
+        });
+
+        if (!labOrder) {
+            return { success: false, message: 'Lab order not found' };
+        }
+
+        // Build update data based on new status
+        const updateData: Record<string, unknown> = {
+            status: newStatus,
+            slaEscalatedAt: new Date(),
+            slaEscalationReason: reason,
+            slaEscalatedBy: 'ADMIN',
+        };
+
+        // Set appropriate timestamp for the new status
+        switch (newStatus) {
+            case LabOrderStatus.SAMPLE_COLLECTED:
+                updateData.sampleCollectedAt = new Date();
+                break;
+            case LabOrderStatus.DELIVERED_TO_LAB:
+                updateData.deliveredToLabAt = new Date();
+                break;
+            case LabOrderStatus.SAMPLE_RECEIVED:
+                updateData.sampleReceivedAt = new Date();
+                break;
+            case LabOrderStatus.PROCESSING:
+                updateData.processingStartedAt = new Date();
+                break;
+            case LabOrderStatus.CANCELLED:
+                updateData.cancelledAt = new Date();
+                updateData.cancellationReason = reason;
+                break;
+            case LabOrderStatus.EXPIRED:
+                updateData.expiredAt = new Date();
+                break;
+            case LabOrderStatus.CLOSED:
+                updateData.closedAt = new Date();
+                break;
+        }
+
+        await this.prisma.labOrder.update({
+            where: { id: labOrderId },
+            data: updateData,
+        });
+
+        return { success: true, message: `Status overridden to ${newStatus}` };
+    }
 }
