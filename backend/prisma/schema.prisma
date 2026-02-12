@@ -662,6 +662,10 @@ model LabOrder {
   cancellationReason      String?
   expiredAt               DateTime?
 
+  // Running late tracking (phlebotomist)
+  estimatedArrivalTime String?   // New ETA when running late
+  runningLateAt        DateTime?
+
   // Sample tracking
   tubeCount Int?
 

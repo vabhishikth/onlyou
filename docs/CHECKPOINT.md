@@ -1,8 +1,8 @@
-# CHECKPOINT — Last Updated: 2026-02-12 09:15 IST
+# CHECKPOINT — Last Updated: 2026-02-12 10:00 IST
 
-## Current Phase: Phase 3 - Doctor Dashboard
-## Current Task: Phase 3 COMPLETE
-## Status: COMPLETE
+## Current Phase: Phase 4 - Blood Work, Partners & Delivery
+## Current Task: Task 2 - Slot Booking & Phlebotomist Assignment
+## Status: IN PROGRESS
 
 ## What's Done (checked = complete, unchecked = not started):
 - [x] Phase 1 Foundation — ALL 112 TESTS PASSING
@@ -15,20 +15,27 @@
   - [x] Task 1: Dashboard Backend APIs (46 tests)
   - [x] Task 2: Prescription System (46 tests)
   - [x] Task 3: Messaging (33 tests)
+- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (70/??? tests)
+  - [x] Task 1: Lab Order Status Machine (70 tests)
+  - [ ] Task 2: Slot Booking & Phlebotomist Assignment
+  - [ ] Task 3: Lab Processing & Results
+  - [ ] Task 4: SLA Escalation
+  - [ ] Task 5: Partner Management
+  - [ ] Task 6: Order & Delivery System
 
 ## Last Completed:
-- Feature: Complete Doctor Dashboard Backend
+- Feature: Lab Order Status Machine
 - Files created/modified:
-  - `backend/src/dashboard/dashboard.service.ts` (46 tests)
-  - `backend/src/prescription/prescription.service.ts` (46 tests)
-  - `backend/src/messaging/messaging.service.ts` (33 tests)
-  - `backend/prisma/schema.prisma` (updated with regulatory fields + attachments)
+  - `backend/src/lab-order/lab-order.service.ts` (70 tests)
+  - `backend/src/lab-order/lab-order.service.spec.ts`
+  - `backend/src/lab-order/lab-order.module.ts`
+  - `backend/prisma/schema.prisma` (added LabOrderStatus enum, LabOrder, PartnerDiagnosticCentre, Phlebotomist, LabSlot models)
 
 ## Test Summary:
 ```
-Test Suites: 13 passed, 13 total
-Tests:       417 passed, 417 total (0 skipped, 0 failing)
-Time:        ~5.6 seconds
+Test Suites: 14 passed, 14 total
+Tests:       487 passed, 487 total (0 skipped, 0 failing)
+Time:        ~7.2 seconds
 ```
 
 ## Test Breakdown:
@@ -42,75 +49,47 @@ Time:        ~5.6 seconds
 - ai.service.spec.ts: 53 tests
 - consultation.service.spec.ts: 30 tests
 - photo-requirements.service.spec.ts: 47 tests
-- dashboard.service.spec.ts: 46 tests (NEW)
-- prescription.service.spec.ts: 46 tests (NEW)
-- messaging.service.spec.ts: 33 tests (NEW)
+- dashboard.service.spec.ts: 46 tests
+- prescription.service.spec.ts: 46 tests
+- messaging.service.spec.ts: 33 tests
+- lab-order.service.spec.ts: 70 tests (NEW)
 
-## Phase 3 Complete Summary:
+## Phase 4 Task 1 Complete Summary:
 
-### Task 1: Dashboard Backend APIs (46 tests)
-- Case queue with doctor-specific filtering
-- Queue filtering by vertical (HAIR_LOSS, ED, WEIGHT, PCOS)
-- Queue filtering by status (New, In Review, Awaiting Response, etc.)
-- Case detail endpoint with full patient info, questionnaire, AI assessment, photos
-- Access control: doctors see only their cases, admins see all
-- Status badge mapping (🟢🟡🟠🟣🔵⚪🔴)
+### Lab Order Status Machine (70 tests)
+- 15 statuses: ORDERED, SLOT_BOOKED, PHLEBOTOMIST_ASSIGNED, SAMPLE_COLLECTED, COLLECTION_FAILED, DELIVERED_TO_LAB, SAMPLE_RECEIVED, SAMPLE_ISSUE, PROCESSING, RESULTS_READY, RESULTS_UPLOADED, DOCTOR_REVIEWED, CLOSED, CANCELLED, EXPIRED
+- Valid transitions only (ORDERED → SLOT_BOOKED ✅, ORDERED → DELIVERED ❌)
+- Every transition logs a timestamp (orderedAt, slotBookedAt, sampleCollectedAt, etc.)
+- COLLECTION_FAILED → rebook → SLOT_BOOKED branch
+- SAMPLE_ISSUE → auto-create recollection order → ORDERED branch
+- RESULTS_UPLOADED (patient self-upload) → DOCTOR_REVIEWED branch
+- 14-day expiry for ORDERED status
+- Critical values detection
 
-### Task 2: Prescription System (46 tests)
-- 7 hair loss prescription templates (Standard, Minoxidil Only, Conservative, Combination Plus, Advanced, Female AGA, Custom)
-- Finasteride contraindication matrix with auto-blocking and flags
-- Regulatory fields auto-populated (doctor name, NMC number, patient details)
-- Creates Order with status PENDING when prescription is created
-- Template suggestion based on patient profile
-- PDF data generation with digital signature placeholder
-
-### Task 3: Messaging (33 tests)
-- Threaded chat per consultation (doctor <-> patient)
-- 6 hair loss canned responses from spec
-- File/photo attachments support
-- Read receipts (sent, read timestamps)
-- Access control (patient can only message assigned doctor)
-- Request More Info changes status to NEEDS_INFO
-- Patient response returns status to DOCTOR_REVIEWING
-
-## Prescription Templates Summary:
-
-| Template | Medications | When to use |
-|----------|-------------|-------------|
-| Standard | Finasteride 1mg + Minoxidil 5% | Typical AGA, no contraindications |
-| Minoxidil Only | Minoxidil 5% | Finasteride contraindicated |
-| Conservative | Minoxidil 5% (3 months) | Young (<22), mild, cautious |
-| Combination Plus | Finasteride + Minoxidil + Ketoconazole | AGA with dandruff |
-| Advanced | Finasteride + Minoxidil topical + oral | Aggressive loss |
-| Female AGA | Minoxidil 2% + Spironolactone | Female pattern hair loss |
-| Custom | Doctor builds | Unusual cases |
-
-## Finasteride Contraindication Matrix:
-
-| Check | Action |
-|-------|--------|
-| Female childbearing age | BLOCK |
-| Age <18 | BLOCK |
-| Pregnant/breastfeeding | ABSOLUTE BLOCK |
-| Liver disease | Flag for doctor |
-| Planning children | Flag for discussion |
-| Existing sexual dysfunction | Flag, doctor decides |
-| Daily alcohol | Flag liver concern |
-| On blood thinners | Flag interaction |
-| Depression + SSRIs | Flag mood risk |
-| Previous finasteride side effects | Suggest minoxidil-only |
+### Prisma Schema Additions:
+- `LabOrderStatus` enum (15 values)
+- `LabOrder` model with all timestamps per spec
+- `PartnerDiagnosticCentre` model
+- `Phlebotomist` model
+- `LabSlot` model
 
 ## Next Up:
-- Phase 4: Blood Work & Delivery (per master spec)
-  - Lab Order System (12 statuses)
-  - Partner Management
-  - Order & Delivery System
+- Task 2: Slot Booking & Phlebotomist Assignment
+  - LabSlot model (date, time, phlebotomist, max bookings, serviceable areas)
+  - Patient books slot → picks date + 2hr window + confirms address
+  - Slot availability check (don't overbook)
+  - Coordinator assigns phlebotomist from available list
+  - Patient cancel: allowed until 4 hours before slot
+  - Patient reschedule: picks new slot, old slot freed
+  - After 4-hour cutoff: cancel/reschedule blocked
+  - Phlebotomist "Running Late" → updates ETA
+  - Phlebotomist "Patient Unavailable" → COLLECTION_FAILED with reason
 
 ## Spec References:
-- Dashboard APIs: master spec Section 5
-- Prescription Templates: hair-loss spec Section 6
-- Contraindication Matrix: hair-loss spec Section 5
-- Messaging: master spec Section 5.5, hair-loss spec Section 7
+- Lab Order Status: master spec Section 7.3
+- Slot Booking: master spec Section 7.2 Steps 2-3
+- Phlebotomist Assignment: master spec Section 7.2 Step 3
+- SLA Escalation: master spec Section 7.4
 
 ## Known Issues:
 - None currently
@@ -118,7 +97,7 @@ Time:        ~5.6 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 417 passed)
+pnpm test           # Run all tests (should show 487 passed)
 pnpm test:cov       # Run with coverage
 ```
 
