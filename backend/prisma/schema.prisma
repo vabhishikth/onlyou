@@ -130,6 +130,7 @@ model User {
   messages        Message[]
   auditLogs       AuditLog[]
   labOrders       LabOrder[]        @relation("PatientLabOrders")
+  wallet          Wallet?
 
   @@index([phone])
   @@index([role])
@@ -809,4 +810,101 @@ model AuditLog {
   @@index([action])
   @@index([resource, resourceId])
   @@index([createdAt])
+}
+
+// ============================================
+// WALLET & REFUNDS
+// Spec: master spec Section 10 (Refund & Wallet)
+// ============================================
+
+// Credit types: refund, promo, comeback
+enum WalletCreditType {
+  REFUND     // Never expires
+  PROMO      // Expires after 90 days
+  COMEBACK   // For returning customers
+}
+
+// Refund triggers per spec Section 10
+enum RefundTrigger {
+  DOCTOR_NOT_SUITABLE      // Full refund - doctor says not suitable
+  PATIENT_DECLINES_REFERRAL // Full refund - patient-initiated
+  CANCEL_BEFORE_REVIEW     // Full refund - cancel <24hrs before review
+  CANCEL_AFTER_REVIEW      // 50% partial refund
+  TECHNICAL_ERROR          // Full refund - auto via webhook
+  DELIVERY_ISSUE           // Full replacement or refund - support-initiated
+}
+
+// Patient choice for refund
+enum RefundMethod {
+  WALLET               // Instant credit to wallet
+  ORIGINAL_PAYMENT     // 5-7 days back to original payment method
+}
+
+model Wallet {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  balancePaise Int      @default(0) // Always in paise, never rupees
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([userId])
+}
+
+model WalletTransaction {
+  id           String           @id @default(cuid())
+  walletId     String
+  type         String           // "CREDIT" or "DEBIT"
+  creditType   WalletCreditType? // Only for credits
+  amountPaise  Int
+  balanceAfter Int              // Balance after this transaction
+
+  // Reference data
+  description  String?
+  referenceId  String?          // Payment ID, Order ID, etc.
+  referenceType String?         // "PAYMENT", "ORDER", "REFUND"
+
+  // For refund credits
+  refundTrigger RefundTrigger?
+  refundMethod  RefundMethod?
+
+  // For promo credits expiry
+  expiresAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+// Refund tracking model
+model Refund {
+  id             String        @id @default(cuid())
+  userId         String
+  paymentId      String?       // Original payment
+  orderId        String?       // Related order
+  consultationId String?       // Related consultation
+
+  trigger        RefundTrigger
+  method         RefundMethod
+  amountPaise    Int
+  status         String        @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+
+  // Razorpay refund details (if refund to original method)
+  razorpayRefundId String?
+  processedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([paymentId])
+  @@index([status])
 }
