@@ -371,6 +371,12 @@ model Prescription {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Spec: master spec Section 5.4 — Regulatory fields
+  doctorName           String?   // Auto-populated from doctor profile
+  doctorRegistrationNo String?   // NMC registration number
+  patientName          String?   // Patient's full name
+  patientPhone         String?   // Patient's phone number
+
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   orders       Order[]
 
