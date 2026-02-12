@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-12 10:20 IST
+# CHECKPOINT — Last Updated: 2026-02-12 10:25 IST
 
 ## Current Phase: Phase 4 - Blood Work, Partners & Delivery
-## Current Task: Task 4 - SLA Escalation
+## Current Task: Task 5 - Partner Management
 ## Status: PENDING
 
 ## What's Done (checked = complete, unchecked = not started):
@@ -15,27 +15,27 @@
   - [x] Task 1: Dashboard Backend APIs (46 tests)
   - [x] Task 2: Prescription System (46 tests)
   - [x] Task 3: Messaging (33 tests)
-- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (162/??? tests)
+- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (192/??? tests)
   - [x] Task 1: Lab Order Status Machine (70 tests)
   - [x] Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
   - [x] Task 3: Lab Processing & Results (48 tests)
-  - [ ] Task 4: SLA Escalation
+  - [x] Task 4: SLA Escalation (30 tests)
   - [ ] Task 5: Partner Management
   - [ ] Task 6: Order & Delivery System
 
 ## Last Completed:
-- Feature: Lab Processing & Results
+- Feature: SLA Escalation
 - Files created/modified:
-  - `backend/src/lab-order/lab-processing.service.ts` (NEW - 48 tests)
-  - `backend/src/lab-order/lab-processing.service.spec.ts` (NEW)
+  - `backend/src/lab-order/sla-escalation.service.ts` (NEW - 30 tests)
+  - `backend/src/lab-order/sla-escalation.service.spec.ts` (NEW)
   - `backend/src/lab-order/lab-order.module.ts` (updated)
-  - `backend/prisma/schema.prisma` (added tubeCountMismatch, doctorReviewNotes)
+  - `backend/prisma/schema.prisma` (added SLA tracking fields)
 
 ## Test Summary:
 ```
-Test Suites: 16 passed, 16 total
-Tests:       579 passed, 579 total (0 skipped, 0 failing)
-Time:        ~7.7 seconds
+Test Suites: 17 passed, 17 total
+Tests:       609 passed, 609 total (0 skipped, 0 failing)
+Time:        ~7.3 seconds
 ```
 
 ## Test Breakdown:
@@ -54,7 +54,8 @@ Time:        ~7.7 seconds
 - messaging.service.spec.ts: 33 tests
 - lab-order.service.spec.ts: 70 tests
 - slot-booking.service.spec.ts: 44 tests
-- lab-processing.service.spec.ts: 48 tests (NEW)
+- lab-processing.service.spec.ts: 48 tests
+- sla-escalation.service.spec.ts: 30 tests (NEW)
 
 ## Phase 4 Completed Tasks Summary:
 
@@ -87,14 +88,30 @@ Time:        ~7.7 seconds
 - Get lab orders for lab (with status/date filters)
 - Get pending results for doctor (prioritizes critical values)
 
+### Task 4: SLA Escalation (30 tests)
+- Patient booking overdue (3d reminder, 7d second, 14d expired)
+- Phlebotomist assignment overdue (2h threshold)
+- Lab receipt overdue (4h threshold)
+- Lab results overdue (48h warning, 72h critical)
+- Doctor review overdue (24h reminder, 48h reassign)
+- Get all breaches combined
+- Expire stale orders (14 days)
+- Breach summary for dashboard (total + critical counts)
+- Check order SLA status
+- Mark escalated with reason and coordinator
+- Get orders requiring notification
+- Mark reminder sent
+
 ## Next Up:
-- Task 4: SLA Escalation
-  - Reminder thresholds per spec Section 7.4
-  - Escalation rules (24hr → reminder, 48hr → escalate)
-  - Notification triggers
+- Task 5: Partner Management
+  - CRUD for PartnerDiagnosticCentre
+  - CRUD for Phlebotomist
+  - CRUD for PartnerPharmacy
+  - Portal OTP auth for partners
+  - Spec: Section 7.5, Section 13
 
 ## Spec References:
-- SLA Escalation: master spec Section 7.4
+- Partner Management: master spec Section 7.5, Section 13
 
 ## Known Issues:
 - None currently
@@ -102,7 +119,7 @@ Time:        ~7.7 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 579 passed)
+pnpm test           # Run all tests (should show 609 passed)
 pnpm test:cov       # Run with coverage
 ```
 

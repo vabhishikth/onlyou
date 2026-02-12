@@ -682,6 +682,13 @@ model LabOrder {
   parentLabOrderId    String?       // If this is a recollection order
   isFreeRecollection  Boolean       @default(false)
 
+  // SLA tracking (Spec: Section 7.4)
+  slaEscalatedAt       DateTime?
+  slaEscalationReason  String?
+  slaEscalatedBy       String?
+  lastReminderSentAt   DateTime?
+  lastReminderType     String?
+
   // Financials (in paise)
   labCost               Int
   patientCharge         Int         @default(0)
