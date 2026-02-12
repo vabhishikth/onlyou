@@ -1,34 +1,34 @@
-# CHECKPOINT — Last Updated: 2026-02-12 08:40 IST
+# CHECKPOINT — Last Updated: 2026-02-12 08:45 IST
 
 ## Current Phase: Phase 2 - Core Flow (Hair Loss)
-## Current Task: Task 1 — Questionnaire Engine
+## Current Task: Task 2 — AI Pre-Assessment
 ## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
 - [x] Phase 1 Foundation — ALL 112 TESTS PASSING
-- [x] Phase 2 Task 1 — Questionnaire Engine
-  - [x] Hair loss questionnaire data file (27 questions per spec)
-  - [x] Skip logic processor (Q2=Female → Q2b, Q10 scalp → Q10b, Q17=None → skip Q18/Q19, Q10=None → Q11 optional)
-  - [x] Question flow tests (getNextQuestion, getActiveQuestions, calculateProgress)
-  - [x] Validation tests (missing required, age validation)
-  - [x] Save/resume progress tests (intake service)
-- [ ] Phase 2 Task 2 — AI Pre-Assessment
+- [x] Phase 2 Task 1 — Questionnaire Engine (32 tests)
+- [x] Phase 2 Task 2 — AI Pre-Assessment (53 tests)
+  - [x] 9 classification categories
+  - [x] 12 red flags detection
+  - [x] 11 finasteride contraindication checks
+  - [x] Attention level calculation (low/medium/high)
+  - [x] Hair loss prompt template builder
+  - [x] AI response parser with validation
+  - [x] Doctor routing per vertical
 - [ ] Phase 2 Task 3 — Consultation Lifecycle
 
 ## Last Completed:
-- Feature: Questionnaire Engine with Skip Logic
+- Feature: AI Pre-Assessment Service
 - Files created/modified:
-  - `backend/src/questionnaire/questionnaire.service.ts` (skip logic processor)
-  - `backend/src/questionnaire/questionnaire.service.spec.ts` (32 tests)
-  - `backend/src/questionnaire/questionnaire.module.ts`
-  - `backend/src/questionnaire/data/hair-loss.ts` (27 questions, 5 skip logic rules)
-  - `backend/src/intake/intake.service.spec.ts` (18 tests)
+  - `backend/src/ai/ai.service.ts` (classification, red flags, contraindications)
+  - `backend/src/ai/ai.service.spec.ts` (53 tests)
+  - `backend/src/ai/ai.module.ts`
 
 ## Test Summary:
 ```
-Test Suites: 7 passed, 7 total
-Tests:       162 passed, 162 total (0 skipped, 0 failing)
-Time:        ~5 seconds
+Test Suites: 8 passed, 8 total
+Tests:       215 passed, 215 total (0 skipped, 0 failing)
+Time:        ~5.5 seconds
 ```
 
 ## Test Breakdown:
@@ -37,36 +37,58 @@ Time:        ~5 seconds
 - roles.guard.spec.ts: 24 tests
 - upload.service.spec.ts: 22 tests
 - user.service.spec.ts: 31 tests
-- questionnaire.service.spec.ts: 32 tests (NEW)
-- intake.service.spec.ts: 18 tests (NEW)
+- questionnaire.service.spec.ts: 32 tests
+- intake.service.spec.ts: 18 tests
+- ai.service.spec.ts: 53 tests (NEW)
 
-## Hair Loss Questionnaire Summary:
-- 27 total question definitions (25 base Q1-Q25 + Q2b + Q10b conditionals)
-- 5 sections: Basics, Hair Loss Pattern, Medical Screening, Treatment History, Lifestyle
-- Skip logic rules:
-  1. Q2=Female → show Q2b
-  2. Q10 includes scalp condition → show Q10b
-  3. Q10=None → Q11 becomes optional
-  4. Q17=None → hide Q18
-  5. Q17=None → hide Q19
-- Male patient flow: 23 questions (27 - Q2b - Q10b - Q18 - Q19)
-- Female with all conditions: 27 questions
+## AI Pre-Assessment Summary:
+### 9 Classification Categories:
+1. androgenetic_alopecia (LOW attention)
+2. telogen_effluvium_suspected (HIGH)
+3. alopecia_areata_suspected (HIGH)
+4. scalp_condition_suspected (MEDIUM)
+5. medication_induced_suspected (HIGH)
+6. nutritional_deficiency_suspected (MEDIUM)
+7. hormonal_suspected (HIGH)
+8. traction_alopecia_suspected (MEDIUM)
+9. unclear_needs_examination (HIGH)
+
+### 12 Red Flags (any = HIGH attention):
+1. Age <20 with rapid loss
+2. Onset <6 months AND sudden/rapid
+3. Patchy pattern
+4. Loss on sides/back
+5. On isotretinoin
+6. Existing sexual dysfunction
+7. Planning children
+8. Depression history
+9. Weight loss >10kg
+10. Recent surgery/illness
+11. Scalp symptoms
+12. Female of childbearing age
+
+### 11 Finasteride Contraindication Checks:
+- BLOCK: Female childbearing age, Under 18
+- ABSOLUTE_BLOCK: Pregnant/breastfeeding
+- FLAG: Liver disease, Already on 5-ARI, Planning children, Sexual dysfunction, Blood thinners, Depression+SSRIs, Daily alcohol
+- SUGGEST_ALTERNATIVE: Previous finasteride side effects → minoxidil_only
 
 ## Next Up:
-- Phase 2 Task 2: AI Pre-Assessment
-  - Claude API integration (shared pipeline)
-  - Hair loss prompt template
-  - Response parser (validates against AIAssessment schema)
-  - 9 classification categories
-  - 12 red flags detection
-  - Finasteride contraindication matrix (11 checks)
-  - Spec: hair-loss spec Section 5, master spec Section 6
+- Phase 2 Task 3: Consultation Lifecycle
+  - Consultation model + status machine
+  - Status transitions: submitted → assigned → reviewed → completed/referred
+  - Invalid status transitions rejected
+  - Case assignment by specialization
+  - Photo association with consultations
+  - AI assessment stored in consultation record
+  - Spec: master spec Section 3.7
 
 ## Spec References:
-- Questionnaire: hair-loss spec Section 3
-- Skip Logic: hair-loss spec Section 3 (Skip Logic Rules)
-- Intake Service: master spec Section 4
 - AI Pre-Assessment: hair-loss spec Section 5, master spec Section 6
+- Classifications: hair-loss spec Section 5 (Classification Categories)
+- Red Flags: hair-loss spec Section 5 (Red Flags)
+- Contraindications: hair-loss spec Section 5 (Contraindication Matrix)
+- Routing: master spec Section 6 (Routing)
 
 ## Known Issues:
 - None currently
@@ -74,7 +96,7 @@ Time:        ~5 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 162 passed)
+pnpm test           # Run all tests (should show 215 passed)
 pnpm test:cov       # Run with coverage
 ```
 
