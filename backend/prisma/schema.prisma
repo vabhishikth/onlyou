@@ -790,6 +790,129 @@ model LabOrder {
 }
 
 // ============================================
+// NOTIFICATIONS
+// Spec: master spec Section 11 (Notification System)
+// ============================================
+
+// Notification channels per spec
+enum NotificationChannel {
+  PUSH         // Firebase FCM
+  WHATSAPP     // MSG91
+  SMS          // MSG91
+  EMAIL        // Email service
+  IN_APP       // In-app notification bell
+}
+
+// Notification status
+enum NotificationStatus {
+  PENDING      // Created, not yet sent
+  SENT         // Sent to provider (FCM, MSG91, etc.)
+  DELIVERED    // Confirmed delivered
+  READ         // User read/opened
+  FAILED       // Failed to send
+}
+
+// Notification event types per spec Section 11
+enum NotificationEventType {
+  // Blood work events (Spec: Section 11 - Blood Work Notifications)
+  LAB_TESTS_ORDERED
+  LAB_SLOT_BOOKED
+  LAB_PHLEBOTOMIST_ASSIGNED
+  LAB_COLLECTION_REMINDER       // 30 min before
+  LAB_RUNNING_LATE
+  LAB_SAMPLE_COLLECTED
+  LAB_COLLECTION_FAILED
+  LAB_SAMPLE_RECEIVED
+  LAB_SAMPLE_ISSUE
+  LAB_RESULTS_READY
+  LAB_CRITICAL_VALUES
+  LAB_DOCTOR_REVIEWED
+  LAB_BOOKING_REMINDER_3DAY
+  LAB_BOOKING_REMINDER_14DAY
+  LAB_OVERDUE_48HR
+  LAB_OVERDUE_72HR
+
+  // Delivery events (Spec: Section 11 - Delivery Notifications)
+  DELIVERY_PRESCRIPTION_CREATED
+  DELIVERY_PHARMACY_PREPARING
+  DELIVERY_PHARMACY_READY
+  DELIVERY_PHARMACY_ISSUE
+  DELIVERY_OUT_FOR_DELIVERY
+  DELIVERY_DELIVERED
+  DELIVERY_FAILED
+  DELIVERY_MONTHLY_REORDER
+
+  // Subscription events
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_RENEWAL_REMINDER
+  SUBSCRIPTION_PAYMENT_FAILED
+  SUBSCRIPTION_EXPIRED
+
+  // General
+  WELCOME
+  CONSULTATION_ASSIGNED
+  MESSAGE_RECEIVED
+}
+
+model Notification {
+  id              String              @id @default(cuid())
+  recipientId     String              // User ID
+  recipientRole   UserRole            // Which role (for filtering)
+  channel         NotificationChannel
+  eventType       NotificationEventType
+  title           String
+  body            String
+  data            Json?               // Additional data (labOrderId, orderId, etc.)
+  status          NotificationStatus  @default(PENDING)
+
+  // Discreet mode applied
+  isDiscreet      Boolean             @default(false)
+
+  // Reference to source entity
+  labOrderId      String?
+  orderId         String?
+  consultationId  String?
+  subscriptionId  String?
+
+  // Timestamps
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([recipientId])
+  @@index([recipientRole])
+  @@index([status])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// Spec: master spec Section 11 — Patient Notification Preferences
+model NotificationPreference {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+
+  // Channel toggles (default: all ON)
+  pushEnabled     Boolean  @default(true)
+  whatsappEnabled Boolean  @default(true)
+  smsEnabled      Boolean  @default(true)
+  emailEnabled    Boolean  @default(true)
+
+  // Sensitive mode: generic text instead of condition-specific
+  // "Onlyou: You have an update" instead of detailed text
+  discreetMode    Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
 // AUDIT LOGGING (HIPAA/DPDPA Compliance)
 // ============================================
 
