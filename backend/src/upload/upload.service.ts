@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -9,6 +9,24 @@ export interface PresignedUrlResponse {
     fileUrl: string;
     key: string;
 }
+
+export interface ImageValidationResult {
+    valid: boolean;
+    message?: string;
+}
+
+export interface BlurDetectionResult {
+    isBlurry: boolean;
+    message?: string;
+}
+
+// Spec: master spec Section 14 — Allowed image types for intake photos
+const ALLOWED_CONTENT_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/heic',
+    'image/webp',
+];
 
 @Injectable()
 export class UploadService {
@@ -43,6 +61,11 @@ export class UploadService {
         fileType: string,
         contentType: string = 'image/jpeg',
     ): Promise<PresignedUrlResponse> {
+        // Validate content type
+        if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+            throw new BadRequestException('Unsupported file type');
+        }
+
         const fileExtension = contentType === 'image/png' ? 'png' : 'jpg';
         const key = `intake-photos/${userId}/${fileType}_${randomUUID()}.${fileExtension}`;
 
@@ -67,6 +90,61 @@ export class UploadService {
             fileUrl,
             key,
         };
+    }
+
+    // Spec: master spec Section 14 — Image resolution validation
+    // Minimum 800x600 resolution required for medical photos
+    validateImageResolution(width: number, height: number): ImageValidationResult {
+        const MIN_WIDTH = 800;
+        const MIN_HEIGHT = 600;
+
+        if (width < MIN_WIDTH || height < MIN_HEIGHT) {
+            return {
+                valid: false,
+                message: 'Image resolution too low. Minimum 800x600 required.',
+            };
+        }
+
+        return { valid: true };
+    }
+
+    // Spec: master spec Section 14 — Blur detection using Laplacian variance
+    // laplacianVariance is calculated client-side or server-side using image processing
+    // Sharp images have variance > 100, blurry images have < 100
+    detectBlur(laplacianVariance: number): BlurDetectionResult {
+        const BLUR_THRESHOLD = 100;
+
+        if (laplacianVariance < BLUR_THRESHOLD) {
+            return {
+                isBlurry: true,
+                message: 'Image appears blurry. Please take a clearer photo.',
+            };
+        }
+
+        return { isBlurry: false };
+    }
+
+    // Spec: master spec Section 14 — Brightness validation
+    // Average pixel brightness should be between 50-200 (on 0-255 scale)
+    validateBrightness(averageBrightness: number): ImageValidationResult {
+        const MIN_BRIGHTNESS = 50;
+        const MAX_BRIGHTNESS = 200;
+
+        if (averageBrightness < MIN_BRIGHTNESS) {
+            return {
+                valid: false,
+                message: 'Image is too dark. Please take photo in better lighting.',
+            };
+        }
+
+        if (averageBrightness > MAX_BRIGHTNESS) {
+            return {
+                valid: false,
+                message: 'Image is overexposed. Please reduce lighting or avoid direct light.',
+            };
+        }
+
+        return { valid: true };
     }
 
     /**

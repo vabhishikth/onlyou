@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserService, UpdateProfileInput } from './user.service';
+import { UserService, UpdateProfileInput, AgeValidationResult } from './user.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Gender, UserRole } from '@prisma/client';
 
@@ -320,22 +320,71 @@ describe('UserService', () => {
   });
 });
 
-// Tests for features to be implemented
-describe('Age Validation (Future Implementation)', () => {
-  it.skip('should validate user is at least 18 years old', () => {
-    // To be implemented: validateAge(new Date('2010-01-01')) should fail (too young)
+// Tests for age validation
+describe('Age Validation', () => {
+  let service: UserService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: PrismaService,
+          useValue: {},
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
   });
 
-  it.skip('should accept users who are exactly 18 years old', () => {
-    // To be implemented: validateAge(eighteenYearsAgo) should pass
+  it('should reject users under 18 years old', () => {
+    // Someone born 10 years ago
+    const tenYearsAgo = new Date();
+    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+
+    const result = service.validateAge(tenYearsAgo);
+
+    expect(result.valid).toBe(false);
+    expect(result.message).toBe('User must be at least 18 years old');
   });
 
-  it.skip('should accept users older than 18', () => {
-    // To be implemented: validateAge(new Date('1990-01-01')) should pass
+  it('should accept users who are exactly 18 years old', () => {
+    const eighteenYearsAgo = new Date();
+    eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+
+    const result = service.validateAge(eighteenYearsAgo);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('should accept users older than 18', () => {
+    const thirtyYearsAgo = new Date();
+    thirtyYearsAgo.setFullYear(thirtyYearsAgo.getFullYear() - 30);
+
+    const result = service.validateAge(thirtyYearsAgo);
+
+    expect(result.valid).toBe(true);
   });
 });
 
-describe('Pincode Lookup (Future Implementation)', () => {
+describe('Pincode Lookup', () => {
+  let service: UserService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: PrismaService,
+          useValue: {},
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
   const pincodeTestCases = [
     { pincode: '400001', city: 'Mumbai', state: 'Maharashtra' },
     { pincode: '110001', city: 'New Delhi', state: 'Delhi' },
@@ -344,58 +393,262 @@ describe('Pincode Lookup (Future Implementation)', () => {
     { pincode: '700001', city: 'Kolkata', state: 'West Bengal' },
   ];
 
-  it.skip.each(pincodeTestCases)(
+  it.each(pincodeTestCases)(
     'should auto-fill city and state for pincode $pincode',
     ({ pincode, city, state }) => {
-      // To be implemented: lookupPincode(pincode) should return { city, state }
+      const result = service.lookupPincode(pincode);
+
+      expect(result).not.toBeNull();
+      expect(result?.city).toBe(city);
+      expect(result?.state).toBe(state);
     }
   );
 
-  it.skip('should return null for invalid pincode', () => {
-    // To be implemented: lookupPincode('000000') should return null
+  it('should return null for invalid pincode', () => {
+    const result = service.lookupPincode('000000');
+
+    expect(result).toBeNull();
   });
 
-  it.skip('should validate 6-digit Indian pincode format', () => {
-    // To be implemented: validatePincode('12345') should fail (5 digits)
-    // validatePincode('1234567') should fail (7 digits)
-    // validatePincode('123456') should pass
-  });
-});
-
-describe('DoctorProfile (Future Implementation)', () => {
-  it.skip('should create doctor profile with NMC registration number', () => {
-    // To be implemented
-  });
-
-  it.skip('should validate NMC registration number format', () => {
-    // To be implemented: Medical Council of India registration validation
-  });
-
-  it.skip('should require specialization for doctor profile', () => {
-    // To be implemented
-  });
-
-  it.skip('should store qualifications as array', () => {
-    // To be implemented
+  it('should validate 6-digit Indian pincode format', () => {
+    // 5 digits - invalid
+    expect(service.validatePincode('12345')).toBe(false);
+    // 7 digits - invalid
+    expect(service.validatePincode('1234567')).toBe(false);
+    // 6 digits - valid format
+    expect(service.validatePincode('123456')).toBe(true);
   });
 });
 
-describe('Partner Profiles (Future Implementation)', () => {
+describe('DoctorProfile', () => {
+  let service: UserService;
+  let prismaService: jest.Mocked<PrismaService>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: PrismaService,
+          useValue: {
+            doctorProfile: {
+              create: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+    prismaService = module.get(PrismaService);
+  });
+
+  it('should create doctor profile with NMC registration number', async () => {
+    const mockDoctorProfile = {
+      id: 'dp-123',
+      userId: 'user-123',
+      registrationNo: 'MH/12345/2020',
+      specialization: 'Dermatology',
+      qualifications: ['MBBS', 'MD'],
+      yearsOfExperience: 5,
+      bio: null,
+      avatarUrl: null,
+      isAvailable: true,
+      consultationFee: 50000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prismaService.doctorProfile.create.mockResolvedValue(mockDoctorProfile);
+
+    const result = await service.createDoctorProfile('user-123', {
+      registrationNo: 'MH/12345/2020',
+      specialization: 'Dermatology',
+      qualifications: ['MBBS', 'MD'],
+      yearsOfExperience: 5,
+    });
+
+    expect(prismaService.doctorProfile.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-123',
+        registrationNo: 'MH/12345/2020',
+        specialization: 'Dermatology',
+        qualifications: ['MBBS', 'MD'],
+        yearsOfExperience: 5,
+      },
+    });
+    expect(result.registrationNo).toBe('MH/12345/2020');
+  });
+
+  it('should validate NMC registration number format', () => {
+    // Format: XX/NNNNN/YYYY (state code / number / year)
+    expect(service.validateNmcRegistration('MH/12345/2020')).toBe(true);
+    expect(service.validateNmcRegistration('KA/67890/2019')).toBe(true);
+    expect(service.validateNmcRegistration('DL/11111/2021')).toBe(true);
+
+    // Invalid formats
+    expect(service.validateNmcRegistration('12345')).toBe(false);
+    expect(service.validateNmcRegistration('MH12345')).toBe(false);
+    expect(service.validateNmcRegistration('')).toBe(false);
+  });
+
+  it('should require specialization for doctor profile', async () => {
+    await expect(
+      service.createDoctorProfile('user-123', {
+        registrationNo: 'MH/12345/2020',
+        specialization: '', // Empty specialization
+        qualifications: ['MBBS'],
+        yearsOfExperience: 5,
+      })
+    ).rejects.toThrow('Specialization is required');
+  });
+
+  it('should store qualifications as array', async () => {
+    const mockDoctorProfile = {
+      id: 'dp-123',
+      userId: 'user-123',
+      registrationNo: 'MH/12345/2020',
+      specialization: 'Dermatology',
+      qualifications: ['MBBS', 'MD', 'DNB'],
+      yearsOfExperience: 10,
+      bio: null,
+      avatarUrl: null,
+      isAvailable: true,
+      consultationFee: 75000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prismaService.doctorProfile.create.mockResolvedValue(mockDoctorProfile);
+
+    const result = await service.createDoctorProfile('user-123', {
+      registrationNo: 'MH/12345/2020',
+      specialization: 'Dermatology',
+      qualifications: ['MBBS', 'MD', 'DNB'],
+      yearsOfExperience: 10,
+    });
+
+    expect(result.qualifications).toEqual(['MBBS', 'MD', 'DNB']);
+    expect(Array.isArray(result.qualifications)).toBe(true);
+  });
+});
+
+describe('Partner Profiles', () => {
+  let service: UserService;
+  let prismaService: jest.Mocked<PrismaService>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: PrismaService,
+          useValue: {
+            labProfile: {
+              create: jest.fn(),
+            },
+            phlebotomistProfile: {
+              create: jest.fn(),
+            },
+            pharmacyProfile: {
+              create: jest.fn(),
+            },
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+    prismaService = module.get(PrismaService);
+  });
+
   describe('LabProfile', () => {
-    it.skip('should create lab profile with diagnostic centre details', () => {
-      // To be implemented
+    it('should create lab profile with diagnostic centre details', async () => {
+      const mockLabProfile = {
+        id: 'lab-123',
+        userId: 'user-123',
+        labName: 'MedLab Diagnostics',
+        licenseNumber: 'DL-12345-2020',
+        address: '123 Medical St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400001',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prismaService.labProfile.create.mockResolvedValue(mockLabProfile);
+
+      const result = await service.createLabProfile('user-123', {
+        labName: 'MedLab Diagnostics',
+        licenseNumber: 'DL-12345-2020',
+        address: '123 Medical St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400001',
+      });
+
+      expect(prismaService.labProfile.create).toHaveBeenCalled();
+      expect(result.labName).toBe('MedLab Diagnostics');
+      expect(result.licenseNumber).toBe('DL-12345-2020');
     });
   });
 
   describe('PhlebotomistProfile', () => {
-    it.skip('should create phlebotomist profile with assignment region', () => {
-      // To be implemented
+    it('should create phlebotomist profile with assignment region', async () => {
+      const mockPhlebotomistProfile = {
+        id: 'phleb-123',
+        userId: 'user-123',
+        employeeId: 'PH-001',
+        assignedRegion: 'Mumbai South',
+        isAvailable: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prismaService.phlebotomistProfile.create.mockResolvedValue(mockPhlebotomistProfile);
+
+      const result = await service.createPhlebotomistProfile('user-123', {
+        employeeId: 'PH-001',
+        assignedRegion: 'Mumbai South',
+      });
+
+      expect(prismaService.phlebotomistProfile.create).toHaveBeenCalled();
+      expect(result.employeeId).toBe('PH-001');
+      expect(result.assignedRegion).toBe('Mumbai South');
     });
   });
 
   describe('PharmacyProfile', () => {
-    it.skip('should create pharmacy profile with license details', () => {
-      // To be implemented
+    it('should create pharmacy profile with license details', async () => {
+      const mockPharmacyProfile = {
+        id: 'pharm-123',
+        userId: 'user-123',
+        pharmacyName: 'HealthPlus Pharmacy',
+        licenseNumber: 'MH/RET/12345',
+        gstNumber: '27AABCU9603R1ZP',
+        address: '456 Health St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400002',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prismaService.pharmacyProfile.create.mockResolvedValue(mockPharmacyProfile);
+
+      const result = await service.createPharmacyProfile('user-123', {
+        pharmacyName: 'HealthPlus Pharmacy',
+        licenseNumber: 'MH/RET/12345',
+        gstNumber: '27AABCU9603R1ZP',
+        address: '456 Health St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400002',
+      });
+
+      expect(prismaService.pharmacyProfile.create).toHaveBeenCalled();
+      expect(result.pharmacyName).toBe('HealthPlus Pharmacy');
+      expect(result.licenseNumber).toBe('MH/RET/12345');
     });
   });
 });

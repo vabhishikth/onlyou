@@ -145,8 +145,7 @@ describe('UploadService', () => {
       expect(result.uploadUrl).toBeDefined();
     });
 
-    // These tests document that file type restrictions SHOULD be implemented
-    it.skip.each(disallowedTypes)(
+    it.each(disallowedTypes)(
       'should reject %s content type',
       async (contentType) => {
         await expect(
@@ -206,39 +205,82 @@ describe('UploadService', () => {
   });
 });
 
-// Spec: Photo quality validation (to be implemented)
-describe('Photo Validation (Future Implementation)', () => {
+// Spec: Photo quality validation
+describe('Photo Validation', () => {
+  let service: UploadService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UploadService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const config: Record<string, string> = {
+                AWS_S3_REGION: 'ap-south-1',
+                AWS_S3_BUCKET: 'onlyou-uploads',
+                AWS_ACCESS_KEY_ID: 'test-key-id',
+                AWS_SECRET_ACCESS_KEY: 'test-secret',
+              };
+              return config[key];
+            }),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UploadService>(UploadService);
+  });
+
   describe('resolution validation', () => {
-    it.skip('should accept images with minimum 800x600 resolution', () => {
-      // To be implemented: validateImageResolution(800, 600) should pass
+    it('should accept images with minimum 800x600 resolution', () => {
+      const result = service.validateImageResolution(800, 600);
+      expect(result.valid).toBe(true);
+
+      // Also accept larger images
+      const result2 = service.validateImageResolution(1920, 1080);
+      expect(result2.valid).toBe(true);
     });
 
-    it.skip('should reject images below minimum resolution', () => {
-      // To be implemented: validateImageResolution(400, 300) should fail
+    it('should reject images below minimum resolution', () => {
+      const result = service.validateImageResolution(400, 300);
+      expect(result.valid).toBe(false);
+      expect(result.message).toBe('Image resolution too low. Minimum 800x600 required.');
     });
   });
 
   describe('blur detection', () => {
-    it.skip('should accept sharp images', () => {
-      // To be implemented: detectBlur(sharpImageBuffer) should return false
+    it('should accept sharp images (high Laplacian variance)', () => {
+      // Sharp images have high variance (> 100)
+      const result = service.detectBlur(150);
+      expect(result.isBlurry).toBe(false);
     });
 
-    it.skip('should reject blurry images', () => {
-      // To be implemented: detectBlur(blurryImageBuffer) should return true
+    it('should reject blurry images (low Laplacian variance)', () => {
+      // Blurry images have low variance (< 100)
+      const result = service.detectBlur(50);
+      expect(result.isBlurry).toBe(true);
+      expect(result.message).toBe('Image appears blurry. Please take a clearer photo.');
     });
   });
 
   describe('brightness validation', () => {
-    it.skip('should accept properly lit images', () => {
-      // To be implemented: validateBrightness(imageBuffer) should pass
+    it('should accept properly lit images (brightness 50-200)', () => {
+      const result = service.validateBrightness(120);
+      expect(result.valid).toBe(true);
     });
 
-    it.skip('should reject too dark images', () => {
-      // To be implemented: validateBrightness(darkImageBuffer) should fail
+    it('should reject too dark images (brightness < 50)', () => {
+      const result = service.validateBrightness(30);
+      expect(result.valid).toBe(false);
+      expect(result.message).toBe('Image is too dark. Please take photo in better lighting.');
     });
 
-    it.skip('should reject overexposed images', () => {
-      // To be implemented: validateBrightness(brightImageBuffer) should fail
+    it('should reject overexposed images (brightness > 200)', () => {
+      const result = service.validateBrightness(230);
+      expect(result.valid).toBe(false);
+      expect(result.message).toBe('Image is overexposed. Please reduce lighting or avoid direct light.');
     });
   });
 });
