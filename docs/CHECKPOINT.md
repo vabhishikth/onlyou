@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-12 10:25 IST
+# CHECKPOINT — Last Updated: 2026-02-12 10:30 IST
 
 ## Current Phase: Phase 4 - Blood Work, Partners & Delivery
-## Current Task: Task 5 - Partner Management
+## Current Task: Task 6 - Order & Delivery System
 ## Status: PENDING
 
 ## What's Done (checked = complete, unchecked = not started):
@@ -15,27 +15,27 @@
   - [x] Task 1: Dashboard Backend APIs (46 tests)
   - [x] Task 2: Prescription System (46 tests)
   - [x] Task 3: Messaging (33 tests)
-- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (192/??? tests)
+- [ ] Phase 4 Blood Work & Delivery — IN PROGRESS (239/??? tests)
   - [x] Task 1: Lab Order Status Machine (70 tests)
   - [x] Task 2: Slot Booking & Phlebotomist Assignment (44 tests)
   - [x] Task 3: Lab Processing & Results (48 tests)
   - [x] Task 4: SLA Escalation (30 tests)
-  - [ ] Task 5: Partner Management
+  - [x] Task 5: Partner Management (47 tests)
   - [ ] Task 6: Order & Delivery System
 
 ## Last Completed:
-- Feature: SLA Escalation
+- Feature: Partner Management
 - Files created/modified:
-  - `backend/src/lab-order/sla-escalation.service.ts` (NEW - 30 tests)
-  - `backend/src/lab-order/sla-escalation.service.spec.ts` (NEW)
-  - `backend/src/lab-order/lab-order.module.ts` (updated)
-  - `backend/prisma/schema.prisma` (added SLA tracking fields)
+  - `backend/src/partner/partner.service.ts` (NEW - 47 tests)
+  - `backend/src/partner/partner.service.spec.ts` (NEW)
+  - `backend/src/partner/partner.module.ts` (NEW)
+  - `backend/prisma/schema.prisma` (added PartnerPharmacy model)
 
 ## Test Summary:
 ```
-Test Suites: 17 passed, 17 total
-Tests:       609 passed, 609 total (0 skipped, 0 failing)
-Time:        ~7.3 seconds
+Test Suites: 18 passed, 18 total
+Tests:       656 passed, 656 total (0 skipped, 0 failing)
+Time:        ~8.2 seconds
 ```
 
 ## Test Breakdown:
@@ -55,7 +55,8 @@ Time:        ~7.3 seconds
 - lab-order.service.spec.ts: 70 tests
 - slot-booking.service.spec.ts: 44 tests
 - lab-processing.service.spec.ts: 48 tests
-- sla-escalation.service.spec.ts: 30 tests (NEW)
+- sla-escalation.service.spec.ts: 30 tests
+- partner.service.spec.ts: 47 tests (NEW)
 
 ## Phase 4 Completed Tasks Summary:
 
@@ -102,16 +103,27 @@ Time:        ~7.3 seconds
 - Get orders requiring notification
 - Mark reminder sent
 
+### Task 5: Partner Management (47 tests)
+- Diagnostic Centre CRUD (create, read, list, update, activate/deactivate)
+- Phlebotomist CRUD (create, read, list, update, activate/deactivate)
+- Pharmacy CRUD (create, read, list, update, activate/deactivate)
+- Find nearest partners by pincode
+- Portal auth (find by portal phone for OTP login)
+- Partner statistics
+- Partner rating updates (0-5 validation)
+- Filter by city, pincode, availability day
+
 ## Next Up:
-- Task 5: Partner Management
-  - CRUD for PartnerDiagnosticCentre
-  - CRUD for Phlebotomist
-  - CRUD for PartnerPharmacy
-  - Portal OTP auth for partners
-  - Spec: Section 7.5, Section 13
+- Task 6: Order & Delivery System
+  - Order model (11 statuses per spec Section 8)
+  - Status transitions with timestamps
+  - Delivery OTP generation + validation
+  - Pharmacy coordination flow
+  - Monthly auto-reorder logic
+  - Spec: Section 8
 
 ## Spec References:
-- Partner Management: master spec Section 7.5, Section 13
+- Order & Delivery: master spec Section 8
 
 ## Known Issues:
 - None currently
@@ -119,7 +131,7 @@ Time:        ~7.3 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 609 passed)
+pnpm test           # Run all tests (should show 656 passed)
 pnpm test:cov       # Run with coverage
 ```
 

@@ -598,6 +598,33 @@ model Phlebotomist {
   @@index([isActive])
 }
 
+// Spec: master spec Section 7.5 — PartnerPharmacy
+model PartnerPharmacy {
+  id                  String   @id @default(cuid())
+  name                String
+  address             String
+  city                String
+  state               String
+  pincode             String
+  lat                 Float?
+  lng                 Float?
+  phone               String
+  email               String?
+  contactPerson       String?
+  portalLoginPhone    String?  @unique // For portal OTP auth
+  drugLicenseNumber   String   @unique
+  gstNumber           String?
+  serviceableAreas    String[] // Pincodes covered
+  avgPreparationMinutes Int    @default(30)
+  rating              Float?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([city])
+  @@index([isActive])
+}
+
 // Spec: master spec Section 7.5 — LabSlot
 model LabSlot {
   id              String   @id @default(cuid())
