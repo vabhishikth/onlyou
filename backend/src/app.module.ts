@@ -10,6 +10,7 @@ import { IntakeModule } from './intake/intake.module';
 import { UploadModule } from './upload/upload.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PrescriptionModule } from './prescription/prescription.module';
+import { LabOrderModule } from './lab-order/lab-order.module';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { PrescriptionModule } from './prescription/prescription.module';
         UploadModule,
         DashboardModule,
         PrescriptionModule,
+        LabOrderModule,
     ],
 })
 export class AppModule { }

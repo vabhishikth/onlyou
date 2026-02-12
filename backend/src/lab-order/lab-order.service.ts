@@ -101,8 +101,8 @@ export interface CreateLabOrderInput {
   consultationId: string;
   doctorId: string;
   testPanel: string[];
-  panelName?: string;
-  doctorNotes?: string;
+  panelName?: string | undefined;
+  doctorNotes?: string | undefined;
 }
 
 export interface TransitionOptions {
@@ -167,8 +167,8 @@ export class LabOrderService {
         consultationId: input.consultationId,
         doctorId: input.doctorId,
         testPanel: input.testPanel,
-        panelName: input.panelName,
-        doctorNotes: input.doctorNotes,
+        panelName: input.panelName || null,
+        doctorNotes: input.doctorNotes || null,
         status: LabOrderStatus.ORDERED,
         orderedAt: new Date(),
         collectionAddress: patient?.patientProfile?.addressLine1 || '',
