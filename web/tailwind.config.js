@@ -9,10 +9,10 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                // Onlyou Brand Colors
+                // Onlyou Brand Colors - Premium Wellness Aesthetic
                 primary: {
                     DEFAULT: '#0D6B4B',
-                    light: '#E8F5EF',
+                    foreground: '#FFFFFF',
                     50: '#E8F5EF',
                     100: '#D1EBE0',
                     200: '#A3D7C1',
@@ -26,6 +26,7 @@ module.exports = {
                 },
                 secondary: {
                     DEFAULT: '#1A1A2E',
+                    foreground: '#FFFFFF',
                     50: '#E8E8EB',
                     100: '#D1D1D7',
                     200: '#A3A3AF',
@@ -39,6 +40,7 @@ module.exports = {
                 },
                 accent: {
                     DEFAULT: '#F4A261',
+                    foreground: '#171716',
                     50: '#FEF5EC',
                     100: '#FCEAD9',
                     200: '#FAD6B3',
@@ -50,21 +52,122 @@ module.exports = {
                     800: '#614131',
                     900: '#312120',
                 },
-                background: '#FAFAF8',
-                surface: '#FFFFFF',
-                // Semantic colors
+                // Neutral warm grays
+                neutral: {
+                    50: '#FAFAF8',
+                    100: '#F5F5F3',
+                    200: '#E8E8E6',
+                    300: '#D4D4D2',
+                    400: '#A3A3A1',
+                    500: '#737371',
+                    600: '#525250',
+                    700: '#3D3D3B',
+                    800: '#262625',
+                    900: '#171716',
+                },
+                // Semantic
                 success: '#16A34A',
                 warning: '#F59E0B',
                 error: '#DC2626',
+                destructive: {
+                    DEFAULT: '#DC2626',
+                    foreground: '#FFFFFF',
+                },
+                // UI colors (shadcn compatible)
+                background: '#FAFAF8',
+                foreground: '#171716',
+                card: {
+                    DEFAULT: '#FFFFFF',
+                    foreground: '#171716',
+                },
+                popover: {
+                    DEFAULT: '#FFFFFF',
+                    foreground: '#171716',
+                },
+                muted: {
+                    DEFAULT: '#F5F5F3',
+                    foreground: '#525250',
+                },
+                border: '#E8E8E6',
+                input: '#E8E8E6',
+                ring: '#0D6B4B',
+                // Chart colors for analytics
+                chart: {
+                    1: '#0D6B4B',
+                    2: '#4F46E5',
+                    3: '#F4A261',
+                    4: '#EA580C',
+                    5: '#DB2777',
+                },
             },
             fontFamily: {
-                sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                sans: [
+                    'var(--font-plus-jakarta)',
+                    'system-ui',
+                    '-apple-system',
+                    'BlinkMacSystemFont',
+                    'Segoe UI',
+                    'Roboto',
+                    'sans-serif',
+                ],
+            },
+            fontSize: {
+                xs: ['0.75rem', { lineHeight: '1rem' }],
+                sm: ['0.875rem', { lineHeight: '1.25rem' }],
+                base: ['1rem', { lineHeight: '1.5rem' }],
+                lg: ['1.125rem', { lineHeight: '1.75rem' }],
+                xl: ['1.25rem', { lineHeight: '1.75rem' }],
+                '2xl': ['1.5rem', { lineHeight: '2rem' }],
+                '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+                '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+                '5xl': ['3rem', { lineHeight: '1.1' }],
             },
             borderRadius: {
-                DEFAULT: '8px',
-                card: '8px',
-                button: '12px',
-                pill: '24px',
+                DEFAULT: '0.5rem',
+                sm: '0.25rem',
+                md: '0.5rem',
+                lg: '0.75rem',
+                xl: '1rem',
+                '2xl': '1.5rem',
+                '3xl': '2rem',
+            },
+            boxShadow: {
+                soft: '0 2px 8px -2px rgb(0 0 0 / 0.08), 0 4px 16px -4px rgb(0 0 0 / 0.12)',
+                'soft-lg': '0 4px 12px -4px rgb(0 0 0 / 0.1), 0 8px 24px -8px rgb(0 0 0 / 0.15)',
+            },
+            animation: {
+                'fade-in': 'fadeIn 0.2s ease-out',
+                'fade-in-up': 'fadeInUp 0.3s ease-out',
+                'slide-in-right': 'slideInRight 0.3s ease-out',
+                'slide-in-left': 'slideInLeft 0.3s ease-out',
+                'scale-in': 'scaleIn 0.2s ease-out',
+                'pulse-soft': 'pulseSoft 2s infinite',
+            },
+            keyframes: {
+                fadeIn: {
+                    from: { opacity: '0' },
+                    to: { opacity: '1' },
+                },
+                fadeInUp: {
+                    from: { opacity: '0', transform: 'translateY(10px)' },
+                    to: { opacity: '1', transform: 'translateY(0)' },
+                },
+                slideInRight: {
+                    from: { opacity: '0', transform: 'translateX(20px)' },
+                    to: { opacity: '1', transform: 'translateX(0)' },
+                },
+                slideInLeft: {
+                    from: { opacity: '0', transform: 'translateX(-20px)' },
+                    to: { opacity: '1', transform: 'translateX(0)' },
+                },
+                scaleIn: {
+                    from: { opacity: '0', transform: 'scale(0.95)' },
+                    to: { opacity: '1', transform: 'scale(1)' },
+                },
+                pulseSoft: {
+                    '0%, 100%': { opacity: '1' },
+                    '50%': { opacity: '0.7' },
+                },
             },
             spacing: {
                 '4.5': '18px',
