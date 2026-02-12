@@ -1067,4 +1067,433 @@ export class AdminService {
 
         return { success: true, message: `Status overridden to ${newStatus}` };
     }
+
+    // =============================================
+    // DELIVERY MANAGEMENT
+    // Spec: master spec Section 8 — Medication Fulfillment & Local Delivery
+    // =============================================
+
+    /**
+     * Get deliveries with filters for admin management
+     */
+    async getAdminDeliveries(filter: {
+        statuses?: OrderStatus[];
+        pharmacyId?: string;
+        dateFrom?: Date;
+        dateTo?: Date;
+        isReorder?: boolean;
+        search?: string;
+        page?: number;
+        pageSize?: number;
+    }): Promise<{
+        deliveries: Array<{
+            id: string;
+            patient: { id: string; name: string | null; phone: string | null };
+            medications: Array<{ name: string; dosage: string; frequency: string }>;
+            status: OrderStatus;
+            pharmacy: { id: string; name: string; address: string | null; phone: string | null } | null;
+            deliveryPersonName: string | null;
+            deliveryPersonPhone: string | null;
+            deliveryMethod: string | null;
+            estimatedDeliveryTime: string | null;
+            deliveryOtp: string | null;
+            deliveryAddress: string;
+            deliveryCity: string;
+            deliveryPincode: string;
+            totalAmountPaise: number;
+            isReorder: boolean;
+            orderedAt: Date;
+            sentToPharmacyAt: Date | null;
+            pharmacyReadyAt: Date | null;
+            outForDeliveryAt: Date | null;
+            deliveredAt: Date | null;
+            pharmacyIssueReason: string | null;
+            deliveryFailedReason: string | null;
+        }>;
+        total: number;
+        page: number;
+        pageSize: number;
+    }> {
+        const page = filter.page || 1;
+        const pageSize = filter.pageSize || 20;
+        const skip = (page - 1) * pageSize;
+
+        // Build where clause
+        const where: Record<string, unknown> = {};
+
+        if (filter.statuses && filter.statuses.length > 0) {
+            where.status = { in: filter.statuses };
+        }
+
+        if (filter.pharmacyId) {
+            where.pharmacyPartnerId = filter.pharmacyId;
+        }
+
+        if (filter.dateFrom || filter.dateTo) {
+            where.orderedAt = {};
+            if (filter.dateFrom) {
+                (where.orderedAt as Record<string, unknown>).gte = filter.dateFrom;
+            }
+            if (filter.dateTo) {
+                (where.orderedAt as Record<string, unknown>).lte = filter.dateTo;
+            }
+        }
+
+        if (filter.isReorder !== undefined) {
+            where.isReorder = filter.isReorder;
+        }
+
+        if (filter.search) {
+            where.patient = {
+                OR: [
+                    { name: { contains: filter.search, mode: 'insensitive' } },
+                    { phone: { contains: filter.search } },
+                ],
+            };
+        }
+
+        const [orders, total] = await Promise.all([
+            this.prisma.order.findMany({
+                where,
+                include: {
+                    patient: true,
+                    prescription: true,
+                },
+                orderBy: { orderedAt: 'desc' },
+                skip,
+                take: pageSize,
+            }),
+            this.prisma.order.count({ where }),
+        ]);
+
+        const mappedDeliveries = orders.map((order) => {
+            // Parse medications from prescription
+            let medications: Array<{ name: string; dosage: string; frequency: string }> = [];
+            try {
+                const prescriptionMeds = order.prescription?.medications;
+                if (Array.isArray(prescriptionMeds)) {
+                    medications = prescriptionMeds.map((m: Record<string, unknown>) => ({
+                        name: String(m.name || ''),
+                        dosage: String(m.dosage || ''),
+                        frequency: String(m.frequency || ''),
+                    }));
+                }
+            } catch {
+                // Ignore parsing errors
+            }
+
+            return {
+                id: order.id,
+                patient: {
+                    id: order.patient.id,
+                    name: order.patient.name,
+                    phone: order.patient.phone,
+                },
+                medications,
+                status: order.status,
+                pharmacy: order.pharmacyPartnerId
+                    ? {
+                          id: order.pharmacyPartnerId,
+                          name: order.pharmacyPartnerName || 'Unknown',
+                          address: order.pharmacyAddress,
+                          phone: null,
+                      }
+                    : null,
+                deliveryPersonName: order.deliveryPersonName,
+                deliveryPersonPhone: order.deliveryPersonPhone,
+                deliveryMethod: order.deliveryMethod,
+                estimatedDeliveryTime: order.estimatedDeliveryTime,
+                deliveryOtp: order.deliveryOtp,
+                deliveryAddress: order.deliveryAddress,
+                deliveryCity: order.deliveryCity,
+                deliveryPincode: order.deliveryPincode,
+                totalAmountPaise: order.totalAmount,
+                isReorder: order.isReorder,
+                orderedAt: order.orderedAt,
+                sentToPharmacyAt: order.sentToPharmacyAt,
+                pharmacyReadyAt: order.pharmacyReadyAt,
+                outForDeliveryAt: order.outForDeliveryAt,
+                deliveredAt: order.deliveredAt,
+                pharmacyIssueReason: order.pharmacyIssueReason,
+                deliveryFailedReason: order.deliveryFailedReason,
+            };
+        });
+
+        return {
+            deliveries: mappedDeliveries,
+            total,
+            page,
+            pageSize,
+        };
+    }
+
+    /**
+     * Get available pharmacies for assignment
+     */
+    async getAvailablePharmacies(pincode: string): Promise<
+        Array<{
+            id: string;
+            name: string;
+            address: string;
+            city: string;
+            phone: string;
+            serviceableAreas: string[];
+            avgPreparationMinutes: number;
+        }>
+    > {
+        const pharmacies = await this.prisma.partnerPharmacy.findMany({
+            where: {
+                isActive: true,
+                serviceableAreas: { has: pincode },
+            },
+        });
+
+        return pharmacies.map((p) => ({
+            id: p.id,
+            name: p.name,
+            address: p.address,
+            city: p.city,
+            phone: p.phone,
+            serviceableAreas: p.serviceableAreas,
+            avgPreparationMinutes: p.avgPreparationMinutes,
+        }));
+    }
+
+    /**
+     * Send order to pharmacy
+     * Spec: Section 8.2 Step 2 — Sent to Pharmacy
+     */
+    async sendToPharmacy(
+        orderId: string,
+        pharmacyId: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        if (order.status !== OrderStatus.PRESCRIPTION_CREATED) {
+            return {
+                success: false,
+                message: `Cannot send to pharmacy in status: ${order.status}`,
+            };
+        }
+
+        const pharmacy = await this.prisma.partnerPharmacy.findUnique({
+            where: { id: pharmacyId },
+        });
+
+        if (!pharmacy) {
+            return { success: false, message: 'Pharmacy not found' };
+        }
+
+        if (!pharmacy.isActive) {
+            return { success: false, message: 'Pharmacy is not active' };
+        }
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+                pharmacyPartnerId: pharmacyId,
+                pharmacyPartnerName: pharmacy.name,
+                pharmacyAddress: pharmacy.address,
+                status: OrderStatus.SENT_TO_PHARMACY,
+                sentToPharmacyAt: new Date(),
+            },
+        });
+
+        return { success: true, message: 'Order sent to pharmacy' };
+    }
+
+    /**
+     * Arrange delivery for an order
+     * Spec: Section 8.2 Step 4 — Delivery Arranged
+     */
+    async arrangeDelivery(input: {
+        orderId: string;
+        deliveryPersonName: string;
+        deliveryPersonPhone: string;
+        deliveryMethod: string;
+        estimatedDeliveryTime?: string;
+    }): Promise<{ success: boolean; message: string; otp?: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: input.orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        if (order.status !== OrderStatus.PHARMACY_READY) {
+            return {
+                success: false,
+                message: `Cannot arrange delivery in status: ${order.status}`,
+            };
+        }
+
+        // Generate 4-digit OTP
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        await this.prisma.order.update({
+            where: { id: input.orderId },
+            data: {
+                deliveryPersonName: input.deliveryPersonName,
+                deliveryPersonPhone: input.deliveryPersonPhone,
+                deliveryMethod: input.deliveryMethod,
+                estimatedDeliveryTime: input.estimatedDeliveryTime || null,
+                deliveryOtp: otp,
+                status: OrderStatus.PICKUP_ARRANGED,
+                pickupArrangedAt: new Date(),
+            },
+        });
+
+        return { success: true, message: 'Delivery arranged', otp };
+    }
+
+    /**
+     * Mark order as out for delivery
+     */
+    async markOutForDelivery(orderId: string): Promise<{ success: boolean; message: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        if (order.status !== OrderStatus.PICKUP_ARRANGED) {
+            return {
+                success: false,
+                message: `Cannot mark out for delivery in status: ${order.status}`,
+            };
+        }
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+                status: OrderStatus.OUT_FOR_DELIVERY,
+                outForDeliveryAt: new Date(),
+            },
+        });
+
+        return { success: true, message: 'Marked as out for delivery' };
+    }
+
+    /**
+     * Update pharmacy status
+     */
+    async updatePharmacyStatus(
+        orderId: string,
+        status: OrderStatus,
+        issueReason?: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        const updateData: Record<string, unknown> = { status };
+
+        switch (status) {
+            case OrderStatus.PHARMACY_PREPARING:
+                updateData.pharmacyPreparingAt = new Date();
+                break;
+            case OrderStatus.PHARMACY_READY:
+                updateData.pharmacyReadyAt = new Date();
+                break;
+            case OrderStatus.PHARMACY_ISSUE:
+                updateData.pharmacyIssueAt = new Date();
+                updateData.pharmacyIssueReason = issueReason || null;
+                break;
+        }
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: updateData,
+        });
+
+        return { success: true, message: `Status updated to ${status}` };
+    }
+
+    /**
+     * Update delivery status
+     */
+    async updateDeliveryStatus(
+        orderId: string,
+        status: OrderStatus,
+        failedReason?: string,
+    ): Promise<{ success: boolean; message: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        const updateData: Record<string, unknown> = { status };
+
+        switch (status) {
+            case OrderStatus.OUT_FOR_DELIVERY:
+                updateData.outForDeliveryAt = new Date();
+                break;
+            case OrderStatus.DELIVERED:
+                updateData.deliveredAt = new Date();
+                break;
+            case OrderStatus.DELIVERY_FAILED:
+                updateData.deliveryFailedAt = new Date();
+                updateData.deliveryFailedReason = failedReason || null;
+                break;
+            case OrderStatus.RESCHEDULED:
+                updateData.rescheduledAt = new Date();
+                break;
+            case OrderStatus.CANCELLED:
+                updateData.cancelledAt = new Date();
+                updateData.cancellationReason = failedReason || null;
+                break;
+        }
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: updateData,
+        });
+
+        return { success: true, message: `Delivery status updated to ${status}` };
+    }
+
+    /**
+     * Regenerate delivery OTP
+     */
+    async regenerateDeliveryOtp(orderId: string): Promise<{ success: boolean; message: string; otp?: string }> {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return { success: false, message: 'Order not found' };
+        }
+
+        if (order.status !== OrderStatus.OUT_FOR_DELIVERY && order.status !== OrderStatus.PICKUP_ARRANGED) {
+            return {
+                success: false,
+                message: 'Can only regenerate OTP for orders in delivery',
+            };
+        }
+
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: { deliveryOtp: otp },
+        });
+
+        return { success: true, message: 'OTP regenerated', otp };
+    }
 }

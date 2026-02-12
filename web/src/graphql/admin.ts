@@ -376,3 +376,212 @@ export const VERTICAL_CONFIG: Record<HealthVertical, { label: string; color: str
     PCOS: { label: 'PCOS', color: 'text-purple-600' },
     WEIGHT_MANAGEMENT: { label: 'Weight', color: 'text-emerald-600' },
 };
+
+// =============================================
+// DELIVERY MANAGEMENT
+// Spec: master spec Section 8 — Medication Fulfillment & Local Delivery
+// =============================================
+
+export const ADMIN_DELIVERIES = gql`
+    query AdminDeliveries($filter: AdminDeliveriesFilterInput) {
+        adminDeliveries(filter: $filter) {
+            deliveries {
+                id
+                patient {
+                    id
+                    name
+                    phone
+                }
+                medications {
+                    name
+                    dosage
+                    frequency
+                }
+                status
+                pharmacy {
+                    id
+                    name
+                    address
+                    phone
+                }
+                deliveryPersonName
+                deliveryPersonPhone
+                deliveryMethod
+                estimatedDeliveryTime
+                deliveryOtp
+                deliveryAddress
+                deliveryCity
+                deliveryPincode
+                totalAmountPaise
+                isReorder
+                orderedAt
+                sentToPharmacyAt
+                pharmacyReadyAt
+                outForDeliveryAt
+                deliveredAt
+                pharmacyIssueReason
+                deliveryFailedReason
+            }
+            total
+            page
+            pageSize
+        }
+    }
+`;
+
+export const AVAILABLE_PHARMACIES = gql`
+    query AvailablePharmacies($pincode: String!) {
+        availablePharmacies(pincode: $pincode) {
+            pharmacies {
+                id
+                name
+                address
+                city
+                phone
+                serviceableAreas
+                avgPreparationMinutes
+            }
+        }
+    }
+`;
+
+export const SEND_TO_PHARMACY = gql`
+    mutation SendToPharmacy($input: SendToPharmacyInput!) {
+        sendToPharmacy(input: $input) {
+            success
+            message
+        }
+    }
+`;
+
+export const ARRANGE_DELIVERY = gql`
+    mutation ArrangeDelivery($input: ArrangeDeliveryInput!) {
+        arrangeDelivery(input: $input) {
+            success
+            message
+            otp
+        }
+    }
+`;
+
+export const MARK_OUT_FOR_DELIVERY = gql`
+    mutation MarkOutForDelivery($orderId: String!) {
+        markOutForDelivery(orderId: $orderId) {
+            success
+            message
+        }
+    }
+`;
+
+export const REGENERATE_DELIVERY_OTP = gql`
+    mutation RegenerateDeliveryOtp($orderId: String!) {
+        regenerateDeliveryOtp(orderId: $orderId) {
+            success
+            message
+            otp
+        }
+    }
+`;
+
+// Delivery Types
+export type OrderStatus =
+    | 'PRESCRIPTION_CREATED'
+    | 'SENT_TO_PHARMACY'
+    | 'PHARMACY_PREPARING'
+    | 'PHARMACY_READY'
+    | 'PHARMACY_ISSUE'
+    | 'PICKUP_ARRANGED'
+    | 'OUT_FOR_DELIVERY'
+    | 'DELIVERED'
+    | 'DELIVERY_FAILED'
+    | 'RESCHEDULED'
+    | 'RETURNED'
+    | 'CANCELLED';
+
+export interface AdminDeliveryPatient {
+    id: string;
+    name: string | null;
+    phone: string | null;
+}
+
+export interface AdminDeliveryMedication {
+    name: string;
+    dosage: string;
+    frequency: string;
+}
+
+export interface AdminDeliveryPharmacy {
+    id: string;
+    name: string;
+    address: string | null;
+    phone: string | null;
+}
+
+export interface AdminDelivery {
+    id: string;
+    patient: AdminDeliveryPatient;
+    medications: AdminDeliveryMedication[];
+    status: OrderStatus;
+    pharmacy: AdminDeliveryPharmacy | null;
+    deliveryPersonName: string | null;
+    deliveryPersonPhone: string | null;
+    deliveryMethod: string | null;
+    estimatedDeliveryTime: string | null;
+    deliveryOtp: string | null;
+    deliveryAddress: string;
+    deliveryCity: string;
+    deliveryPincode: string;
+    totalAmountPaise: number;
+    isReorder: boolean;
+    orderedAt: string;
+    sentToPharmacyAt: string | null;
+    pharmacyReadyAt: string | null;
+    outForDeliveryAt: string | null;
+    deliveredAt: string | null;
+    pharmacyIssueReason: string | null;
+    deliveryFailedReason: string | null;
+}
+
+export interface AdminDeliveriesResponse {
+    adminDeliveries: {
+        deliveries: AdminDelivery[];
+        total: number;
+        page: number;
+        pageSize: number;
+    };
+}
+
+export interface AvailablePharmacy {
+    id: string;
+    name: string;
+    address: string;
+    city: string;
+    phone: string;
+    serviceableAreas: string[];
+    avgPreparationMinutes: number;
+}
+
+export interface AvailablePharmaciesResponse {
+    availablePharmacies: {
+        pharmacies: AvailablePharmacy[];
+    };
+}
+
+// Order Status Display Config
+export const ORDER_STATUS_CONFIG: Record<
+    OrderStatus,
+    { label: string; color: string; bgColor: string }
+> = {
+    PRESCRIPTION_CREATED: { label: 'Created', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    SENT_TO_PHARMACY: { label: 'At Pharmacy', color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
+    PHARMACY_PREPARING: { label: 'Preparing', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    PHARMACY_READY: { label: 'Ready', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
+    PHARMACY_ISSUE: { label: 'Issue', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+    PICKUP_ARRANGED: { label: 'Pickup Arranged', color: 'text-teal-600', bgColor: 'bg-teal-100' },
+    OUT_FOR_DELIVERY: { label: 'Out for Delivery', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    DELIVERED: { label: 'Delivered', color: 'text-green-600', bgColor: 'bg-green-100' },
+    DELIVERY_FAILED: { label: 'Failed', color: 'text-red-600', bgColor: 'bg-red-100' },
+    RESCHEDULED: { label: 'Rescheduled', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+    RETURNED: { label: 'Returned', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    CANCELLED: { label: 'Cancelled', color: 'text-gray-400', bgColor: 'bg-gray-100' },
+};

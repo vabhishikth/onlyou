@@ -13,6 +13,17 @@ import {
     AdminLabOrderMutationResponse,
     BulkAssignmentResponse,
 } from './dto/lab-orders.dto';
+import {
+    AdminDeliveriesResponse,
+    AdminDeliveriesFilterInput,
+    AvailablePharmaciesResponse,
+    SendToPharmacyInput,
+    ArrangeDeliveryInput,
+    MarkPharmacyStatusInput,
+    MarkDeliveryStatusInput,
+    DeliveryMutationResponse,
+    GenerateDeliveryOtpResponse,
+} from './dto/deliveries.dto';
 
 // Spec: master spec Section 15 — Admin dashboard (unified lab + delivery views)
 
@@ -180,6 +191,136 @@ export class AdminResolver {
         return {
             success: result.success,
             message: result.message,
+        };
+    }
+
+    // =============================================
+    // DELIVERY MANAGEMENT
+    // Spec: master spec Section 8 — Medication Fulfillment & Local Delivery
+    // =============================================
+
+    /**
+     * Get deliveries with filters
+     */
+    @Query(() => AdminDeliveriesResponse)
+    async adminDeliveries(
+        @Args('filter', { nullable: true }) filter?: AdminDeliveriesFilterInput,
+    ): Promise<AdminDeliveriesResponse> {
+        const result = await this.adminService.getAdminDeliveries({
+            statuses: filter?.statuses || undefined,
+            pharmacyId: filter?.pharmacyId || undefined,
+            dateFrom: filter?.dateFrom || undefined,
+            dateTo: filter?.dateTo || undefined,
+            isReorder: filter?.isReorder,
+            search: filter?.search || undefined,
+            page: filter?.page || undefined,
+            pageSize: filter?.pageSize || undefined,
+        });
+
+        return {
+            deliveries: result.deliveries,
+            total: result.total,
+            page: result.page,
+            pageSize: result.pageSize,
+        };
+    }
+
+    /**
+     * Get available pharmacies for assignment
+     */
+    @Query(() => AvailablePharmaciesResponse)
+    async availablePharmacies(@Args('pincode') pincode: string): Promise<AvailablePharmaciesResponse> {
+        const pharmacies = await this.adminService.getAvailablePharmacies(pincode);
+        return { pharmacies };
+    }
+
+    /**
+     * Send order to pharmacy
+     * Spec: Section 8.2 Step 2 — Sent to Pharmacy
+     */
+    @Mutation(() => DeliveryMutationResponse)
+    async sendToPharmacy(@Args('input') input: SendToPharmacyInput): Promise<DeliveryMutationResponse> {
+        const result = await this.adminService.sendToPharmacy(input.orderId, input.pharmacyId);
+        return {
+            success: result.success,
+            message: result.message,
+        };
+    }
+
+    /**
+     * Arrange delivery for an order
+     * Spec: Section 8.2 Step 4 — Delivery Arranged
+     */
+    @Mutation(() => GenerateDeliveryOtpResponse)
+    async arrangeDelivery(@Args('input') input: ArrangeDeliveryInput): Promise<GenerateDeliveryOtpResponse> {
+        const result = await this.adminService.arrangeDelivery({
+            orderId: input.orderId,
+            deliveryPersonName: input.deliveryPersonName,
+            deliveryPersonPhone: input.deliveryPersonPhone,
+            deliveryMethod: input.deliveryMethod,
+            estimatedDeliveryTime: input.estimatedDeliveryTime || undefined,
+        });
+        return {
+            success: result.success,
+            message: result.message,
+            otp: result.otp,
+        };
+    }
+
+    /**
+     * Mark order as out for delivery
+     */
+    @Mutation(() => DeliveryMutationResponse)
+    async markOutForDelivery(@Args('orderId') orderId: string): Promise<DeliveryMutationResponse> {
+        const result = await this.adminService.markOutForDelivery(orderId);
+        return {
+            success: result.success,
+            message: result.message,
+        };
+    }
+
+    /**
+     * Update pharmacy status
+     */
+    @Mutation(() => DeliveryMutationResponse)
+    async updatePharmacyStatus(@Args('input') input: MarkPharmacyStatusInput): Promise<DeliveryMutationResponse> {
+        const result = await this.adminService.updatePharmacyStatus(
+            input.orderId,
+            input.status,
+            input.issueReason || undefined,
+        );
+        return {
+            success: result.success,
+            message: result.message,
+        };
+    }
+
+    /**
+     * Update delivery status
+     */
+    @Mutation(() => DeliveryMutationResponse)
+    async updateDeliveryStatus(@Args('input') input: MarkDeliveryStatusInput): Promise<DeliveryMutationResponse> {
+        const result = await this.adminService.updateDeliveryStatus(
+            input.orderId,
+            input.status,
+            input.failedReason || undefined,
+        );
+        return {
+            success: result.success,
+            message: result.message,
+        };
+    }
+
+    /**
+     * Regenerate delivery OTP
+     */
+    @Mutation(() => GenerateDeliveryOtpResponse)
+    async regenerateDeliveryOtp(@Args('orderId') orderId: string): Promise<GenerateDeliveryOtpResponse> {
+        const result = await this.adminService.regenerateDeliveryOtp(orderId);
+        return {
+            success: result.success,
+            message: result.message,
+            otp: result.otp,
         };
     }
 }
