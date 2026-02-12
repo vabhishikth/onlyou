@@ -8,6 +8,7 @@ import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { IntakeModule } from './intake/intake.module';
 import { UploadModule } from './upload/upload.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { UploadModule } from './upload/upload.module';
         UserModule,
         IntakeModule,
         UploadModule,
+        DashboardModule,
     ],
 })
 export class AppModule { }
