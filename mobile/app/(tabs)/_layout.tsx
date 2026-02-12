@@ -1,29 +1,24 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { colors, typography } from '@/styles/theme';
 
-// Hims-inspired colors
-const colors = {
-    active: '#000000',
-    inactive: '#999999',
-    background: '#FFFFFF',
-    border: '#F0F0F0',
-};
-
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-    const icons: Record<string, string> = {
-        home: '🏠',
-        consult: '💬',
-        orders: '📦',
-        profile: '👤',
-    };
-
+// Tab bar icon component
+function TabIcon({
+    name,
+    focused,
+    icon,
+}: {
+    name: string;
+    focused: boolean;
+    icon: string;
+}) {
     return (
-        <View style={styles.iconContainer}>
-            <Text style={[
-                styles.icon,
-                { opacity: focused ? 1 : 0.5 }
-            ]}>
-                {icons[name] || '⚪'}
+        <View style={styles.tabIconContainer}>
+            <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
+                {icon}
+            </Text>
+            <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
+                {name}
             </Text>
         </View>
     );
@@ -35,37 +30,45 @@ export default function TabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: styles.tabBar,
-                tabBarActiveTintColor: colors.active,
-                tabBarInactiveTintColor: colors.inactive,
-                tabBarLabelStyle: styles.tabLabel,
+                tabBarShowLabel: false,
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.textTertiary,
             }}
         >
             <Tabs.Screen
                 name="index"
                 options={{
                     title: 'Home',
-                    tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="Home" focused={focused} icon="🏠" />
+                    ),
                 }}
             />
             <Tabs.Screen
-                name="consult"
+                name="activity"
                 options={{
-                    title: 'Consult',
-                    tabBarIcon: ({ focused }) => <TabIcon name="consult" focused={focused} />,
+                    title: 'Activity',
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="Activity" focused={focused} icon="📋" />
+                    ),
                 }}
             />
             <Tabs.Screen
-                name="orders"
+                name="messages"
                 options={{
-                    title: 'Orders',
-                    tabBarIcon: ({ focused }) => <TabIcon name="orders" focused={focused} />,
+                    title: 'Messages',
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="Messages" focused={focused} icon="💬" />
+                    ),
                 }}
             />
             <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Profile',
-                    tabBarIcon: ({ focused }) => <TabIcon name="profile" focused={focused} />,
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="Profile" focused={focused} icon="👤" />
+                    ),
                 }}
             />
         </Tabs>
@@ -74,25 +77,31 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
     tabBar: {
-        backgroundColor: colors.background,
+        backgroundColor: colors.surfaceElevated,
         borderTopWidth: 1,
         borderTopColor: colors.border,
+        height: Platform.OS === 'ios' ? 88 : 68,
         paddingTop: 8,
-        paddingBottom: 8,
-        height: 70,
-        elevation: 0,
-        shadowOpacity: 0,
+        paddingBottom: Platform.OS === 'ios' ? 28 : 8,
     },
-    tabLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-        marginTop: 2,
-    },
-    iconContainer: {
+    tabIconContainer: {
         alignItems: 'center',
         justifyContent: 'center',
     },
-    icon: {
+    tabIcon: {
         fontSize: 22,
+        marginBottom: 2,
+    },
+    tabIconFocused: {
+        // Focused style if needed
+    },
+    tabLabel: {
+        ...typography.label,
+        fontSize: 10,
+        color: colors.textTertiary,
+    },
+    tabLabelFocused: {
+        color: colors.primary,
+        fontWeight: '600',
     },
 });

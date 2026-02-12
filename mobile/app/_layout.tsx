@@ -1,51 +1,67 @@
-import '../global.css';
 import { useEffect } from 'react';
-import { Stack, router } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ApolloProvider } from '@apollo/client';
-import { apolloClient } from '../src/lib/apollo';
-import { AuthProvider, useAuth } from '../src/lib/auth';
-import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { apolloClient } from '@/lib/apollo';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { colors } from '@/styles/theme';
 
-function RootLayoutNav() {
-    const { isLoading, isAuthenticated } = useAuth();
+// Auth-based navigation guard
+function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
+    const { isAuthenticated, isLoading } = useAuth();
+    const segments = useSegments();
+    const router = useRouter();
 
     useEffect(() => {
-        if (!isLoading) {
-            if (isAuthenticated) {
-                router.replace('/(tabs)');
-            } else {
-                router.replace('/(auth)/welcome');
-            }
+        if (isLoading) return;
+
+        const inAuthGroup = segments[0] === '(auth)';
+
+        if (!isAuthenticated && !inAuthGroup) {
+            // Redirect to login if not authenticated and not already in auth flow
+            router.replace('/(auth)/phone');
+        } else if (isAuthenticated && inAuthGroup) {
+            // Redirect to main app if authenticated but still in auth flow
+            router.replace('/(tabs)');
         }
-    }, [isLoading, isAuthenticated]);
+    }, [isAuthenticated, isLoading, segments]);
 
-    if (isLoading) {
-        return (
-            <View className="flex-1 items-center justify-center bg-white">
-                <ActivityIndicator size="large" color="#0ea5e9" />
-            </View>
-        );
-    }
+    return <>{children}</>;
+}
 
+function RootLayoutContent() {
     return (
-        <>
-            <Stack screenOptions={{ headerShown: false }}>
+        <AuthNavigationGuard>
+            <Stack
+                screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background },
+                    animation: 'slide_from_right',
+                }}
+            >
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="intake" />
+                <Stack.Screen
+                    name="intake"
+                    options={{
+                        presentation: 'modal',
+                    }}
+                />
             </Stack>
-            <StatusBar style="dark" />
-        </>
+        </AuthNavigationGuard>
     );
 }
 
 export default function RootLayout() {
     return (
-        <ApolloProvider client={apolloClient}>
-            <AuthProvider>
-                <RootLayoutNav />
-            </AuthProvider>
-        </ApolloProvider>
+        <SafeAreaProvider>
+            <ApolloProvider client={apolloClient}>
+                <AuthProvider>
+                    <StatusBar style="dark" />
+                    <RootLayoutContent />
+                </AuthProvider>
+            </ApolloProvider>
+        </SafeAreaProvider>
     );
 }

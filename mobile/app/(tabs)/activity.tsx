@@ -9,8 +9,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '@/styles/theme';
 
-// Placeholder - will be built in Task 2
-export default function HomeScreen() {
+// Placeholder - will be built in Task 5 (Most Important Screen!)
+export default function ActivityScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <ScrollView
@@ -20,17 +20,30 @@ export default function HomeScreen() {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.greeting}>Good morning</Text>
-                    <Text style={styles.title}>What can we help with?</Text>
+                    <Text style={styles.title}>My Activity</Text>
+                    <Text style={styles.subtitle}>
+                        Track your lab tests and deliveries
+                    </Text>
                 </View>
 
                 {/* Placeholder content */}
                 <View style={styles.placeholder}>
-                    <Text style={styles.placeholderIcon}>🏠</Text>
-                    <Text style={styles.placeholderTitle}>Home Screen</Text>
+                    <Text style={styles.placeholderIcon}>📋</Text>
+                    <Text style={styles.placeholderTitle}>Activity Screen</Text>
                     <Text style={styles.placeholderText}>
-                        Condition cards and active tracking banner will appear here
+                        Unified tracking with vertical steppers for lab orders and medication deliveries
                     </Text>
+                </View>
+
+                {/* Status preview */}
+                <View style={styles.statusPreview}>
+                    <Text style={styles.statusTitle}>Coming Soon:</Text>
+                    <View style={styles.statusList}>
+                        <Text style={styles.statusItem}>🔬 Lab Order Tracking (12 statuses)</Text>
+                        <Text style={styles.statusItem}>📦 Delivery Tracking (10 statuses)</Text>
+                        <Text style={styles.statusItem}>📄 Lab Results with Summary</Text>
+                        <Text style={styles.statusItem}>📅 Slot Booking & Reschedule</Text>
+                    </View>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -53,16 +66,16 @@ const styles = StyleSheet.create({
     header: {
         marginBottom: spacing.xl,
     },
-    greeting: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
-        marginBottom: spacing.xs,
-    },
     title: {
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
         fontSize: 28,
         fontWeight: '600',
         color: colors.text,
+        marginBottom: spacing.xs,
+    },
+    subtitle: {
+        ...typography.bodyMedium,
+        color: colors.textSecondary,
     },
     placeholder: {
         alignItems: 'center',
@@ -73,6 +86,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         borderStyle: 'dashed',
+        marginBottom: spacing.xl,
     },
     placeholderIcon: {
         fontSize: 48,
@@ -88,5 +102,24 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: 'center',
         paddingHorizontal: spacing.xl,
+    },
+    statusPreview: {
+        backgroundColor: colors.accentLight,
+        borderRadius: 16,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.accent,
+    },
+    statusTitle: {
+        ...typography.headingSmall,
+        color: colors.text,
+        marginBottom: spacing.md,
+    },
+    statusList: {
+        gap: spacing.sm,
+    },
+    statusItem: {
+        ...typography.bodyMedium,
+        color: colors.textSecondary,
     },
 });

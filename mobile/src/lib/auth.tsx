@@ -1,92 +1,124 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useMutation, useLazyQuery } from '@apollo/client';
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './apollo';
-import { ME, LOGOUT, User } from '../graphql/auth';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useCallback,
+    ReactNode,
+} from 'react';
+import { useMutation } from '@apollo/client';
+import {
+    getToken,
+    setToken,
+    getRefreshToken,
+    setRefreshToken,
+    clearTokens,
+    apolloClient,
+} from './apollo';
+import {
+    REFRESH_TOKEN,
+    RefreshTokenResponse,
+} from '../graphql/auth';
+
+interface User {
+    id: string;
+    phone: string;
+    name?: string;
+    email?: string;
+    isProfileComplete: boolean;
+}
 
 interface AuthContextType {
     user: User | null;
-    isLoading: boolean;
     isAuthenticated: boolean;
+    isLoading: boolean;
     login: (accessToken: string, refreshToken: string, user: User) => Promise<void>;
     logout: () => Promise<void>;
-    refreshUser: () => Promise<void>;
+    refreshSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const [fetchMe] = useLazyQuery(ME);
-    const [logoutMutation] = useMutation(LOGOUT);
+    const [refreshTokenMutation] = useMutation<RefreshTokenResponse>(REFRESH_TOKEN);
 
-    // Check for existing auth on app start
+    // Check for existing session on mount
     useEffect(() => {
-        checkAuth();
+        checkSession();
     }, []);
 
-    const checkAuth = async () => {
+    const checkSession = async () => {
         try {
-            const token = await getAccessToken();
-            console.log('[Auth] checkAuth - token exists:', !!token);
+            const token = await getToken();
             if (token) {
-                console.log('[Auth] checkAuth - token prefix:', token.substring(0, 20) + '...');
-                const { data, error } = await fetchMe();
-                console.log('[Auth] checkAuth - fetchMe result:', { hasData: !!data?.me, error: error?.message });
-                if (data?.me) {
-                    setUser(data.me);
-                } else {
-                    console.log('[Auth] checkAuth - clearing tokens (no user data)');
+                // Try to refresh the token to validate session
+                const success = await refreshSession();
+                if (!success) {
                     await clearTokens();
                 }
             }
         } catch (error) {
-            console.error('[Auth] checkAuth failed:', error);
+            console.error('Session check failed:', error);
             await clearTokens();
         } finally {
             setIsLoading(false);
         }
     };
 
-    const login = useCallback(async (accessToken: string, refreshToken: string, userData: User) => {
-        console.log('[Auth] Storing tokens...');
-        console.log('[Auth] Access token prefix:', accessToken?.substring(0, 20) + '...');
-        await setTokens(accessToken, refreshToken);
-        // Verify tokens were stored
-        const storedToken = await getAccessToken();
-        console.log('[Auth] Token stored and verified:', !!storedToken);
-        setUser(userData);
-    }, []);
+    const refreshSession = useCallback(async (): Promise<boolean> => {
+        try {
+            const storedRefreshToken = await getRefreshToken();
+            if (!storedRefreshToken) {
+                return false;
+            }
+
+            const { data } = await refreshTokenMutation({
+                variables: { refreshToken: storedRefreshToken },
+            });
+
+            if (data?.refreshToken.success && data.refreshToken.accessToken) {
+                await setToken(data.refreshToken.accessToken);
+                if (data.refreshToken.refreshToken) {
+                    await setRefreshToken(data.refreshToken.refreshToken);
+                }
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            return false;
+        }
+    }, [refreshTokenMutation]);
+
+    const login = useCallback(
+        async (accessToken: string, refreshToken: string, userData: User) => {
+            await setToken(accessToken);
+            await setRefreshToken(refreshToken);
+            setUser(userData);
+        },
+        []
+    );
 
     const logout = useCallback(async () => {
-        try {
-            const refreshToken = await getRefreshToken();
-            await logoutMutation({ variables: { refreshToken } });
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            await clearTokens();
-            setUser(null);
-        }
-    }, [logoutMutation]);
-
-    const refreshUser = useCallback(async () => {
-        const { data } = await fetchMe();
-        if (data?.me) {
-            setUser(data.me);
-        }
-    }, [fetchMe]);
+        await clearTokens();
+        setUser(null);
+        // Clear Apollo cache on logout
+        await apolloClient.clearStore();
+    }, []);
 
     return (
         <AuthContext.Provider
             value={{
                 user,
-                isLoading,
                 isAuthenticated: !!user,
+                isLoading,
                 login,
                 logout,
-                refreshUser,
+                refreshSession,
             }}
         >
             {children}
@@ -94,10 +126,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
     const context = useContext(AuthContext);
     if (context === undefined) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
 }
+
+export default AuthContext;

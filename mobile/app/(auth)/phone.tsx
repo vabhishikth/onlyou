@@ -1,143 +1,111 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
+    StyleSheet,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
     Alert,
-    StyleSheet,
-    SafeAreaView,
-    StatusBar,
 } from 'react-native';
-import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client';
-import { REQUEST_OTP } from '@/graphql/auth';
+import { REQUEST_OTP, RequestOtpResponse } from '@/graphql/auth';
 import { colors, spacing, borderRadius, typography } from '@/styles/theme';
 
 export default function PhoneScreen() {
+    const router = useRouter();
     const [phone, setPhone] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isFocused, setIsFocused] = useState(false);
-
-    const [requestOtp] = useMutation(REQUEST_OTP);
+    const [requestOtp, { loading }] = useMutation<RequestOtpResponse>(REQUEST_OTP);
 
     // Validate Indian phone number (10 digits starting with 6-9)
     const isValidPhone = /^[6-9]\d{9}$/.test(phone);
 
-    const handleRequestOtp = async () => {
+    const handleSubmit = async () => {
         if (!isValidPhone) {
-            Alert.alert('Invalid Number', 'Please enter a valid 10-digit Indian mobile number');
+            Alert.alert('Invalid Number', 'Please enter a valid 10-digit mobile number');
             return;
         }
 
-        setIsLoading(true);
         try {
-            const fullPhone = `+91${phone}`;
-            const { data, errors } = await requestOtp({
-                variables: { input: { phone: fullPhone } },
+            const { data } = await requestOtp({
+                variables: { input: { phone: `+91${phone}` } },
             });
 
-            if (errors) {
-                console.error('GraphQL Errors:', errors);
-            }
-
-            if (data?.requestOtp?.success) {
-                setIsLoading(false);
-                router.push(`/(auth)/otp?phone=${encodeURIComponent(fullPhone)}`);
+            if (data?.requestOtp.success) {
+                router.push({
+                    pathname: '/(auth)/otp',
+                    params: { phone: `+91${phone}` },
+                });
             } else {
-                setIsLoading(false);
-                Alert.alert('Error', data?.requestOtp?.message || 'Failed to send OTP');
+                Alert.alert('Error', data?.requestOtp.message || 'Failed to send OTP');
             }
         } catch (error: any) {
-            console.error('Request OTP error:', error?.message || error);
-            setIsLoading(false);
-            Alert.alert('Error', error?.message || 'Something went wrong. Please try again.');
+            Alert.alert('Error', error.message || 'Something went wrong');
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
             >
                 <View style={styles.content}>
-                    {/* Back Button */}
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.backButtonText}>←</Text>
-                    </TouchableOpacity>
-
-                    {/* Header */}
-                    <Text style={styles.headerTitle}>Getting started</Text>
-
-                    {/* Hero Text */}
-                    <View style={styles.heroContainer}>
-                        <Text style={styles.heroTitle}>
-                            What's your mobile{'\n'}number?
-                        </Text>
-                        <Text style={styles.heroSubtitle}>
-                            We'll send you a verification code
-                        </Text>
+                    {/* Logo / Brand */}
+                    <View style={styles.brandSection}>
+                        <Text style={styles.brandName}>Onlyou</Text>
+                        <Text style={styles.tagline}>Healthcare, made personal</Text>
                     </View>
 
                     {/* Phone Input */}
-                    <View style={[
-                        styles.inputContainer,
-                        isFocused && styles.inputContainerFocused,
-                        phone.length > 0 && !isValidPhone && styles.inputContainerError,
-                    ]}>
-                        <Text style={styles.inputLabel}>Mobile Number</Text>
-                        <View style={styles.inputRow}>
-                            <Text style={styles.countryCode}>+91</Text>
+                    <View style={styles.formSection}>
+                        <Text style={styles.heading}>Welcome</Text>
+                        <Text style={styles.subheading}>
+                            Enter your mobile number to get started
+                        </Text>
+
+                        <View style={styles.inputContainer}>
+                            <View style={styles.countryCode}>
+                                <Text style={styles.countryCodeText}>+91</Text>
+                            </View>
                             <TextInput
                                 style={styles.input}
-                                placeholder="9876543210"
+                                placeholder="10-digit mobile number"
                                 placeholderTextColor={colors.textTertiary}
                                 keyboardType="phone-pad"
                                 maxLength={10}
                                 value={phone}
-                                onChangeText={setPhone}
-                                onFocus={() => setIsFocused(true)}
-                                onBlur={() => setIsFocused(false)}
-                                editable={!isLoading}
+                                onChangeText={(text) => setPhone(text.replace(/\D/g, ''))}
                                 autoFocus
                             />
                         </View>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.button,
+                                (!isValidPhone || loading) && styles.buttonDisabled,
+                            ]}
+                            onPress={handleSubmit}
+                            disabled={!isValidPhone || loading}
+                            activeOpacity={0.8}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color={colors.primaryText} />
+                            ) : (
+                                <Text style={styles.buttonText}>Continue</Text>
+                            )}
+                        </TouchableOpacity>
                     </View>
 
-                    {phone.length > 0 && !isValidPhone && (
-                        <Text style={styles.errorText}>
-                            Enter a valid 10-digit mobile number
-                        </Text>
-                    )}
-
-                    {/* Next Button */}
-                    <TouchableOpacity
-                        style={[
-                            styles.primaryButton,
-                            (!isValidPhone || isLoading) && styles.primaryButtonDisabled,
-                        ]}
-                        onPress={handleRequestOtp}
-                        disabled={!isValidPhone || isLoading}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.primaryButtonText}>
-                            {isLoading ? 'Sending...' : 'Next'}
-                        </Text>
-                    </TouchableOpacity>
-
                     {/* Terms */}
-                    <Text style={styles.termsText}>
+                    <Text style={styles.terms}>
                         By continuing, you agree to our{' '}
-                        <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                        <Text style={styles.termsLink}>Privacy Policy</Text>
+                        <Text style={styles.link}>Terms of Service</Text> and{' '}
+                        <Text style={styles.link}>Privacy Policy</Text>
                     </Text>
                 </View>
             </KeyboardAvoidingView>
@@ -155,119 +123,85 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.md,
-    },
-
-    // Back Button
-    backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: colors.border,
+        paddingHorizontal: spacing.xl,
         justifyContent: 'center',
+    },
+    brandSection: {
         alignItems: 'center',
-        marginBottom: spacing.md,
+        marginBottom: spacing.xxxl,
     },
-    backButtonText: {
-        fontSize: 20,
-        color: colors.text,
+    brandName: {
+        ...typography.displayLarge,
+        color: colors.primary,
     },
-
-    // Header
-    headerTitle: {
-        ...typography.bodyMedium,
-        fontWeight: '500',
-        color: colors.text,
-        textAlign: 'center',
-        marginBottom: spacing.xl,
-    },
-
-    // Hero
-    heroContainer: {
-        marginBottom: spacing.xl,
-    },
-    heroTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 26,
-        fontWeight: '400',
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    heroSubtitle: {
+    tagline: {
         ...typography.bodyMedium,
         color: colors.textSecondary,
+        marginTop: spacing.xs,
     },
-
-    // Input
+    formSection: {
+        marginBottom: spacing.xxxl,
+    },
+    heading: {
+        ...typography.headingLarge,
+        color: colors.text,
+        marginBottom: spacing.xs,
+    },
+    subheading: {
+        ...typography.bodyMedium,
+        color: colors.textSecondary,
+        marginBottom: spacing.xl,
+    },
     inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        marginBottom: spacing.sm,
-    },
-    inputContainerFocused: {
-        borderColor: colors.accent,
-        borderWidth: 2,
-    },
-    inputContainerError: {
-        borderColor: colors.error,
-    },
-    inputLabel: {
-        ...typography.bodySmall,
-        color: colors.textSecondary,
-        marginBottom: spacing.xs,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        backgroundColor: colors.surfaceElevated,
+        marginBottom: spacing.lg,
     },
     countryCode: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        borderRightWidth: 1,
+        borderRightColor: colors.border,
+    },
+    countryCodeText: {
         ...typography.bodyLarge,
-        fontWeight: '600',
         color: colors.text,
-        marginRight: spacing.sm,
+        fontWeight: '500',
     },
     input: {
         flex: 1,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
         ...typography.bodyLarge,
         color: colors.text,
-        paddingVertical: spacing.xs,
     },
-    errorText: {
-        ...typography.bodySmall,
-        color: colors.error,
-        marginBottom: spacing.md,
-    },
-
-    // Buttons
-    primaryButton: {
+    button: {
         backgroundColor: colors.primary,
-        borderRadius: borderRadius.full,
         paddingVertical: spacing.md + 2,
+        borderRadius: borderRadius.full,
         alignItems: 'center',
-        marginTop: spacing.md,
-        marginBottom: spacing.lg,
+        justifyContent: 'center',
+        minHeight: 52,
     },
-    primaryButtonDisabled: {
-        backgroundColor: '#E0E0E0',
+    buttonDisabled: {
+        backgroundColor: colors.textTertiary,
     },
-    primaryButtonText: {
+    buttonText: {
         ...typography.button,
         color: colors.primaryText,
     },
-
-    // Terms
-    termsText: {
+    terms: {
         ...typography.bodySmall,
         color: colors.textTertiary,
         textAlign: 'center',
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.lg,
     },
-    termsLink: {
-        color: colors.accent,
+    link: {
+        color: colors.primary,
+        fontWeight: '500',
     },
 });
