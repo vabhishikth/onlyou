@@ -1,34 +1,33 @@
-# CHECKPOINT — Last Updated: 2026-02-12 08:45 IST
+# CHECKPOINT — Last Updated: 2026-02-12 08:50 IST
 
 ## Current Phase: Phase 2 - Core Flow (Hair Loss)
-## Current Task: Task 2 — AI Pre-Assessment
+## Current Task: Phase 2 COMPLETE
 ## Status: COMPLETE
 
 ## What's Done (checked = complete, unchecked = not started):
 - [x] Phase 1 Foundation — ALL 112 TESTS PASSING
 - [x] Phase 2 Task 1 — Questionnaire Engine (32 tests)
 - [x] Phase 2 Task 2 — AI Pre-Assessment (53 tests)
-  - [x] 9 classification categories
-  - [x] 12 red flags detection
-  - [x] 11 finasteride contraindication checks
-  - [x] Attention level calculation (low/medium/high)
-  - [x] Hair loss prompt template builder
-  - [x] AI response parser with validation
-  - [x] Doctor routing per vertical
-- [ ] Phase 2 Task 3 — Consultation Lifecycle
+- [x] Phase 2 Task 3 — Consultation Lifecycle (30 tests)
+  - [x] Status machine with valid transitions
+  - [x] Invalid status transition rejection
+  - [x] Case assignment by specialization
+  - [x] AI assessment storage
+  - [x] Photo association with consultations
+  - [x] Doctor queue management
 
 ## Last Completed:
-- Feature: AI Pre-Assessment Service
+- Feature: Consultation Lifecycle Service
 - Files created/modified:
-  - `backend/src/ai/ai.service.ts` (classification, red flags, contraindications)
-  - `backend/src/ai/ai.service.spec.ts` (53 tests)
-  - `backend/src/ai/ai.module.ts`
+  - `backend/src/consultation/consultation.service.ts` (status machine, assignment, queue)
+  - `backend/src/consultation/consultation.service.spec.ts` (30 tests)
+  - `backend/src/consultation/consultation.module.ts`
 
 ## Test Summary:
 ```
-Test Suites: 8 passed, 8 total
-Tests:       215 passed, 215 total (0 skipped, 0 failing)
-Time:        ~5.5 seconds
+Test Suites: 9 passed, 9 total
+Tests:       245 passed, 245 total (0 skipped, 0 failing)
+Time:        ~6 seconds
 ```
 
 ## Test Breakdown:
@@ -39,56 +38,53 @@ Time:        ~5.5 seconds
 - user.service.spec.ts: 31 tests
 - questionnaire.service.spec.ts: 32 tests
 - intake.service.spec.ts: 18 tests
-- ai.service.spec.ts: 53 tests (NEW)
+- ai.service.spec.ts: 53 tests
+- consultation.service.spec.ts: 30 tests (NEW)
 
-## AI Pre-Assessment Summary:
-### 9 Classification Categories:
-1. androgenetic_alopecia (LOW attention)
-2. telogen_effluvium_suspected (HIGH)
-3. alopecia_areata_suspected (HIGH)
-4. scalp_condition_suspected (MEDIUM)
-5. medication_induced_suspected (HIGH)
-6. nutritional_deficiency_suspected (MEDIUM)
-7. hormonal_suspected (HIGH)
-8. traction_alopecia_suspected (MEDIUM)
-9. unclear_needs_examination (HIGH)
+## Phase 2 Summary:
 
-### 12 Red Flags (any = HIGH attention):
-1. Age <20 with rapid loss
-2. Onset <6 months AND sudden/rapid
-3. Patchy pattern
-4. Loss on sides/back
-5. On isotretinoin
-6. Existing sexual dysfunction
-7. Planning children
-8. Depression history
-9. Weight loss >10kg
-10. Recent surgery/illness
-11. Scalp symptoms
-12. Female of childbearing age
+### Task 1: Questionnaire Engine
+- Hair loss questionnaire: 27 questions, 5 skip logic rules
+- Skip logic processor for conditional questions
+- Progress calculation and validation
 
-### 11 Finasteride Contraindication Checks:
-- BLOCK: Female childbearing age, Under 18
-- ABSOLUTE_BLOCK: Pregnant/breastfeeding
-- FLAG: Liver disease, Already on 5-ARI, Planning children, Sexual dysfunction, Blood thinners, Depression+SSRIs, Daily alcohol
-- SUGGEST_ALTERNATIVE: Previous finasteride side effects → minoxidil_only
+### Task 2: AI Pre-Assessment
+- 9 classification categories
+- 12 red flags detection
+- 11 finasteride contraindication checks
+- Attention level calculation (low/medium/high)
+
+### Task 3: Consultation Lifecycle
+- Status machine: PENDING_ASSESSMENT → AI_REVIEWED → DOCTOR_REVIEWING → APPROVED/NEEDS_INFO/REJECTED
+- Invalid transitions blocked
+- Doctor assignment by specialization (DERMATOLOGY, TRICHOLOGY)
+- AI assessment storage with risk level
+- Photo association via intakeResponse
+- Queue management (doctor queue, unassigned queue)
+
+## Consultation Status Machine:
+```
+PENDING_ASSESSMENT → AI_REVIEWED (after AI pre-assessment)
+AI_REVIEWED → DOCTOR_REVIEWING (when doctor assigned)
+DOCTOR_REVIEWING → APPROVED (treatment plan ready)
+DOCTOR_REVIEWING → NEEDS_INFO (patient needs to provide more)
+DOCTOR_REVIEWING → REJECTED (referral needed)
+NEEDS_INFO → DOCTOR_REVIEWING (patient responds)
+```
 
 ## Next Up:
-- Phase 2 Task 3: Consultation Lifecycle
-  - Consultation model + status machine
-  - Status transitions: submitted → assigned → reviewed → completed/referred
-  - Invalid status transitions rejected
-  - Case assignment by specialization
-  - Photo association with consultations
-  - AI assessment stored in consultation record
-  - Spec: master spec Section 3.7
+- Phase 3: Doctor Dashboard
+  - Case queue (filterable)
+  - Case detail view
+  - Doctor routing
+  - Prescription system
+  - Messaging
 
 ## Spec References:
-- AI Pre-Assessment: hair-loss spec Section 5, master spec Section 6
-- Classifications: hair-loss spec Section 5 (Classification Categories)
-- Red Flags: hair-loss spec Section 5 (Red Flags)
-- Contraindications: hair-loss spec Section 5 (Contraindication Matrix)
-- Routing: master spec Section 6 (Routing)
+- Consultation Lifecycle: master spec Section 3.7
+- Status Flow: master spec Section 3.7 (Waiting → Doctor Review → Results)
+- AI Assessment Storage: master spec Section 6
+- Doctor Routing: master spec Section 6
 
 ## Known Issues:
 - None currently
@@ -96,7 +92,7 @@ Time:        ~5.5 seconds
 ## Commands to Verify:
 ```bash
 cd backend
-pnpm test           # Run all tests (should show 215 passed)
+pnpm test           # Run all tests (should show 245 passed)
 pnpm test:cov       # Run with coverage
 ```
 
