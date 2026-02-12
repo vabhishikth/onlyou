@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ConsultationStatus, HealthVertical, OrderStatus, UserRole } from '@prisma/client';
+import { ConsultationStatus, UserRole } from '@prisma/client';
 
 // Spec: hair-loss spec Section 6 (Prescription Templates)
 // Spec: hair-loss spec Section 5 (Finasteride Contraindication Matrix)
@@ -21,8 +21,8 @@ export interface Medication {
   name: string;
   dosage: string;
   frequency: string;
-  duration?: string;
-  instructions?: string;
+  duration?: string | undefined;
+  instructions?: string | undefined;
 }
 
 // Template definition
@@ -158,7 +158,7 @@ export const HAIR_LOSS_TEMPLATES: Record<PrescriptionTemplate, TemplateDefinitio
   },
 };
 
-// Contraindication check result
+// Contraindication check result (public/resolver facing)
 export interface ContraindicationCheckResult {
   isBlocked: boolean;
   requiresDoctorReview: boolean;
@@ -167,13 +167,20 @@ export interface ContraindicationCheckResult {
   flags: string[];
 }
 
+// Internal contraindication check result (used by check functions)
+export interface InternalContraindicationCheck {
+  safe: boolean;
+  action?: 'BLOCK' | 'ABSOLUTE_BLOCK' | 'CAUTION';
+  concerns: string[];
+}
+
 // Create prescription input
 export interface CreatePrescriptionInput {
   consultationId: string;
   doctorId: string;
   template: PrescriptionTemplate;
-  customMedications?: Medication[];
-  instructions?: string;
+  customMedications?: Medication[] | undefined;
+  instructions?: string | undefined;
 }
 
 // PDF data structure
@@ -328,8 +335,10 @@ export class PrescriptionService {
 
   /**
    * Generate unique order number
+   * @todo Use when implementing full order number generation
    */
-  private generateOrderNumber(): string {
+  // @ts-expect-error Utility method reserved for future use
+  private _generateOrderNumber(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `ORD-${timestamp}-${random}`;
@@ -337,8 +346,10 @@ export class PrescriptionService {
 
   /**
    * Calculate patient age from DOB
+   * @todo Use when implementing age-based prescription logic
    */
-  private calculateAge(dateOfBirth: Date | null): number {
+  // @ts-expect-error Utility method reserved for future use
+  private _calculateAge(dateOfBirth: Date | null): number {
     if (!dateOfBirth) return 0;
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
@@ -408,11 +419,8 @@ export class PrescriptionService {
 
     const issuedAt = new Date();
 
-    // Patient address
+    // Patient profile for address info
     const profile = consultation.patient.patientProfile;
-    const patientAddress = profile
-      ? `${profile.addressLine1 || ''}, ${profile.city || ''}, ${profile.state || ''} ${profile.pincode || ''}`
-      : '';
 
     // Create prescription
     const prescription = await this.prisma.prescription.create({
@@ -430,25 +438,22 @@ export class PrescriptionService {
       },
     });
 
-    // Create order
+    // Create order (Spec: master spec Section 8 — Order model)
     const order = await this.prisma.order.create({
       data: {
-        userId: consultation.patientId,
+        patientId: consultation.patientId,
         prescriptionId: prescription.id,
-        orderNumber: this.generateOrderNumber(),
-        status: OrderStatus.PENDING,
-        items: medications as any,
-        subtotalPaise: 0, // To be calculated based on actual pricing
-        totalPaise: 0,
-        shippingAddress: {
-          name: consultation.patient.name,
-          phone: consultation.patient.phone,
-          addressLine1: profile?.addressLine1 || '',
-          addressLine2: profile?.addressLine2 || '',
-          city: profile?.city || '',
-          state: profile?.state || '',
-          pincode: profile?.pincode || '',
-        },
+        consultationId: input.consultationId,
+        // Status defaults to PRESCRIPTION_CREATED via schema default
+        medicationCost: 0, // To be calculated based on actual pricing
+        deliveryCost: 0,
+        totalAmount: 0,
+        deliveryAddress: [
+          profile?.addressLine1 || '',
+          profile?.addressLine2 || '',
+        ].filter(Boolean).join(', ') || 'Address pending',
+        deliveryCity: profile?.city || 'City pending',
+        deliveryPincode: profile?.pincode || '000000',
       },
     });
 
@@ -809,7 +814,7 @@ export class PrescriptionService {
   private parseBP(bpString: string): { systolic: number; diastolic: number } | null {
     if (!bpString || typeof bpString !== 'string') return null;
     const match = bpString.match(/(\d+)\s*[\/]\s*(\d+)/);
-    if (!match) return null;
+    if (!match || !match[1] || !match[2]) return null;
     return {
       systolic: parseInt(match[1], 10),
       diastolic: parseInt(match[2], 10),
@@ -1150,7 +1155,7 @@ export class PrescriptionService {
    */
   checkPCOSCombinedOCPContraindications(
     responses: Record<string, any>,
-  ): ContraindicationCheckResult {
+  ): InternalContraindicationCheck {
     const concerns: string[] = [];
     const conditions = responses.Q22 || [];
 
@@ -1229,7 +1234,7 @@ export class PrescriptionService {
    */
   checkPCOSSpironolactoneContraindications(
     responses: Record<string, any>,
-  ): ContraindicationCheckResult {
+  ): InternalContraindicationCheck {
     const concerns: string[] = [];
     const conditions = responses.Q22 || [];
 
@@ -1272,7 +1277,7 @@ export class PrescriptionService {
    */
   checkPCOSMetforminContraindications(
     responses: Record<string, any>,
-  ): ContraindicationCheckResult {
+  ): InternalContraindicationCheck {
     const concerns: string[] = [];
     const conditions = responses.Q22 || [];
 
@@ -1500,7 +1505,7 @@ export interface EDTemplateDefinition {
 export interface EDContraindicationCheckResult {
   isBlocked: boolean;
   requiresCaution: boolean;
-  action?: 'ABSOLUTE_BLOCK' | 'BLOCK' | 'CAUTION';
+  action?: 'ABSOLUTE_BLOCK' | 'BLOCK' | 'CAUTION' | undefined;
   reasons: string[];
   flags: string[];
 }

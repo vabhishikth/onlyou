@@ -9,6 +9,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { IntakeModule } from './intake/intake.module';
 import { UploadModule } from './upload/upload.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PrescriptionModule } from './prescription/prescription.module';
 
 @Module({
     imports: [
@@ -30,6 +31,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
         IntakeModule,
         UploadModule,
         DashboardModule,
+        PrescriptionModule,
     ],
 })
 export class AppModule { }
