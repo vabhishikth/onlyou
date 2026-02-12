@@ -40,7 +40,7 @@ function getApiUrl(): string {
     // Find it with: ipconfig (Windows) or ifconfig (Mac/Linux)
     // Make sure phone and computer are on same WiFi
     if (__DEV__) {
-        const LOCAL_IP = '192.168.0.101';
+        const LOCAL_IP = '192.168.0.104';
         return `http://${LOCAL_IP}:4000/graphql`;
     }
 
