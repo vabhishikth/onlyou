@@ -535,8 +535,9 @@ model Payment {
   razorpayPaymentId  String?       @unique
   razorpayOrderId    String?       @unique
   razorpaySignature  String?
-  method             String?       // "upi", "card", "netbanking"
+  method             String?       // "upi", "card", "netbanking", "wallet"
   failureReason      String?
+  metadata           Json?         // { purpose, vertical, intakeResponseId, planId, etc. }
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 

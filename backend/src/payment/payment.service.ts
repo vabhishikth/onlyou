@@ -1,0 +1,365 @@
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import * as crypto from 'crypto';
+
+// Spec: master spec Section 12 (Payment & Subscription)
+
+// Input types
+export interface CreatePaymentOrderInput {
+  userId: string;
+  amountPaise: number;
+  currency: string;
+  purpose: 'CONSULTATION' | 'SUBSCRIPTION' | 'LAB_ORDER' | 'ORDER';
+  metadata?: Record<string, any>;
+}
+
+export interface VerifyPaymentInput {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
+export interface ProcessWebhookInput {
+  event: string;
+  payload: any;
+  webhookSignature: string;
+}
+
+// Spec: Section 12 — Pricing (in paise)
+// Hair Loss: ₹999/month, ₹2,499/quarter, ₹8,999/year
+// ED: ₹1,299/month, ₹3,299/quarter, ₹11,999/year
+// Weight: ₹2,999/month, ₹7,999/quarter
+// PCOS: ₹1,499/month, ₹3,799/quarter, ₹13,999/year
+const PRICING: Record<string, Record<string, number>> = {
+  HAIR_LOSS: {
+    MONTHLY: 99900,
+    QUARTERLY: 249900,
+    ANNUAL: 899900,
+  },
+  SEXUAL_HEALTH: {
+    MONTHLY: 129900,
+    QUARTERLY: 329900,
+    ANNUAL: 1199900,
+  },
+  WEIGHT_MANAGEMENT: {
+    MONTHLY: 299900,
+    QUARTERLY: 799900,
+    ANNUAL: 2799900, // ₹27,999
+  },
+  PCOS: {
+    MONTHLY: 149900,
+    QUARTERLY: 379900,
+    ANNUAL: 1399900,
+  },
+};
+
+// Supported payment methods per Razorpay
+const SUPPORTED_METHODS = ['upi', 'card', 'netbanking', 'wallet'];
+
+@Injectable()
+export class PaymentService {
+  private readonly razorpayKeySecret: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject('RAZORPAY_INSTANCE') private readonly razorpay: any,
+  ) {
+    this.razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'test_secret';
+  }
+
+  /**
+   * Create a Razorpay order for payment
+   * Spec: Section 12 — Create order → checkout
+   */
+  async createPaymentOrder(input: CreatePaymentOrderInput): Promise<any> {
+    // Validate user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: input.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Minimum ₹1 = 100 paise
+    if (input.amountPaise < 100) {
+      throw new BadRequestException('Amount must be at least ₹1 (100 paise)');
+    }
+
+    // Generate unique receipt ID
+    const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+    // Create Razorpay order
+    const razorpayOrder = await this.razorpay.orders.create({
+      amount: input.amountPaise,
+      currency: input.currency || 'INR',
+      receipt,
+      notes: {
+        userId: input.userId,
+        purpose: input.purpose,
+        ...input.metadata,
+      },
+    });
+
+    // Store payment record
+    const payment = await this.prisma.payment.create({
+      data: {
+        userId: input.userId,
+        amountPaise: input.amountPaise,
+        razorpayOrderId: razorpayOrder.id,
+        status: 'PENDING',
+        metadata: {
+          purpose: input.purpose,
+          ...input.metadata,
+        } as any,
+      },
+    });
+
+    return {
+      ...payment,
+      razorpayOrderId: razorpayOrder.id,
+      amountPaise: input.amountPaise,
+      currency: input.currency || 'INR',
+    };
+  }
+
+  /**
+   * Compute HMAC SHA256 signature for verification
+   */
+  private computeSignature(data: string, secret: string): string {
+    return crypto.createHmac('sha256', secret).update(data).digest('hex');
+  }
+
+  /**
+   * Verify payment signature from Razorpay
+   * Spec: Verify webhook signature (valid → process, invalid → reject)
+   */
+  async verifyPaymentSignature(input: VerifyPaymentInput): Promise<boolean> {
+    const expectedSignature = this.computeSignature(
+      `${input.razorpayOrderId}|${input.razorpayPaymentId}`,
+      this.razorpayKeySecret,
+    );
+
+    return expectedSignature === input.razorpaySignature;
+  }
+
+  /**
+   * Verify webhook signature from Razorpay
+   */
+  private verifyWebhookSignature(body: string, signature: string): boolean {
+    const expectedSignature = this.computeSignature(body, this.razorpayKeySecret);
+    return expectedSignature === signature;
+  }
+
+  /**
+   * Process Razorpay webhook
+   * Spec: Webhook → create consultation
+   * Idempotency: same webhook received twice → only processes once
+   */
+  async processWebhook(input: ProcessWebhookInput): Promise<any> {
+    // Verify webhook signature
+    if (!this.verifyWebhookSignature(JSON.stringify(input.payload), input.webhookSignature)) {
+      throw new BadRequestException('Invalid webhook signature');
+    }
+
+    const paymentEntity = input.payload?.payment?.entity;
+    if (!paymentEntity) {
+      throw new BadRequestException('Invalid webhook payload');
+    }
+
+    const razorpayOrderId = paymentEntity.order_id;
+
+    // Find payment by Razorpay order ID
+    const payment = await this.prisma.payment.findFirst({
+      where: { razorpayOrderId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment record not found for this order');
+    }
+
+    // Idempotency check - if already processed, return early
+    if (payment.status === 'COMPLETED' && payment.razorpayPaymentId === paymentEntity.id) {
+      return { alreadyProcessed: true, paymentId: payment.id };
+    }
+
+    if (payment.status === 'FAILED' && payment.razorpayPaymentId === paymentEntity.id) {
+      return { alreadyProcessed: true, paymentId: payment.id };
+    }
+
+    // Process based on event type
+    if (input.event === 'payment.captured') {
+      const updatedPayment = await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'COMPLETED',
+          razorpayPaymentId: paymentEntity.id,
+          method: paymentEntity.method,
+        },
+      });
+
+      // Handle success side effects
+      await this.handlePaymentSuccess({
+        ...updatedPayment,
+        metadata: (payment as any).metadata,
+      });
+
+      return { processed: true, paymentId: payment.id, status: 'COMPLETED' };
+    }
+
+    if (input.event === 'payment.failed') {
+      const updatedPayment = await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'FAILED',
+          razorpayPaymentId: paymentEntity.id,
+          failureReason: paymentEntity.error_description || paymentEntity.error_code,
+        },
+      });
+
+      // Handle failure side effects
+      await this.handlePaymentFailure({
+        ...updatedPayment,
+        metadata: (payment as any).metadata,
+      });
+
+      return { processed: true, paymentId: payment.id, status: 'FAILED' };
+    }
+
+    return { processed: false, event: input.event };
+  }
+
+  /**
+   * Handle successful payment
+   * Spec: Payment success → create consultation
+   */
+  async handlePaymentSuccess(payment: any): Promise<any> {
+    const metadata = payment.metadata || {};
+
+    if (metadata.purpose === 'CONSULTATION') {
+      const consultation = await this.prisma.consultation.create({
+        data: {
+          patientId: payment.userId,
+          vertical: metadata.vertical,
+          intakeResponseId: metadata.intakeResponseId,
+          status: 'PENDING_ASSESSMENT',
+        },
+      });
+
+      return { consultationId: consultation.id };
+    }
+
+    if (metadata.purpose === 'SUBSCRIPTION') {
+      const plan = await this.prisma.subscriptionPlan.findUnique({
+        where: { id: metadata.planId },
+      });
+
+      if (plan) {
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setMonth(periodEnd.getMonth() + plan.durationMonths);
+
+        const subscription = await this.prisma.subscription.create({
+          data: {
+            userId: payment.userId,
+            planId: metadata.planId,
+            status: 'ACTIVE',
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+          },
+        });
+
+        return { subscriptionId: subscription.id };
+      }
+    }
+
+    return { processed: true };
+  }
+
+  /**
+   * Handle failed payment
+   * Spec: Payment failure → no consultation created
+   */
+  async handlePaymentFailure(payment: any): Promise<any> {
+    // Log for analytics, no consultation created
+    return {
+      logged: true,
+      reason: payment.failureReason,
+      paymentId: payment.id,
+    };
+  }
+
+  /**
+   * Get supported payment methods
+   * Spec: Supported methods: UPI, card, net banking, wallets
+   */
+  getSupportedPaymentMethods(): string[] {
+    return SUPPORTED_METHODS;
+  }
+
+  /**
+   * Validate pricing for condition and plan type
+   * Spec: Section 12 — Pricing validation
+   */
+  validatePricing(
+    vertical: string,
+    planType: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL',
+    amountPaise: number,
+  ): { valid: boolean; expectedPrice?: number } {
+    const expectedPrice = PRICING[vertical]?.[planType];
+
+    if (!expectedPrice) {
+      return { valid: false };
+    }
+
+    if (amountPaise !== expectedPrice) {
+      return { valid: false, expectedPrice };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Get payment by ID
+   */
+  async getPayment(id: string): Promise<any> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return payment;
+  }
+
+  /**
+   * Get payment by Razorpay order ID
+   */
+  async getPaymentByRazorpayOrderId(razorpayOrderId: string): Promise<any | null> {
+    return this.prisma.payment.findFirst({
+      where: { razorpayOrderId },
+    });
+  }
+
+  /**
+   * Get all payments for a user
+   */
+  async getPaymentsByUser(userId: string, status?: string): Promise<any[]> {
+    const where: any = { userId };
+    if (status) {
+      where.status = status;
+    }
+
+    return this.prisma.payment.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+}
