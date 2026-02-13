@@ -1,22 +1,31 @@
+/**
+ * Tab Layout
+ * PR 6: Remaining Screens Restyle
+ * Clinical Luxe design with Lucide icons
+ */
+
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { colors, typography } from '@/styles/theme';
+import { Home, Activity, ShoppingBag, MessageCircle, CircleUser } from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies } from '@/theme/typography';
+import { dimensions } from '@/theme/spacing';
 
 // Tab bar icon component
-function TabIcon({
-    name,
-    focused,
-    icon,
-}: {
+interface TabIconProps {
     name: string;
     focused: boolean;
-    icon: string;
-}) {
+    Icon: React.FC<{ size: number; color: string }>;
+}
+
+function TabIcon({ name, focused, Icon }: TabIconProps) {
     return (
         <View style={styles.tabIconContainer}>
-            <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-                {icon}
-            </Text>
+            <Icon
+                size={22}
+                color={focused ? colors.textPrimary : colors.textTertiary}
+            />
             <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
                 {name}
             </Text>
@@ -31,7 +40,7 @@ export default function TabsLayout() {
                 headerShown: false,
                 tabBarStyle: styles.tabBar,
                 tabBarShowLabel: false,
-                tabBarActiveTintColor: colors.primary,
+                tabBarActiveTintColor: colors.textPrimary,
                 tabBarInactiveTintColor: colors.textTertiary,
             }}
         >
@@ -40,7 +49,7 @@ export default function TabsLayout() {
                 options={{
                     title: 'Home',
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon name="Home" focused={focused} icon="🏠" />
+                        <TabIcon name="Home" focused={focused} Icon={Home} />
                     ),
                 }}
             />
@@ -49,7 +58,16 @@ export default function TabsLayout() {
                 options={{
                     title: 'Activity',
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon name="Activity" focused={focused} icon="📋" />
+                        <TabIcon name="Activity" focused={focused} Icon={Activity} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="orders"
+                options={{
+                    title: 'Orders',
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon name="Orders" focused={focused} Icon={ShoppingBag} />
                     ),
                 }}
             />
@@ -58,7 +76,7 @@ export default function TabsLayout() {
                 options={{
                     title: 'Messages',
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon name="Messages" focused={focused} icon="💬" />
+                        <TabIcon name="Messages" focused={focused} Icon={MessageCircle} />
                     ),
                 }}
             />
@@ -67,7 +85,7 @@ export default function TabsLayout() {
                 options={{
                     title: 'Profile',
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon name="Profile" focused={focused} icon="👤" />
+                        <TabIcon name="Profile" focused={focused} Icon={CircleUser} />
                     ),
                 }}
             />
@@ -77,10 +95,10 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
     tabBar: {
-        backgroundColor: colors.surfaceElevated,
+        backgroundColor: colors.white,
         borderTopWidth: 1,
         borderTopColor: colors.border,
-        height: Platform.OS === 'ios' ? 88 : 68,
+        height: Platform.OS === 'ios' ? dimensions.tabBarHeight : 68,
         paddingTop: 8,
         paddingBottom: Platform.OS === 'ios' ? 28 : 8,
     },
@@ -88,20 +106,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    tabIcon: {
-        fontSize: 22,
-        marginBottom: 2,
-    },
-    tabIconFocused: {
-        // Focused style if needed
-    },
     tabLabel: {
-        ...typography.label,
+        fontFamily: fontFamilies.sansMedium,
         fontSize: 10,
         color: colors.textTertiary,
+        marginTop: 2,
     },
     tabLabelFocused: {
-        color: colors.primary,
-        fontWeight: '600',
+        color: colors.textPrimary,
     },
 });

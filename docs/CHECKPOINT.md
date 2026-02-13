@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-13 (Session 13)
+# CHECKPOINT — Last Updated: 2026-02-13 (Session 14)
 
 ## Current Phase: Mobile Redesign PRs
-## Current Task: PR 5 - Treatment + Questionnaire + Photo Restyle
+## Current Task: PR 6 - Remaining Screens
 ## Status: COMPLETE
 
 ## Mobile Redesign PRs (6 total):
@@ -9,84 +9,111 @@
 - [x] PR 2: Splash + Welcome Restyle — 8 tests
 - [x] PR 3: Onboarding Flow (4 screens) — 47 tests
 - [x] PR 4: Home Dashboard Restyle — 54 tests
-- [x] PR 5: Treatment + Questionnaire + Photo Restyle — 77 tests ← **CURRENT**
-- [ ] PR 6: Remaining Screens
+- [x] PR 5: Treatment + Questionnaire + Photo Restyle — 77 tests
+- [x] PR 6: Remaining Screens — 91 tests ← **COMPLETE**
 
 ## Backend Phases (all complete):
 - [x] Phase 1-11 — 1500 backend tests passing
 
 ## Test Counts:
 - Backend: 1500 tests passed
-- Mobile: 238 tests passed (77 new in PR 5)
-- **Total: 1738 tests**
+- Mobile: 329 tests passed (91 new in PR 6)
+- **Total: 1829 tests**
 
 ---
 
-## Last Completed: PR 5 - Treatment + Questionnaire + Photo Restyle
+## Last Completed: PR 6 - Remaining Screens (Activity, Messages, Orders, Profile)
 
 ### Screens Restyled:
 
-**Treatment Detail Screen** (`mobile/app/intake/[vertical]/index.tsx`)
-- Playfair Display SemiBold 28px serif title
-- Lucide icons per vertical (Sparkles, Heart, Flower2, Scale) replacing emojis
-- "Clinically proven" instead of "FDA-approved"
-- "What to expect" section with green check circles
-- "Your plan includes" with 6px accent dot bullets
-- "Quick questionnaire" card with Clock icon
-- Sticky CTA with gradient fade
-- FadeInUp animations
-- 26 tests
+**Activity Screen** (`mobile/app/(tabs)/activity.tsx`)
+- "Activity" title with Playfair Display SemiBold 28px
+- Two sections: "Active" and "Completed"
+- Tracking cards with status stepper (vertical timeline)
+  - Completed step: colors.success filled circle (8px) + solid line
+  - Current step: #141414 filled circle (10px) + pulsing indicator
+  - Upcoming step: colors.border circle (8px) + dashed line
+- Treatment type badges per vertical (hairLossTint, etc.)
+- Skeleton shimmer loading state
+- Lucide icons (Package, TestTube2, ChevronRight)
+- FadeInUp staggered animations
+- 20 tests
 
-**Questionnaire Flow** (`mobile/app/intake/[vertical]/questions.tsx`)
-- One question per screen with 26px serif heading
-- SelectionCard components for options
-- ProgressIndicator at top
-- Auto-advance on single choice selection
-- Skip logic support
-- Sticky CTA with gradient fade
-- FadeInRight slide animations
+**Messages Screen** (`mobile/app/(tabs)/messages.tsx`)
+- "Messages" title with Playfair Display SemiBold 28px
+- Conversation list with 40px doctor avatars
+- Unread indicator: 8px accent (#9B8EC4) dot
+- 0.5px colors.borderLight dividers between rows
+- "You:" prefix for patient messages
+- Timestamps in textMuted
+- Skeleton shimmer loading state
+- Lucide MessageCircle icon for empty state
+- FadeInUp staggered animations
 - 19 tests
 
-**Photo Upload Screen** (`mobile/app/intake/[vertical]/photos.tsx`)
-- "Add photos" title with serif font (Playfair Display 28px)
-- Photo cards: colors.surface bg, 1px solid border, border-radius 20px
-- Lucide Camera/Image icons (22px, textSecondary)
-- Photo tips card with warm cream background (#FAF7F0)
-- Required indicator asterisks
-- Sticky CTA with gradient fade
+**Orders Screen** (`mobile/app/(tabs)/orders.tsx`) — NEW
+- "Orders" title with Playfair Display SemiBold 28px
+- Tab toggle: "Active" | "Past"
+  - Active tab: #141414 bg, white text
+  - Inactive tab: transparent, textSecondary
+  - Container: colors.surface bg, border-radius 24px, 4px padding
+- Order cards: white bg, 1px border, border-radius 20px, 20px padding
+- Status badges with semantic colors:
+  - Processing: warningLight bg + warning text
+  - Shipped: accentLight bg + accent text
+  - Delivered: successLight bg + success text
+- Order type icons (Package, TestTube2)
+- Skeleton shimmer loading state
 - FadeInUp staggered animations
-- 17 tests
+- 22 tests
 
-**OTP Verification Screen** (`mobile/app/(auth)/otp.tsx`)
-- 52x52px OTP input boxes (was 48x56)
-- Accent border on focused input (colors.accent)
-- Edit link for phone number
-- BackButton component
-- Clinical Luxe typography
-- FadeInUp animations
-- 15 tests
+**Profile Screen** (`mobile/app/(tabs)/profile.tsx`)
+- Header with 72px avatar circle, initials in Playfair Display 28px
+- Name: Playfair Display SemiBold 24px
+- "Edit profile" ghost button with accent color
+- Settings sections with uppercase headers (12px, letterSpacing 1.5px)
+  - "Account": Personal Information, Subscription & Plans, Wallet & Payments
+  - "Health": My Prescriptions, My Lab Results, Health Profile
+  - "Preferences": Notifications toggle, Discreet Mode toggle, Language
+  - "Support": Help & FAQ, Contact Support, About Onlyou
+- 52px row height with Lucide icons (20px, textTertiary)
+- Toggle switches: #E0E0E0 track (off), #141414 track (on), white thumb
+- 0.5px colors.borderLight dividers within sections
+- "Log out" with red text, 40px gap above
+- FadeInUp staggered animations
+- 30 tests
 
-### Tests Added (77 new):
-- `mobile/app/intake/[vertical]/__tests__/index.test.tsx` — 26 tests
-- `mobile/app/intake/[vertical]/__tests__/questions.test.tsx` — 19 tests
-- `mobile/app/intake/[vertical]/__tests__/photos.test.tsx` — 17 tests
-- `mobile/app/(auth)/__tests__/otp.test.tsx` — 15 tests
+**Tab Layout** (`mobile/app/(tabs)/_layout.tsx`)
+- Lucide icons replacing emojis: Home, Activity, ShoppingBag, MessageCircle, CircleUser
+- Added Orders tab (5 tabs total: Home, Activity, Orders, Messages, Profile)
+- Clinical Luxe typography (fontFamilies.sansMedium for tab labels)
+
+### Tests Added (91 new):
+- `mobile/app/(tabs)/__tests__/activity.test.tsx` — 20 tests
+- `mobile/app/(tabs)/__tests__/messages.test.tsx` — 19 tests
+- `mobile/app/(tabs)/__tests__/orders.test.tsx` — 22 tests
+- `mobile/app/(tabs)/__tests__/profile.test.tsx` — 30 tests
+
+### New Files:
+- `mobile/app/(tabs)/orders.tsx` — NEW Orders screen
+- `mobile/src/graphql/orders.ts` — NEW Orders GraphQL query
 
 ### Jest Setup Updates:
-- Added Lucide icon mocks (Clock, ArrowUp, ArrowUpRight, ArrowRight, Camera, Image, X, Lock)
-- Updated FadeInRight animation builder mock
+- Added Lucide icon mocks: TestTube2, Send, Paperclip, User, Settings, CreditCard, Wallet, Bell, HelpCircle, Phone, Info, LogOut, Eye, EyeOff, FileText, Activity, Home, Edit3, CheckCheck, CircleUser, ClipboardList, ShoppingBag
 
 ---
 
-## Files Modified (PR 5):
-- `mobile/app/intake/[vertical]/index.tsx` — Restyled treatment detail screen
-- `mobile/app/intake/[vertical]/__tests__/index.test.tsx` — NEW (26 tests)
-- `mobile/app/intake/[vertical]/questions.tsx` — Restyled questionnaire screen
-- `mobile/app/intake/[vertical]/__tests__/questions.test.tsx` — NEW (19 tests)
-- `mobile/app/intake/[vertical]/photos.tsx` — Restyled photo upload screen
-- `mobile/app/intake/[vertical]/__tests__/photos.test.tsx` — NEW (17 tests)
-- `mobile/app/(auth)/otp.tsx` — Refined OTP verification screen
-- `mobile/app/(auth)/__tests__/otp.test.tsx` — NEW (15 tests)
+## Files Modified (PR 6):
+- `mobile/app/(tabs)/activity.tsx` — Restyled with status steppers
+- `mobile/app/(tabs)/__tests__/activity.test.tsx` — NEW (20 tests)
+- `mobile/app/(tabs)/messages.tsx` — Restyled conversation list
+- `mobile/app/(tabs)/__tests__/messages.test.tsx` — NEW (19 tests)
+- `mobile/app/(tabs)/orders.tsx` — NEW Orders screen
+- `mobile/app/(tabs)/__tests__/orders.test.tsx` — NEW (22 tests)
+- `mobile/app/(tabs)/profile.tsx` — Restyled settings screen
+- `mobile/app/(tabs)/__tests__/profile.test.tsx` — NEW (30 tests)
+- `mobile/app/(tabs)/_layout.tsx` — Added Orders tab, Lucide icons
+- `mobile/src/graphql/orders.ts` — NEW GraphQL query
 - `mobile/jest.setup.js` — Added icon mocks
 
 ## Commands to Verify:
@@ -95,14 +122,19 @@
 cd backend && pnpm test  # 1500 passed, 0 failed
 
 # Mobile Tests
-cd mobile && npx jest --no-coverage  # 238 passed, 0 failed
+cd mobile && npx jest --no-coverage  # 329 passed, 0 failed
 
-# Run Specific PR 5 Tests
-cd mobile && npx jest --testPathPattern="intake.*index|intake.*questions|intake.*photos|auth.*otp"  # 77 passed
+# Run Specific PR 6 Tests
+cd mobile && npx jest --testPathPattern="tabs.*(activity|messages|orders|profile)"  # 91 passed
 ```
 
-## Next Up:
-- PR 6: Remaining Screens (Activity, Profile, Orders)
+## Mobile Redesign Complete!
+All 6 PRs completed. Full Clinical Luxe design system applied across:
+- Splash + Welcome screens
+- 4 Onboarding screens
+- Home Dashboard
+- Treatment Detail + Questionnaire + Photo Upload
+- Activity + Messages + Orders + Profile tabs
 
 ---
 

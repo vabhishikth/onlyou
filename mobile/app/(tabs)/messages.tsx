@@ -1,26 +1,42 @@
-import React, { useState } from 'react';
+/**
+ * Messages Screen
+ * PR 6: Remaining Screens Restyle
+ * Clinical Luxe design system with conversation list
+ */
+
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
     FlatList,
     StyleSheet,
-    Platform,
-    TouchableOpacity,
+    Pressable,
     RefreshControl,
-    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@apollo/client';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { MessageCircle, ChevronRight } from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
 import {
     GET_MY_CONVERSATIONS,
     GetConversationsResponse,
     Conversation,
     formatMessageTime,
     formatConversationPreview,
-    VERTICAL_NAMES,
 } from '@/graphql/messages';
+
+// Vertical display names
+const VERTICAL_NAMES: Record<string, string> = {
+    HAIR_LOSS: 'Hair Loss',
+    SEXUAL_HEALTH: 'Sexual Health',
+    PCOS: 'PCOS',
+    WEIGHT_MANAGEMENT: 'Weight Management',
+};
 
 export default function MessagesScreen() {
     const router = useRouter();
@@ -32,7 +48,7 @@ export default function MessagesScreen() {
 
     const conversations = data?.myConversations || [];
 
-    const onRefresh = React.useCallback(async () => {
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
             await refetch();
@@ -45,103 +61,103 @@ export default function MessagesScreen() {
         router.push(`/chat/${conversation.consultationId}` as never);
     };
 
-    const renderConversation = ({ item }: { item: Conversation }) => (
-        <TouchableOpacity
-            style={styles.conversationCard}
-            onPress={() => handleConversationPress(item)}
-            activeOpacity={0.7}
-        >
-            {/* Avatar */}
-            <View style={styles.avatarContainer}>
-                {item.doctorAvatar ? (
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                            {item.doctorName.charAt(0).toUpperCase()}
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                            {item.doctorName.charAt(0).toUpperCase()}
-                        </Text>
-                    </View>
-                )}
-                {item.unreadCount > 0 && (
-                    <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadBadgeText}>
-                            {item.unreadCount > 9 ? '9+' : item.unreadCount}
-                        </Text>
-                    </View>
-                )}
-            </View>
-
-            {/* Content */}
-            <View style={styles.conversationContent}>
-                <View style={styles.conversationHeader}>
-                    <Text style={styles.doctorName} numberOfLines={1}>
-                        Dr. {item.doctorName}
-                    </Text>
-                    <Text style={styles.timestamp}>
-                        {item.lastMessage ? formatMessageTime(item.lastMessage.createdAt) : ''}
-                    </Text>
-                </View>
-
-                <Text style={styles.verticalLabel}>
-                    {VERTICAL_NAMES[item.vertical] || item.vertical}
-                </Text>
-
-                <Text
-                    style={[
-                        styles.lastMessage,
-                        item.unreadCount > 0 && styles.lastMessageUnread,
-                    ]}
-                    numberOfLines={1}
-                >
-                    {item.lastMessage?.senderType === 'PATIENT' && 'You: '}
-                    {formatConversationPreview(item.lastMessage)}
-                </Text>
-            </View>
-
-            {/* Chevron */}
-            <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-    );
-
+    // Loading skeleton
     if (loading && !data) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading conversations...</Text>
+            <SafeAreaView style={styles.container} edges={['top']} testID="messages-screen">
+                <View style={styles.header}>
+                    <Text style={styles.title}>Messages</Text>
+                </View>
+                <View testID="loading-skeleton" style={styles.skeletonContainer}>
+                    <SkeletonRow />
+                    <SkeletonRow />
+                    <SkeletonRow />
                 </View>
             </SafeAreaView>
         );
     }
 
+    const renderConversation = ({ item, index }: { item: Conversation; index: number }) => (
+        <Animated.View entering={FadeInUp.delay(index * 50).duration(300)}>
+            <Pressable
+                testID={`conversation-${item.id}`}
+                style={[
+                    styles.conversationRow,
+                    index < conversations.length - 1 && styles.conversationRowBorder,
+                ]}
+                onPress={() => handleConversationPress(item)}
+            >
+                {/* Avatar */}
+                <View testID={`avatar-${item.id}`} style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                        {item.doctorName.charAt(0).toUpperCase()}
+                    </Text>
+                </View>
+
+                {/* Content */}
+                <View style={styles.conversationContent}>
+                    <View style={styles.nameRow}>
+                        <Text style={styles.doctorName} numberOfLines={1}>
+                            Dr. {item.doctorName}
+                        </Text>
+                        <Text testID={`timestamp-${item.id}`} style={styles.timestamp}>
+                            {item.lastMessage ? formatMessageTime(item.lastMessage.createdAt) : ''}
+                        </Text>
+                    </View>
+
+                    <Text style={styles.verticalLabel}>
+                        {VERTICAL_NAMES[item.vertical] || item.vertical}
+                    </Text>
+
+                    <Text
+                        style={[
+                            styles.lastMessage,
+                            item.unreadCount > 0 && styles.lastMessageUnread,
+                        ]}
+                        numberOfLines={1}
+                    >
+                        {item.lastMessage?.senderType === 'PATIENT' && 'You: '}
+                        {formatConversationPreview(item.lastMessage)}
+                    </Text>
+                </View>
+
+                {/* Unread indicator & Chevron */}
+                <View style={styles.rowRight}>
+                    {item.unreadCount > 0 && (
+                        <View testID={`unread-indicator-${item.id}`} style={styles.unreadDot} />
+                    )}
+                    <ChevronRight size={18} color={colors.textMuted} />
+                </View>
+            </Pressable>
+        </Animated.View>
+    );
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="messages-screen">
             {/* Header */}
-            <View style={styles.header}>
+            <Animated.View entering={FadeInUp.duration(300)} style={styles.header}>
                 <Text style={styles.title}>Messages</Text>
-                <Text style={styles.subtitle}>
-                    Chat with your healthcare providers
-                </Text>
-            </View>
+            </Animated.View>
 
             {conversations.length === 0 ? (
                 /* Empty state */
-                <View style={styles.emptyState}>
-                    <View style={styles.emptyIconContainer}>
-                        <Text style={styles.emptyIcon}>💬</Text>
+                <Animated.View
+                    entering={FadeInUp.delay(100).duration(300)}
+                    style={styles.emptyState}
+                    testID="empty-state"
+                >
+                    <View testID="empty-state-icon" style={styles.emptyIconContainer}>
+                        <MessageCircle size={48} color={colors.textTertiary} />
                     </View>
                     <Text style={styles.emptyTitle}>No messages yet</Text>
                     <Text style={styles.emptyText}>
-                        After you start a consultation, you can message your doctor here
+                        Your care team will message you after your consultation begins.
                     </Text>
-                </View>
+                </Animated.View>
             ) : (
                 /* Conversations list */
                 <FlatList
+                    testID="conversation-list"
                     data={conversations}
                     keyExtractor={(item) => item.id}
                     renderItem={renderConversation}
@@ -151,8 +167,8 @@ export default function MessagesScreen() {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
-                            tintColor={colors.primary}
-                            colors={[colors.primary]}
+                            tintColor={colors.accent}
+                            colors={[colors.accent]}
                         />
                     }
                 />
@@ -161,126 +177,114 @@ export default function MessagesScreen() {
     );
 }
 
+// Skeleton row for loading state
+function SkeletonRow() {
+    return (
+        <View style={styles.skeletonRow}>
+            <View style={styles.skeletonAvatar} />
+            <View style={styles.skeletonContent}>
+                <View style={styles.skeletonName} />
+                <View style={styles.skeletonMessage} />
+            </View>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    loadingText: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
-        marginTop: spacing.md,
+        backgroundColor: colors.white,
     },
     header: {
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
+        paddingBottom: spacing.lg,
     },
     title: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontFamily: fontFamilies.serifSemiBold,
         fontSize: 28,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: spacing.xs,
-    },
-    subtitle: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
     },
     listContent: {
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.xxl,
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingBottom: spacing['3xl'],
     },
-    conversationCard: {
+
+    // Conversation Row
+    conversationRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surfaceElevated,
-        borderRadius: borderRadius.xl,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
+        paddingVertical: spacing.md,
     },
-    avatarContainer: {
-        position: 'relative',
-        marginRight: spacing.md,
+    conversationRowBorder: {
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.borderLight,
     },
     avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: colors.primary,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: spacing.md,
     },
     avatarText: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: colors.primaryText,
-    },
-    unreadBadge: {
-        position: 'absolute',
-        top: -2,
-        right: -2,
-        minWidth: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 4,
-        borderWidth: 2,
-        borderColor: colors.surfaceElevated,
-    },
-    unreadBadgeText: {
-        ...typography.label,
-        color: colors.primaryText,
-        fontWeight: '700',
-        fontSize: 10,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.cardTitle,
+        color: colors.textPrimary,
     },
     conversationContent: {
         flex: 1,
     },
-    conversationHeader: {
+    nameRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
     doctorName: {
-        ...typography.bodyMedium,
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
         flex: 1,
     },
     timestamp: {
-        ...typography.label,
-        color: colors.textTertiary,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
+        color: colors.textMuted,
         marginLeft: spacing.sm,
     },
     verticalLabel: {
-        ...typography.label,
-        color: colors.primary,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.caption,
+        color: colors.accent,
         marginTop: 2,
     },
     lastMessage: {
-        ...typography.bodySmall,
-        color: colors.textSecondary,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
+        color: colors.textTertiary,
         marginTop: spacing.xs,
     },
     lastMessageUnread: {
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.sansMedium,
+        color: colors.textPrimary,
     },
-    chevron: {
-        fontSize: 24,
-        color: colors.textTertiary,
+    rowRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginLeft: spacing.sm,
     },
+    unreadDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.accent,
+        marginRight: spacing.sm,
+    },
+
+    // Empty State
     emptyState: {
         flex: 1,
         alignItems: 'center',
@@ -296,18 +300,54 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: spacing.lg,
     },
-    emptyIcon: {
-        fontSize: 48,
-    },
     emptyTitle: {
-        ...typography.headingMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
         marginBottom: spacing.sm,
     },
     emptyText: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         textAlign: 'center',
         paddingHorizontal: spacing.xl,
+        lineHeight: fontSizes.body * 1.5,
+    },
+
+    // Skeleton
+    skeletonContainer: {
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.md,
+    },
+    skeletonRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.borderLight,
+    },
+    skeletonAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.border,
+        marginRight: spacing.md,
+    },
+    skeletonContent: {
+        flex: 1,
+    },
+    skeletonName: {
+        width: '50%',
+        height: 16,
+        backgroundColor: colors.border,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
+    },
+    skeletonMessage: {
+        width: '80%',
+        height: 14,
+        backgroundColor: colors.border,
+        borderRadius: borderRadius.md,
     },
 });

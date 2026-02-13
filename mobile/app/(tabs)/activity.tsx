@@ -1,33 +1,71 @@
-import React, { useState } from 'react';
+/**
+ * Activity Screen
+ * PR 6: Remaining Screens Restyle
+ * Clinical Luxe design system with status steppers
+ */
+
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
     ScrollView,
     StyleSheet,
-    Platform,
-    TouchableOpacity,
+    Pressable,
     RefreshControl,
-    ActivityIndicator,
-    Alert,
-    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@apollo/client';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import {
+    Package,
+    TestTube2,
+    ChevronRight,
+    Sparkles,
+    Heart,
+    Flower2,
+    Scale,
+} from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes, textStyles } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
+import { PremiumButton } from '@/components/ui';
 import {
     GET_ACTIVE_TRACKING,
     ActiveTrackingResponse,
     LabOrder,
     Order,
-    LAB_STATUS_LABELS,
-    DELIVERY_STATUS_LABELS,
 } from '@/graphql/tracking';
-import LabOrderTracker from '@/components/LabOrderTracker';
-import DeliveryTracker from '@/components/DeliveryTracker';
-import CancelLabOrderModal from '@/components/CancelLabOrderModal';
 
-// Filter active vs completed
+// Treatment vertical config
+const TREATMENT_CONFIG: Record<string, { label: string; tint: string; iconColor: string; Icon: React.FC<{ size: number; color: string }> }> = {
+    HAIR_LOSS: { label: 'Hair Loss', tint: colors.hairLossTint, iconColor: colors.hairLossIcon, Icon: Sparkles },
+    SEXUAL_HEALTH: { label: 'Sexual Health', tint: colors.sexualHealthTint, iconColor: colors.sexualHealthIcon, Icon: Heart },
+    PCOS: { label: 'PCOS', tint: colors.pcosTint, iconColor: colors.pcosIcon, Icon: Flower2 },
+    WEIGHT_MANAGEMENT: { label: 'Weight', tint: colors.weightTint, iconColor: colors.weightIcon, Icon: Scale },
+};
+
+// Lab order status steps
+const LAB_ORDER_STEPS = [
+    { key: 'ORDERED', label: 'Ordered' },
+    { key: 'SLOT_BOOKED', label: 'Slot Booked' },
+    { key: 'PHLEBOTOMIST_ASSIGNED', label: 'Assigned' },
+    { key: 'SAMPLE_COLLECTED', label: 'Collected' },
+    { key: 'RESULTS_UPLOADED', label: 'Results Ready' },
+    { key: 'DOCTOR_REVIEWED', label: 'Reviewed' },
+];
+
+// Delivery order status steps
+const DELIVERY_ORDER_STEPS = [
+    { key: 'PENDING', label: 'Processing' },
+    { key: 'CONFIRMED', label: 'Confirmed' },
+    { key: 'DISPATCHED', label: 'Shipped' },
+    { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
+    { key: 'DELIVERED', label: 'Delivered' },
+];
+
+// Filter helpers
 function isActiveLabOrder(order: LabOrder): boolean {
     return !['CLOSED', 'CANCELLED', 'EXPIRED', 'DOCTOR_REVIEWED'].includes(order.status);
 }
@@ -36,55 +74,20 @@ function isActiveDeliveryOrder(order: Order): boolean {
     return !['DELIVERED', 'CANCELLED'].includes(order.status);
 }
 
+function getStepIndex(status: string, steps: { key: string }[]): number {
+    return steps.findIndex(s => s.key === status);
+}
+
 export default function ActivityScreen() {
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
-    const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null);
-    const [expandedDeliveryOrder, setExpandedDeliveryOrder] = useState<string | null>(null);
-    const [cancelModalOrder, setCancelModalOrder] = useState<LabOrder | null>(null);
+    const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
     const { data, loading, refetch } = useQuery<ActiveTrackingResponse>(GET_ACTIVE_TRACKING, {
         fetchPolicy: 'cache-and-network',
     });
 
-    // Lab booking actions
-    const handleBookSlot = (labOrderId: string) => {
-        router.push(`/lab/${labOrderId}` as never);
-    };
-
-    const handleReschedule = (labOrderId: string) => {
-        router.push(`/lab/${labOrderId}/reschedule` as never);
-    };
-
-    const handleCancelLabOrder = (order: LabOrder) => {
-        setCancelModalOrder(order);
-    };
-
-    const handleViewResults = (resultFileUrl: string) => {
-        Linking.openURL(resultFileUrl).catch(() => {
-            Alert.alert('Error', 'Could not open results file');
-        });
-    };
-
-    const handleCancelComplete = () => {
-        setCancelModalOrder(null);
-        refetch();
-    };
-
-    const labOrders = data?.activeTracking?.labOrders || [];
-    const deliveryOrders = data?.activeTracking?.deliveryOrders || [];
-
-    // Split into active and completed
-    const activeLabOrders = labOrders.filter(isActiveLabOrder);
-    const completedLabOrders = labOrders.filter((o) => !isActiveLabOrder(o));
-    const activeDeliveryOrders = deliveryOrders.filter(isActiveDeliveryOrder);
-    const completedDeliveryOrders = deliveryOrders.filter((o) => !isActiveDeliveryOrder(o));
-
-    const hasActiveItems = activeLabOrders.length > 0 || activeDeliveryOrders.length > 0;
-    const hasCompletedItems = completedLabOrders.length > 0 || completedDeliveryOrders.length > 0;
-    const isEmpty = !hasActiveItems && !hasCompletedItems;
-
-    const onRefresh = React.useCallback(async () => {
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
             await refetch();
@@ -93,20 +96,49 @@ export default function ActivityScreen() {
         }
     }, [refetch]);
 
+    const toggleExpand = (id: string) => {
+        setExpandedCards(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    const labOrders = data?.activeTracking?.labOrders || [];
+    const deliveryOrders = data?.activeTracking?.deliveryOrders || [];
+
+    const activeLabOrders = labOrders.filter(isActiveLabOrder);
+    const completedLabOrders = labOrders.filter(o => !isActiveLabOrder(o));
+    const activeDeliveryOrders = deliveryOrders.filter(isActiveDeliveryOrder);
+    const completedDeliveryOrders = deliveryOrders.filter(o => !isActiveDeliveryOrder(o));
+
+    const hasActiveItems = activeLabOrders.length > 0 || activeDeliveryOrders.length > 0;
+    const hasCompletedItems = completedLabOrders.length > 0 || completedDeliveryOrders.length > 0;
+    const isEmpty = !hasActiveItems && !hasCompletedItems;
+
+    // Loading skeleton
     if (loading && !data) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading your activity...</Text>
+            <SafeAreaView style={styles.container} edges={['top']} testID="activity-screen">
+                <View style={styles.content}>
+                    <Text style={styles.title}>Activity</Text>
+                    <View testID="loading-skeleton" style={styles.skeletonContainer}>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </View>
                 </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="activity-screen">
             <ScrollView
+                testID="activity-scroll-view"
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -114,290 +146,497 @@ export default function ActivityScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
+                        tintColor={colors.accent}
+                        colors={[colors.accent]}
                     />
                 }
             >
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.title}>My Activity</Text>
-                    <Text style={styles.subtitle}>
-                        Track your lab tests and deliveries
-                    </Text>
-                </View>
+                <Animated.View entering={FadeInUp.duration(300)} style={styles.header}>
+                    <Text style={styles.title}>Activity</Text>
+                </Animated.View>
 
-                {/* Empty state */}
+                {/* Empty State */}
                 {isEmpty && (
-                    <View style={styles.emptyState}>
+                    <Animated.View
+                        entering={FadeInUp.delay(100).duration(300)}
+                        style={styles.emptyState}
+                        testID="empty-state"
+                    >
                         <View style={styles.emptyIconContainer}>
-                            <Text style={styles.emptyIcon}>📋</Text>
+                            <Package size={48} color={colors.textTertiary} />
                         </View>
-                        <Text style={styles.emptyTitle}>No activity yet</Text>
+                        <Text style={styles.emptyTitle}>No active orders yet</Text>
                         <Text style={styles.emptyText}>
-                            Once you start a consultation, you'll be able to track your lab tests and medication deliveries here.
+                            Start a consultation to track your lab tests and medication deliveries here.
                         </Text>
-                    </View>
+                        <PremiumButton
+                            testID="start-consultation-button"
+                            variant="secondary"
+                            onPress={() => router.push('/(tabs)' as never)}
+                            style={styles.emptyButton}
+                        >
+                            Start a consultation
+                        </PremiumButton>
+                    </Animated.View>
                 )}
 
-                {/* Active Items Section */}
+                {/* Active Section */}
                 {hasActiveItems && (
-                    <View style={styles.section}>
+                    <Animated.View
+                        entering={FadeInUp.delay(100).duration(300)}
+                        style={styles.section}
+                        testID="active-section"
+                    >
                         <Text style={styles.sectionTitle}>Active</Text>
 
                         {/* Active Lab Orders */}
-                        {activeLabOrders.map((order) => (
-                            <View key={order.id} style={styles.trackerContainer}>
-                                {/* Show "Book Slot" CTA for ORDERED or COLLECTION_FAILED status */}
-                                {(order.status === 'ORDERED' || order.status === 'COLLECTION_FAILED') && (
-                                    <TouchableOpacity
-                                        style={styles.bookSlotCard}
-                                        onPress={() => handleBookSlot(order.id)}
-                                    >
-                                        <View style={styles.bookSlotIcon}>
-                                            <Text style={styles.bookSlotIconText}>📅</Text>
-                                        </View>
-                                        <View style={styles.bookSlotContent}>
-                                            <Text style={styles.bookSlotTitle}>
-                                                {order.status === 'COLLECTION_FAILED'
-                                                    ? 'Rebook Collection'
-                                                    : 'Book Collection Slot'}
-                                            </Text>
-                                            <Text style={styles.bookSlotSubtitle}>
-                                                {order.panelName || 'Blood tests ordered by your doctor'}
-                                            </Text>
-                                        </View>
-                                        <Text style={styles.bookSlotArrow}>→</Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {/* Regular tracking card for other statuses */}
-                                {order.status !== 'ORDERED' && order.status !== 'COLLECTION_FAILED' && (
-                                    <>
-                                        {expandedLabOrder === order.id ? (
-                                            <View>
-                                                <TouchableOpacity
-                                                    style={styles.collapseButton}
-                                                    onPress={() => setExpandedLabOrder(null)}
-                                                >
-                                                    <Text style={styles.collapseButtonText}>Collapse ↑</Text>
-                                                </TouchableOpacity>
-                                                <LabOrderTracker
-                                                    order={order}
-                                                    onReschedule={() => handleReschedule(order.id)}
-                                                    onCancel={() => handleCancelLabOrder(order)}
-                                                    {...(order.resultFileUrl && {
-                                                        onViewResults: () => handleViewResults(order.resultFileUrl!),
-                                                    })}
-                                                />
-                                            </View>
-                                        ) : (
-                                            <TrackingCard
-                                                type="lab"
-                                                title="Blood Test"
-                                                status={LAB_STATUS_LABELS[order.status]?.label || order.status}
-                                                icon={LAB_STATUS_LABELS[order.status]?.icon || '🔬'}
-                                                timestamp={order.orderedAt}
-                                                onPress={() => setExpandedLabOrder(order.id)}
-                                            />
-                                        )}
-                                    </>
-                                )}
-                            </View>
+                        {activeLabOrders.map((order, index) => (
+                            <TrackingCard
+                                key={order.id}
+                                order={order}
+                                type="lab"
+                                expanded={expandedCards.has(order.id)}
+                                onToggle={() => toggleExpand(order.id)}
+                                delay={index * 50}
+                            />
                         ))}
 
                         {/* Active Delivery Orders */}
-                        {activeDeliveryOrders.map((order) => (
-                            <View key={order.id} style={styles.trackerContainer}>
-                                {expandedDeliveryOrder === order.id ? (
-                                    <View>
-                                        <TouchableOpacity
-                                            style={styles.collapseButton}
-                                            onPress={() => setExpandedDeliveryOrder(null)}
-                                        >
-                                            <Text style={styles.collapseButtonText}>Collapse ↑</Text>
-                                        </TouchableOpacity>
-                                        <DeliveryTracker
-                                            order={order}
-                                            onViewPrescription={() => {/* TODO: Open prescription PDF */}}
-                                            onEnterOtp={() => {/* TODO: Show OTP input modal */}}
-                                        />
-                                    </View>
-                                ) : (
-                                    <TrackingCard
-                                        type="delivery"
-                                        title="Medication Delivery"
-                                        status={DELIVERY_STATUS_LABELS[order.status]?.label || order.status}
-                                        icon={DELIVERY_STATUS_LABELS[order.status]?.icon || '📦'}
-                                        timestamp={order.prescriptionCreatedAt}
-                                        onPress={() => setExpandedDeliveryOrder(order.id)}
-                                    />
-                                )}
-                            </View>
+                        {activeDeliveryOrders.map((order, index) => (
+                            <TrackingCard
+                                key={order.id}
+                                order={order}
+                                type="delivery"
+                                expanded={expandedCards.has(order.id)}
+                                onToggle={() => toggleExpand(order.id)}
+                                delay={(activeLabOrders.length + index) * 50}
+                            />
                         ))}
-                    </View>
+                    </Animated.View>
                 )}
 
-                {/* Completed Items Section */}
+                {/* Completed Section */}
                 {hasCompletedItems && (
-                    <View style={styles.section}>
+                    <Animated.View
+                        entering={FadeInUp.delay(200).duration(300)}
+                        style={styles.section}
+                        testID="completed-section"
+                    >
                         <Text style={styles.sectionTitle}>Completed</Text>
 
                         {/* Completed Lab Orders */}
-                        {completedLabOrders.map((order) => (
+                        {completedLabOrders.map(order => (
                             <CompletedCard
                                 key={order.id}
+                                order={order}
                                 type="lab"
-                                title="Blood Test"
-                                date={order.orderedAt}
-                                hasResults={!!order.resultFileUrl}
-                                onViewResults={() => {/* TODO: Open results */}}
+                                expanded={expandedCards.has(order.id)}
+                                onToggle={() => toggleExpand(order.id)}
                             />
                         ))}
 
                         {/* Completed Delivery Orders */}
-                        {completedDeliveryOrders.map((order) => (
+                        {completedDeliveryOrders.map(order => (
                             <CompletedCard
                                 key={order.id}
+                                order={order}
                                 type="delivery"
-                                title="Medication Delivery"
-                                date={order.deliveredAt || order.prescriptionCreatedAt}
+                                expanded={expandedCards.has(order.id)}
+                                onToggle={() => toggleExpand(order.id)}
                             />
                         ))}
-                    </View>
+                    </Animated.View>
                 )}
             </ScrollView>
-
-            {/* Cancel Lab Order Modal */}
-            <CancelLabOrderModal
-                visible={!!cancelModalOrder}
-                labOrder={cancelModalOrder}
-                onClose={() => setCancelModalOrder(null)}
-                onCancelled={handleCancelComplete}
-            />
         </SafeAreaView>
     );
 }
 
-// Tracking Card Component (collapsed view)
-function TrackingCard({
-    type,
-    title,
-    status,
-    icon,
-    timestamp,
-    onPress,
-}: {
+// Skeleton shimmer card
+function SkeletonCard() {
+    return (
+        <View style={styles.skeletonCard}>
+            <View style={styles.skeletonBadge} />
+            <View style={styles.skeletonTitle} />
+            <View style={styles.skeletonStepper}>
+                <View style={styles.skeletonDot} />
+                <View style={styles.skeletonLine} />
+                <View style={styles.skeletonDot} />
+                <View style={styles.skeletonLine} />
+                <View style={styles.skeletonDot} />
+            </View>
+        </View>
+    );
+}
+
+// Tracking Card Component (active items with status stepper)
+interface TrackingCardProps {
+    order: LabOrder | Order;
     type: 'lab' | 'delivery';
-    title: string;
-    status: string;
-    icon: string;
-    timestamp: string;
-    onPress: () => void;
-}) {
-    const formattedDate = new Date(timestamp).toLocaleDateString('en-IN', {
-        month: 'short',
-        day: 'numeric',
-    });
+    expanded: boolean;
+    onToggle: () => void;
+    delay?: number;
+}
+
+function TrackingCard({ order, type, expanded, onToggle, delay = 0 }: TrackingCardProps) {
+    const steps = type === 'lab' ? LAB_ORDER_STEPS : DELIVERY_ORDER_STEPS;
+    const currentStepIndex = getStepIndex(order.status, steps);
+
+    // Treatment config (for delivery orders)
+    const treatment = type === 'delivery' && 'treatmentType' in order
+        ? TREATMENT_CONFIG[order.treatmentType] || TREATMENT_CONFIG.HAIR_LOSS
+        : null;
+
+    const Icon = type === 'lab' ? TestTube2 : Package;
+    const title = type === 'lab'
+        ? ('panelName' in order ? order.panelName : 'Blood Test')
+        : 'Medication Delivery';
 
     return (
-        <TouchableOpacity
-            style={[
-                styles.trackingCard,
-                type === 'lab' ? styles.trackingCardLab : styles.trackingCardDelivery,
-            ]}
-            onPress={onPress}
-            activeOpacity={0.8}
-        >
-            <View style={styles.trackingCardIcon}>
-                <Text style={styles.trackingCardIconText}>{icon}</Text>
-            </View>
-            <View style={styles.trackingCardContent}>
-                <Text style={styles.trackingCardTitle}>{title}</Text>
-                <Text style={styles.trackingCardStatus}>{status}</Text>
-                <Text style={styles.trackingCardDate}>Started {formattedDate}</Text>
-            </View>
-            <Text style={styles.trackingCardArrow}>→</Text>
-        </TouchableOpacity>
+        <Animated.View entering={FadeInUp.delay(delay).duration(300)}>
+            <Pressable
+                testID={`tracking-card-${order.id}`}
+                style={styles.trackingCard}
+                onPress={onToggle}
+            >
+                {/* Treatment Badge */}
+                {treatment && (
+                    <View
+                        testID={`treatment-badge-${order.id}`}
+                        style={[styles.treatmentBadge, { backgroundColor: treatment.tint }]}
+                    >
+                        <treatment.Icon size={12} color={treatment.iconColor} />
+                        <Text style={[styles.treatmentBadgeText, { color: treatment.iconColor }]}>
+                            {treatment.label}
+                        </Text>
+                    </View>
+                )}
+
+                {/* Card Header */}
+                <View style={styles.cardHeader}>
+                    <View style={styles.cardIconContainer}>
+                        <Icon size={22} color={colors.textSecondary} />
+                    </View>
+                    <View style={styles.cardHeaderContent}>
+                        <Text style={styles.cardTitle}>{title}</Text>
+                        <Text style={styles.cardSubtitle}>
+                            {type === 'lab' && 'slotDate' in order && order.slotDate
+                                ? `Scheduled: ${formatDate(order.slotDate)}`
+                                : type === 'delivery' && 'estimatedDelivery' in order && order.estimatedDelivery
+                                    ? `Expected: ${formatDate(order.estimatedDelivery)}`
+                                    : `Started: ${formatDate(order.orderedAt || order.prescriptionCreatedAt)}`}
+                        </Text>
+                    </View>
+                    <ChevronRight
+                        size={20}
+                        color={colors.textTertiary}
+                        style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}
+                    />
+                </View>
+
+                {/* Status Stepper */}
+                <View testID={`status-stepper-${order.id}`} style={styles.statusStepper}>
+                    <View testID={`step-indicator-${order.id}`} style={styles.stepperTimeline}>
+                        {steps.slice(0, expanded ? steps.length : 4).map((step, index) => {
+                            const isCompleted = index < currentStepIndex;
+                            const isCurrent = index === currentStepIndex;
+                            const isUpcoming = index > currentStepIndex;
+
+                            return (
+                                <View key={step.key} style={styles.stepRow}>
+                                    {/* Vertical Line (above) */}
+                                    {index > 0 && (
+                                        <View style={[
+                                            styles.stepLineAbove,
+                                            isCompleted || isCurrent ? styles.stepLineCompleted : styles.stepLineUpcoming,
+                                        ]} />
+                                    )}
+
+                                    {/* Step Dot */}
+                                    <View style={[
+                                        styles.stepDot,
+                                        isCompleted && styles.stepDotCompleted,
+                                        isCurrent && styles.stepDotCurrent,
+                                        isUpcoming && styles.stepDotUpcoming,
+                                    ]}>
+                                        {isCurrent && <View style={styles.stepDotPulse} />}
+                                    </View>
+
+                                    {/* Step Label */}
+                                    <View style={styles.stepContent}>
+                                        <Text style={[
+                                            styles.stepLabel,
+                                            isCurrent && styles.stepLabelCurrent,
+                                            isUpcoming && styles.stepLabelUpcoming,
+                                        ]}>
+                                            {step.label}
+                                        </Text>
+                                        {isCurrent && (
+                                            <Text style={styles.stepTimestamp}>
+                                                In progress
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
+            </Pressable>
+        </Animated.View>
     );
 }
 
 // Completed Card Component
-function CompletedCard({
-    type,
-    title,
-    date,
-    hasResults,
-    onViewResults,
-}: {
+interface CompletedCardProps {
+    order: LabOrder | Order;
     type: 'lab' | 'delivery';
-    title: string;
-    date: string;
-    hasResults?: boolean;
-    onViewResults?: () => void;
-}) {
-    const formattedDate = new Date(date).toLocaleDateString('en-IN', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
+    expanded: boolean;
+    onToggle: () => void;
+}
+
+function CompletedCard({ order, type, expanded, onToggle }: CompletedCardProps) {
+    const Icon = type === 'lab' ? TestTube2 : Package;
+    const title = type === 'lab' ? 'Blood Test' : 'Medication Delivery';
+    const completedDate = type === 'delivery' && 'deliveredAt' in order
+        ? order.deliveredAt
+        : order.orderedAt || ('prescriptionCreatedAt' in order ? order.prescriptionCreatedAt : '');
 
     return (
-        <View style={styles.completedCard}>
-            <Text style={styles.completedIcon}>{type === 'lab' ? '🔬' : '📦'}</Text>
+        <Pressable
+            testID={`completed-card-${order.id}`}
+            style={styles.completedCard}
+            onPress={onToggle}
+        >
+            <View style={styles.completedIconContainer}>
+                <Icon size={20} color={colors.textTertiary} />
+            </View>
             <View style={styles.completedContent}>
                 <Text style={styles.completedTitle}>{title}</Text>
-                <Text style={styles.completedDate}>{formattedDate}</Text>
+                <Text style={styles.completedDate}>
+                    Completed {formatDate(completedDate)}
+                </Text>
             </View>
-            {hasResults && onViewResults && (
-                <TouchableOpacity style={styles.viewResultsLink} onPress={onViewResults}>
-                    <Text style={styles.viewResultsLinkText}>View Results</Text>
-                </TouchableOpacity>
-            )}
-        </View>
+            <ChevronRight
+                size={18}
+                color={colors.textMuted}
+                style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}
+            />
+        </Pressable>
     );
+}
+
+// Date formatter
+function formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+    });
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
-    loadingContainer: {
+    content: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    loadingText: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
-        marginTop: spacing.md,
+        paddingHorizontal: screenSpacing.horizontal,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingTop: spacing.lg,
-        paddingBottom: spacing.xxl,
+        paddingBottom: spacing['3xl'],
     },
     header: {
-        marginBottom: spacing.xl,
+        marginBottom: spacing['2xl'],
     },
     title: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        fontFamily: fontFamilies.serifSemiBold,
         fontSize: 28,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: spacing.xs,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
     },
-    subtitle: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
+    section: {
+        marginBottom: spacing['2xl'],
     },
+    sectionTitle: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.label,
+        color: colors.textTertiary,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        marginBottom: spacing.md,
+    },
+
+    // Tracking Card
+    trackingCard: {
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: spacing.md,
+    },
+    treatmentBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        marginBottom: spacing.md,
+        gap: 4,
+    },
+    treatmentBadgeText: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.tiny,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+    },
+    cardIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    cardHeaderContent: {
+        flex: 1,
+    },
+    cardTitle: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
+    },
+    cardSubtitle: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
+        color: colors.textTertiary,
+        marginTop: 2,
+    },
+
+    // Status Stepper
+    statusStepper: {
+        paddingLeft: 4,
+    },
+    stepperTimeline: {
+        position: 'relative',
+    },
+    stepRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: spacing.md,
+        position: 'relative',
+    },
+    stepLineAbove: {
+        position: 'absolute',
+        left: 3,
+        top: -spacing.md,
+        width: 2,
+        height: spacing.md,
+    },
+    stepLineCompleted: {
+        backgroundColor: colors.success,
+    },
+    stepLineUpcoming: {
+        backgroundColor: colors.border,
+        borderStyle: 'dashed',
+    },
+    stepDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: spacing.md,
+        marginTop: 5,
+    },
+    stepDotCompleted: {
+        backgroundColor: colors.success,
+    },
+    stepDotCurrent: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: colors.textPrimary,
+        marginRight: spacing.md - 1,
+    },
+    stepDotUpcoming: {
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: colors.border,
+    },
+    stepDotPulse: {
+        // Subtle glow effect placeholder
+    },
+    stepContent: {
+        flex: 1,
+    },
+    stepLabel: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.label,
+        color: colors.textPrimary,
+    },
+    stepLabelCurrent: {
+        fontFamily: fontFamilies.sansSemiBold,
+    },
+    stepLabelUpcoming: {
+        color: colors.textTertiary,
+    },
+    stepTimestamp: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
+        color: colors.textTertiary,
+        marginTop: 2,
+    },
+
+    // Completed Card
+    completedCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+    },
+    completedIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    completedContent: {
+        flex: 1,
+    },
+    completedTitle: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.body,
+        color: colors.textTertiary,
+    },
+    completedDate: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+
+    // Empty State
     emptyState: {
         alignItems: 'center',
-        paddingVertical: spacing.xxxl,
+        paddingVertical: spacing['4xl'],
     },
     emptyIconContainer: {
         width: 100,
@@ -408,158 +647,63 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: spacing.lg,
     },
-    emptyIcon: {
-        fontSize: 48,
-    },
     emptyTitle: {
-        ...typography.headingMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
         marginBottom: spacing.sm,
     },
     emptyText: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         textAlign: 'center',
         paddingHorizontal: spacing.xl,
-    },
-    section: {
+        lineHeight: fontSizes.body * 1.5,
         marginBottom: spacing.xl,
     },
-    sectionTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
+    emptyButton: {
+        minWidth: 200,
+    },
+
+    // Skeleton
+    skeletonContainer: {
+        paddingTop: spacing.xl,
+    },
+    skeletonCard: {
+        backgroundColor: colors.surface,
+        borderRadius: 20,
+        padding: 20,
         marginBottom: spacing.md,
     },
-    trackerContainer: {
+    skeletonBadge: {
+        width: 80,
+        height: 20,
+        backgroundColor: colors.border,
+        borderRadius: borderRadius.full,
         marginBottom: spacing.md,
     },
-    collapseButton: {
-        alignSelf: 'flex-end',
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        marginBottom: spacing.sm,
+    skeletonTitle: {
+        width: '60%',
+        height: 20,
+        backgroundColor: colors.border,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.lg,
     },
-    collapseButtonText: {
-        ...typography.bodySmall,
-        color: colors.primary,
-        fontWeight: '500',
-    },
-    trackingCard: {
+    skeletonStepper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surfaceElevated,
-        borderRadius: borderRadius.xl,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
     },
-    trackingCardLab: {
-        borderLeftWidth: 4,
-        borderLeftColor: colors.info,
+    skeletonDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.border,
     },
-    trackingCardDelivery: {
-        borderLeftWidth: 4,
-        borderLeftColor: colors.success,
-    },
-    trackingCardIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    trackingCardIconText: {
-        fontSize: 22,
-    },
-    trackingCardContent: {
-        flex: 1,
-    },
-    trackingCardTitle: {
-        ...typography.bodyMedium,
-        fontWeight: '600',
-        color: colors.text,
-    },
-    trackingCardStatus: {
-        ...typography.bodySmall,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    trackingCardDate: {
-        ...typography.label,
-        color: colors.textTertiary,
-        marginTop: spacing.xs,
-    },
-    trackingCardArrow: {
-        fontSize: 18,
-        color: colors.textTertiary,
-    },
-    completedCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-    },
-    completedIcon: {
-        fontSize: 20,
-        marginRight: spacing.md,
-    },
-    completedContent: {
-        flex: 1,
-    },
-    completedTitle: {
-        ...typography.bodyMedium,
-        color: colors.text,
-    },
-    completedDate: {
-        ...typography.bodySmall,
-        color: colors.textTertiary,
-    },
-    viewResultsLink: {
-        paddingHorizontal: spacing.sm,
-    },
-    viewResultsLinkText: {
-        ...typography.bodySmall,
-        color: colors.primary,
-        fontWeight: '500',
-    },
-    bookSlotCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.primary,
-        borderRadius: borderRadius.xl,
-        padding: spacing.md,
-    },
-    bookSlotIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    bookSlotIconText: {
-        fontSize: 22,
-    },
-    bookSlotContent: {
-        flex: 1,
-    },
-    bookSlotTitle: {
-        ...typography.bodyMedium,
-        fontWeight: '600',
-        color: colors.primaryText,
-    },
-    bookSlotSubtitle: {
-        ...typography.bodySmall,
-        color: 'rgba(255, 255, 255, 0.8)',
-        marginTop: 2,
-    },
-    bookSlotArrow: {
-        fontSize: 18,
-        color: colors.primaryText,
+    skeletonLine: {
+        width: 40,
+        height: 2,
+        backgroundColor: colors.border,
+        marginHorizontal: spacing.sm,
     },
 });
