@@ -1,42 +1,64 @@
+/**
+ * Treatment Detail Screen (Intake Intro)
+ * PR 5: Treatment + Questionnaire + Photo Restyle
+ * Restyled with Clinical Luxe design system
+ */
+
 import React from 'react';
-import {
-    View,
-    Text,
-    TouchableOpacity,
-    StyleSheet,
-    Platform,
-    ScrollView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import {
+    Sparkles,
+    Heart,
+    Flower2,
+    Scale,
+    Check,
+    Clock,
+} from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
+import { BackButton, PremiumButton } from '@/components/ui';
 import { HealthVertical } from '@/graphql/intake';
+
+// Map URL path to icon components
+const verticalIcons: Record<string, React.ComponentType<{ size: number; color: string; strokeWidth?: number }>> = {
+    'hair-loss': Sparkles,
+    'sexual-health': Heart,
+    'pcos': Flower2,
+    'weight-management': Scale,
+};
 
 // Vertical info mapping
 const VERTICAL_INFO: Record<string, {
     id: HealthVertical;
     name: string;
-    icon: string;
-    description: string;
+    title: string;
+    subtitle: string;
+    iconColor: string;
     duration: string;
-    steps: string[];
-    benefits: string[];
+    expectItems: string[];
+    planItems: string[];
 }> = {
     'hair-loss': {
         id: 'HAIR_LOSS',
         name: 'Hair Loss',
-        icon: '💇',
-        description: 'Answer a few questions about your hair health so our doctors can create a personalized treatment plan.',
-        duration: '5-7 minutes',
-        steps: [
-            'Answer health questions',
-            'Upload photos of your scalp',
-            'Review and submit',
-            'Get your personalized plan',
+        title: 'Hair Loss Treatment',
+        subtitle: 'Regrow thicker, fuller hair with clinically proven treatments designed for your unique hair type.',
+        iconColor: colors.hairLossIcon,
+        duration: '5 minutes',
+        expectItems: [
+            'Doctor reviews your responses within 24 hours',
+            'Personalised treatment plan created for you',
+            'Medication delivered discreetly to your door',
         ],
-        benefits: [
-            'Clinically proven treatments',
-            'Expert dermatologist review',
+        planItems: [
+            'Expert dermatologist consultation',
+            'Clinically proven medications',
             'Free doorstep delivery',
             'Ongoing doctor support',
         ],
@@ -44,35 +66,37 @@ const VERTICAL_INFO: Record<string, {
     'sexual-health': {
         id: 'SEXUAL_HEALTH',
         name: 'Sexual Health',
-        icon: '❤️',
-        description: 'Confidential assessment for ED and performance concerns. Your privacy is our priority.',
+        title: 'Sexual Health Treatment',
+        subtitle: 'Discreet care for ED and performance concerns with clinically proven treatments.',
+        iconColor: colors.sexualHealthIcon,
         duration: '5 minutes',
-        steps: [
-            'Answer health questions',
-            'Review and submit',
-            'Get your personalized plan',
+        expectItems: [
+            'Doctor reviews your responses within 24 hours',
+            'Personalised treatment plan created for you',
+            'Medication delivered discreetly to your door',
         ],
-        benefits: [
-            'Completely confidential',
-            'Expert urologist review',
+        planItems: [
+            'Expert urologist consultation',
+            'Clinically proven medications',
             'Discreet packaging',
-            'Quick and effective treatments',
+            'Ongoing doctor support',
         ],
     },
     'pcos': {
         id: 'PCOS',
         name: 'PCOS',
-        icon: '🌸',
-        description: 'Comprehensive assessment for polycystic ovary syndrome symptoms and management.',
-        duration: '7-10 minutes',
-        steps: [
-            'Answer health questions',
-            'Review and submit',
-            'Get your personalized plan',
+        title: 'PCOS Treatment',
+        subtitle: 'Comprehensive care for polycystic ovary syndrome with clinically proven approaches.',
+        iconColor: colors.pcosIcon,
+        duration: '7 minutes',
+        expectItems: [
+            'Doctor reviews your responses within 24 hours',
+            'Personalised treatment plan created for you',
+            'Medication delivered discreetly to your door',
         ],
-        benefits: [
+        planItems: [
+            'Expert gynecologist consultation',
             'Holistic symptom management',
-            'Expert gynecologist review',
             'Lifestyle recommendations',
             'Ongoing monitoring',
         ],
@@ -80,17 +104,17 @@ const VERTICAL_INFO: Record<string, {
     'weight-management': {
         id: 'WEIGHT_MANAGEMENT',
         name: 'Weight Management',
-        icon: '⚖️',
-        description: 'Medical weight loss assessment tailored to your body and lifestyle.',
-        duration: '7-10 minutes',
-        steps: [
-            'Answer health questions',
-            'Upload body photos',
-            'Review and submit',
-            'Get your personalized plan',
+        title: 'Weight Management Treatment',
+        subtitle: 'Doctor-supervised weight loss with clinically proven programs tailored to your body.',
+        iconColor: colors.weightIcon,
+        duration: '7 minutes',
+        expectItems: [
+            'Doctor reviews your responses within 24 hours',
+            'Personalised treatment plan created for you',
+            'Medication delivered discreetly to your door',
         ],
-        benefits: [
-            'Doctor-supervised programs',
+        planItems: [
+            'Expert physician consultation',
             'Medication options if suitable',
             'Nutritional guidance',
             'Regular check-ins',
@@ -101,12 +125,13 @@ const VERTICAL_INFO: Record<string, {
 export default function IntakeIntroScreen() {
     const { vertical } = useLocalSearchParams<{ vertical: string }>();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
-    const info = VERTICAL_INFO[vertical || ''] ?? VERTICAL_INFO['hair-loss']!;
+    const info = VERTICAL_INFO[vertical || ''] ?? VERTICAL_INFO['hair-loss'];
+    const IconComponent = verticalIcons[vertical || ''] ?? Sparkles;
 
     const handleStart = () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push(`/intake/${vertical}/questions` as any);
+        router.push(`/intake/${vertical}/questions`);
     };
 
     const handleBack = () => {
@@ -114,69 +139,112 @@ export default function IntakeIntroScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="intake-intro-screen">
+            {/* Header with back button */}
+            <Animated.View
+                entering={FadeInUp.delay(0).duration(400)}
+                style={styles.header}
+            >
+                <BackButton onPress={handleBack} testID="back-button" />
+            </Animated.View>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
-                <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                    <Text style={styles.backText}>← Back</Text>
-                </TouchableOpacity>
-
                 {/* Hero section */}
-                <View style={styles.heroSection}>
-                    <Text style={styles.heroIcon}>{info.icon}</Text>
-                    <Text style={styles.heroTitle}>{info.name} Assessment</Text>
-                    <Text style={styles.heroDescription}>{info.description}</Text>
-                    <View style={styles.durationBadge}>
-                        <Text style={styles.durationText}>⏱️ {info.duration}</Text>
+                <Animated.View
+                    entering={FadeInUp.delay(80).duration(400)}
+                    style={styles.heroSection}
+                >
+                    <View style={styles.iconContainer} testID="vertical-icon">
+                        <IconComponent
+                            size={40}
+                            color={info.iconColor}
+                            strokeWidth={1.5}
+                        />
                     </View>
-                </View>
+                    <Text style={styles.title}>{info.title}</Text>
+                    <Text style={styles.subtitle}>{info.subtitle}</Text>
+                </Animated.View>
 
-                {/* Steps section */}
-                <View style={styles.stepsSection}>
+                {/* What to expect section */}
+                <Animated.View
+                    entering={FadeInUp.delay(160).duration(400)}
+                    style={styles.section}
+                >
                     <Text style={styles.sectionTitle}>What to expect</Text>
-                    {info.steps.map((step, index) => (
-                        <View key={index} style={styles.stepItem}>
-                            <View style={styles.stepNumber}>
-                                <Text style={styles.stepNumberText}>{index + 1}</Text>
+                    {info.expectItems.map((item, index) => (
+                        <View
+                            key={index}
+                            style={styles.expectItem}
+                            testID={`expect-item-${index}`}
+                        >
+                            <View style={styles.checkCircle}>
+                                <Check size={14} color={colors.white} strokeWidth={3} />
                             </View>
-                            <Text style={styles.stepText}>{step}</Text>
+                            <Text style={styles.expectText}>{item}</Text>
                         </View>
                     ))}
-                </View>
+                </Animated.View>
 
-                {/* Benefits section */}
-                <View style={styles.benefitsSection}>
-                    <Text style={styles.sectionTitle}>What you get</Text>
-                    {info.benefits.map((benefit, index) => (
-                        <View key={index} style={styles.benefitItem}>
-                            <Text style={styles.benefitCheck}>✓</Text>
-                            <Text style={styles.benefitText}>{benefit}</Text>
+                {/* Your plan includes section */}
+                <Animated.View
+                    entering={FadeInUp.delay(240).duration(400)}
+                    style={styles.section}
+                >
+                    <Text style={styles.sectionTitle}>Your plan includes</Text>
+                    {info.planItems.map((item, index) => (
+                        <View
+                            key={index}
+                            style={styles.planItem}
+                            testID={`plan-item-${index}`}
+                        >
+                            <View style={styles.planDot} />
+                            <Text style={styles.planText}>{item}</Text>
                         </View>
                     ))}
-                </View>
+                </Animated.View>
 
-                {/* Privacy notice */}
-                <View style={styles.privacyNotice}>
-                    <Text style={styles.privacyIcon}>🔒</Text>
-                    <Text style={styles.privacyText}>
-                        Your information is encrypted and confidential. Only your assigned doctor will review your responses.
-                    </Text>
-                </View>
+                {/* Questionnaire card */}
+                <Animated.View
+                    entering={FadeInUp.delay(320).duration(400)}
+                    style={styles.questionnaireCard}
+                    testID="questionnaire-card"
+                >
+                    <View style={styles.clockContainer} testID="clock-icon">
+                        <Clock size={24} color={colors.textSecondary} strokeWidth={1.5} />
+                    </View>
+                    <View style={styles.cardTextContainer}>
+                        <Text style={styles.cardTitle}>Quick questionnaire</Text>
+                        <Text style={styles.cardSubtitle}>
+                            Takes about {info.duration}
+                        </Text>
+                    </View>
+                </Animated.View>
+
+                {/* Spacer for sticky CTA */}
+                <View style={{ height: 120 }} />
             </ScrollView>
 
-            {/* Start button */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={styles.startButton}
-                    onPress={handleStart}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.startButtonText}>Start Assessment</Text>
-                </TouchableOpacity>
+            {/* Sticky CTA with gradient fade */}
+            <View
+                style={[styles.ctaContainer, { paddingBottom: insets.bottom + spacing.lg }]}
+                testID="sticky-cta-container"
+            >
+                <LinearGradient
+                    colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+                    style={styles.gradient}
+                    testID="cta-gradient"
+                />
+                <View style={styles.ctaContent}>
+                    <PremiumButton
+                        title="Start Questionnaire"
+                        onPress={handleStart}
+                        testID="start-questionnaire-button"
+                    />
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -185,146 +253,130 @@ export default function IntakeIntroScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
+    },
+    header: {
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.md,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.xxl,
-    },
-    backButton: {
-        alignSelf: 'flex-start',
-        paddingVertical: spacing.md,
-    },
-    backText: {
-        ...typography.bodyMedium,
-        color: colors.primary,
-        fontWeight: '500',
+        paddingHorizontal: screenSpacing.horizontal,
     },
     heroSection: {
         alignItems: 'center',
-        paddingVertical: spacing.xl,
+        paddingTop: spacing.lg,
+        marginBottom: spacing['2xl'],
     },
-    heroIcon: {
-        fontSize: 64,
-        marginBottom: spacing.md,
+    iconContainer: {
+        marginBottom: spacing.lg,
     },
-    heroTitle: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 28,
-        fontWeight: '600',
-        color: colors.text,
+    title: {
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.title,
+        color: colors.textPrimary,
         textAlign: 'center',
+        letterSpacing: -0.5,
         marginBottom: spacing.md,
     },
-    heroDescription: {
-        ...typography.bodyMedium,
+    subtitle: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         textAlign: 'center',
+        lineHeight: fontSizes.body * 1.5,
         paddingHorizontal: spacing.md,
-        marginBottom: spacing.md,
     },
-    durationBadge: {
-        backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.full,
-    },
-    durationText: {
-        ...typography.bodySmall,
-        color: colors.textSecondary,
-    },
-    stepsSection: {
+    section: {
         marginBottom: spacing.xl,
     },
     sectionTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.cardTitle,
+        color: colors.textPrimary,
         marginBottom: spacing.md,
     },
-    stepItem: {
+    expectItem: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: spacing.md,
     },
-    stepNumber: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: colors.primary,
+    checkCircle: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: colors.success,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
+        marginTop: 2,
     },
-    stepNumberText: {
-        ...typography.bodySmall,
-        color: colors.primaryText,
-        fontWeight: '600',
-    },
-    stepText: {
-        ...typography.bodyMedium,
-        color: colors.text,
+    expectText: {
         flex: 1,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
+        lineHeight: fontSizes.body * 1.5,
     },
-    benefitsSection: {
+    planItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    planDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.accent,
+        marginRight: spacing.md,
+    },
+    planText: {
+        flex: 1,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
+    },
+    questionnaireCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: colors.surface,
         borderRadius: borderRadius.xl,
         padding: spacing.lg,
-        marginBottom: spacing.xl,
         borderWidth: 1,
         borderColor: colors.border,
     },
-    benefitItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: spacing.sm,
+    clockContainer: {
+        marginRight: spacing.md,
     },
-    benefitCheck: {
-        fontSize: 16,
-        color: colors.success,
-        marginRight: spacing.sm,
-    },
-    benefitText: {
-        ...typography.bodyMedium,
-        color: colors.text,
-    },
-    privacyNotice: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        backgroundColor: colors.accentLight,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.accent,
-    },
-    privacyIcon: {
-        fontSize: 18,
-        marginRight: spacing.sm,
-    },
-    privacyText: {
-        ...typography.bodySmall,
-        color: colors.textSecondary,
+    cardTextContainer: {
         flex: 1,
     },
-    footer: {
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        backgroundColor: colors.background,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+    cardTitle: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
+        marginBottom: 2,
     },
-    startButton: {
-        backgroundColor: colors.primary,
-        paddingVertical: spacing.md + 2,
-        borderRadius: borderRadius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...shadows.md,
+    cardSubtitle: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
+        color: colors.textSecondary,
     },
-    startButtonText: {
-        ...typography.button,
-        color: colors.primaryText,
+    ctaContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+    },
+    gradient: {
+        height: 40,
+    },
+    ctaContent: {
+        backgroundColor: colors.white,
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.sm,
     },
 });

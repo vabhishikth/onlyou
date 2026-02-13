@@ -1,9 +1,15 @@
+/**
+ * OTP Verification Screen
+ * PR 5: Treatment + Questionnaire + Photo Restyle
+ * Refined with Clinical Luxe design system
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
     TextInput,
-    TouchableOpacity,
+    Pressable,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
@@ -13,11 +19,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
+import { BackButton } from '@/components/ui';
 import { VERIFY_OTP, VerifyOtpResponse, REQUEST_OTP, RequestOtpResponse } from '@/graphql/auth';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
 
 const OTP_LENGTH = 6;
+const OTP_BOX_SIZE = 52; // 52x52px as per requirements
 
 export default function OtpScreen() {
     const router = useRouter();
@@ -94,8 +106,9 @@ export default function OtpScreen() {
                 inputRefs.current[0]?.focus();
                 setFocusedIndex(0);
             }
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Verification failed');
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Verification failed';
+            Alert.alert('Error', errorMessage);
             setOtp(Array(OTP_LENGTH).fill(''));
             inputRefs.current[0]?.focus();
             setFocusedIndex(0);
@@ -116,40 +129,54 @@ export default function OtpScreen() {
             } else {
                 Alert.alert('Error', data?.requestOtp.message || 'Failed to resend OTP');
             }
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to resend OTP');
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to resend OTP';
+            Alert.alert('Error', errorMessage);
         }
+    };
+
+    const handleBack = () => {
+        router.back();
+    };
+
+    const handleEditPhone = () => {
+        router.back();
     };
 
     const maskedPhone = phone?.replace(/(\+91)(\d{2})(\d{4})(\d{4})/, '$1 $2**** $4') || '';
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} testID="otp-screen">
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
             >
                 <View style={styles.content}>
                     {/* Back button */}
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.backText}>Back</Text>
-                    </TouchableOpacity>
+                    <BackButton onPress={handleBack} testID="back-button" />
 
                     {/* Header */}
-                    <View style={styles.header}>
+                    <Animated.View
+                        entering={FadeInUp.duration(300)}
+                        style={styles.header}
+                    >
                         <Text style={styles.heading}>Verify your number</Text>
                         <Text style={styles.subheading}>
                             Enter the 6-digit code sent to{'\n'}
                             <Text style={styles.phone}>{maskedPhone}</Text>
+                            {'  '}
+                            <Pressable onPress={handleEditPhone} testID="edit-phone-link">
+                                <Text style={styles.editLink}>Edit</Text>
+                            </Pressable>
                         </Text>
-                    </View>
+                    </Animated.View>
 
                     {/* OTP Inputs */}
-                    <View style={styles.otpContainer}>
+                    <Animated.View
+                        entering={FadeInUp.delay(100).duration(300)}
+                        style={styles.otpContainer}
+                        testID="otp-container"
+                    >
                         {otp.map((digit, index) => (
                             <TextInput
                                 key={index}
@@ -167,37 +194,43 @@ export default function OtpScreen() {
                                 maxLength={1}
                                 selectTextOnFocus
                                 autoFocus={index === 0}
+                                testID={`otp-input-${index}`}
                             />
                         ))}
-                    </View>
+                    </Animated.View>
 
                     {/* Loading indicator */}
                     {verifying && (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="small" color={colors.primary} />
+                        <Animated.View
+                            entering={FadeInUp.duration(200)}
+                            style={styles.loadingContainer}
+                        >
+                            <ActivityIndicator size="small" color={colors.accent} />
                             <Text style={styles.loadingText}>Verifying...</Text>
-                        </View>
+                        </Animated.View>
                     )}
 
                     {/* Resend */}
-                    <View style={styles.resendContainer}>
+                    <Animated.View
+                        entering={FadeInUp.delay(200).duration(300)}
+                        style={styles.resendContainer}
+                    >
                         <Text style={styles.resendLabel}>Didn't receive the code?</Text>
                         {resendTimer > 0 ? (
                             <Text style={styles.resendTimer}>
                                 Resend in {resendTimer}s
                             </Text>
                         ) : (
-                            <TouchableOpacity
+                            <Pressable
                                 onPress={handleResend}
                                 disabled={resending}
-                                activeOpacity={0.7}
                             >
                                 <Text style={styles.resendButton}>
                                     {resending ? 'Sending...' : 'Resend OTP'}
                                 </Text>
-                            </TouchableOpacity>
+                            </Pressable>
                         )}
-                    </View>
+                    </Animated.View>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -207,42 +240,41 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
     keyboardView: {
         flex: 1,
     },
     content: {
         flex: 1,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingTop: spacing.lg,
     },
-    backButton: {
-        alignSelf: 'flex-start',
-        paddingVertical: spacing.sm,
-        marginBottom: spacing.xl,
-    },
-    backText: {
-        ...typography.bodyMedium,
-        color: colors.primary,
-        fontWeight: '500',
-    },
     header: {
-        marginBottom: spacing.xxxl,
+        marginTop: spacing.xl,
+        marginBottom: spacing['3xl'],
     },
     heading: {
-        ...typography.headingLarge,
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: 28,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
         marginBottom: spacing.sm,
     },
     subheading: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
-        lineHeight: 22,
+        lineHeight: fontSizes.body * 1.5,
     },
     phone: {
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        color: colors.textPrimary,
+    },
+    editLink: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.body,
+        color: colors.accent,
     },
     otpContainer: {
         flexDirection: 'row',
@@ -250,22 +282,24 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
     otpInput: {
-        width: 48,
-        height: 56,
+        width: OTP_BOX_SIZE,
+        height: OTP_BOX_SIZE,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
-        backgroundColor: colors.surfaceElevated,
+        backgroundColor: colors.surface,
         textAlign: 'center',
-        ...typography.headingMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
     },
     otpInputFocused: {
-        borderColor: colors.primary,
+        borderColor: colors.accent,
         borderWidth: 2,
     },
     otpInputFilled: {
-        backgroundColor: colors.surface,
+        backgroundColor: colors.white,
+        borderColor: colors.accent,
     },
     loadingContainer: {
         flexDirection: 'row',
@@ -274,7 +308,8 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
     loadingText: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         marginLeft: spacing.sm,
     },
@@ -282,17 +317,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     resendLabel: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         marginBottom: spacing.xs,
     },
     resendTimer: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textTertiary,
     },
     resendButton: {
-        ...typography.bodyMedium,
-        color: colors.primary,
-        fontWeight: '600',
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.accent,
     },
 });

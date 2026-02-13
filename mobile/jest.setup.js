@@ -107,6 +107,14 @@ jest.mock('lucide-react-native', () => {
         Stethoscope: MockIcon,
         Package: MockIcon,
         MessageCircle: MockIcon,
+        Clock: MockIcon,
+        ArrowUp: MockIcon,
+        ArrowUpRight: MockIcon,
+        ArrowRight: MockIcon,
+        Camera: MockIcon,
+        Image: MockIcon,
+        X: MockIcon,
+        Lock: MockIcon,
     };
 });
 

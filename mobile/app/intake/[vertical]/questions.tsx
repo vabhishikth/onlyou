@@ -1,19 +1,30 @@
+/**
+ * Questionnaire Screen
+ * PR 5: Treatment + Questionnaire + Photo Restyle
+ * Restyled with Clinical Luxe design system
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     TextInput,
-    TouchableOpacity,
     StyleSheet,
-    Platform,
     ScrollView,
     KeyboardAvoidingView,
+    Platform,
     ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from '@apollo/client';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
+import { BackButton, PremiumButton, SelectionCard, ProgressIndicator } from '@/components/ui';
 import {
     GET_QUESTIONNAIRE_TEMPLATE,
     SAVE_INTAKE_DRAFT,
@@ -55,6 +66,7 @@ function flattenQuestions(schema: QuestionnaireSchema | undefined): Question[] {
 export default function QuestionsScreen() {
     const { vertical } = useLocalSearchParams<{ vertical: string }>();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [responses, setResponses] = useState<Record<string, unknown>>({});
@@ -80,7 +92,6 @@ export default function QuestionsScreen() {
 
     const currentQuestion = visibleQuestions[currentIndex];
     const totalQuestions = visibleQuestions.length;
-    const progress = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
 
     // Sync text value with current question's response
     useEffect(() => {
@@ -192,49 +203,53 @@ export default function QuestionsScreen() {
         }
     };
 
+    // Loading state
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+            <SafeAreaView style={styles.container} testID="questions-screen">
+                <View style={styles.centerContainer} testID="loading-indicator">
+                    <ActivityIndicator size="large" color={colors.accent} />
                     <Text style={styles.loadingText}>Loading questions...</Text>
                 </View>
             </SafeAreaView>
         );
     }
 
+    // Error state
     if (error || !currentQuestion) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.errorContainer}>
-                    <Text style={styles.errorIcon}>😕</Text>
+            <SafeAreaView style={styles.container} testID="questions-screen">
+                <View style={styles.centerContainer}>
                     <Text style={styles.errorTitle}>Unable to load questions</Text>
                     <Text style={styles.errorText}>
                         {error?.message || 'No questions available for this assessment'}
                     </Text>
-                    <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
-                        <Text style={styles.errorButtonText}>Go Back</Text>
-                    </TouchableOpacity>
+                    <PremiumButton
+                        title="Go Back"
+                        onPress={() => router.back()}
+                        variant="secondary"
+                    />
                 </View>
             </SafeAreaView>
         );
     }
 
+    const showContinueButton = currentQuestion.type !== 'single_choice' || !currentQuestion.options;
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="questions-screen">
             <KeyboardAvoidingView
                 style={styles.keyboardView}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                {/* Header with progress */}
+                {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                        <Text style={styles.backText}>←</Text>
-                    </TouchableOpacity>
-                    <View style={styles.progressContainer}>
-                        <View style={styles.progressBar}>
-                            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                        </View>
+                    <BackButton onPress={handleBack} testID="back-button" />
+                    <View style={styles.progressWrapper} testID="progress-indicator">
+                        <ProgressIndicator
+                            currentStep={currentIndex}
+                            totalSteps={totalQuestions}
+                        />
                         <Text style={styles.progressText}>
                             {currentIndex + 1} of {totalQuestions}
                         </Text>
@@ -248,137 +263,137 @@ export default function QuestionsScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    <Text style={styles.questionText}>{currentQuestion.question}</Text>
+                    <Animated.View entering={FadeInRight.duration(300)}>
+                        <Text style={styles.questionText} testID="question-text">
+                            {currentQuestion.question}
+                        </Text>
+                    </Animated.View>
 
-                    {/* Single choice options */}
+                    {/* Single choice options with SelectionCard */}
                     {currentQuestion.type === 'single_choice' && currentQuestion.options && (
-                        <View style={styles.optionsContainer}>
-                            {currentQuestion.options.map((option) => {
+                        <Animated.View
+                            entering={FadeInUp.delay(100).duration(300)}
+                            style={styles.optionsContainer}
+                        >
+                            {currentQuestion.options.map((option, index) => {
                                 const isSelected = responses[currentQuestion.id] === option;
                                 return (
-                                    <TouchableOpacity
+                                    <Animated.View
                                         key={option}
-                                        style={[
-                                            styles.optionButton,
-                                            isSelected && styles.optionButtonSelected,
-                                        ]}
-                                        onPress={() => handleSelectOption(option)}
-                                        activeOpacity={0.7}
+                                        entering={FadeInUp.delay(150 + index * 50).duration(300)}
                                     >
-                                        <View style={[
-                                            styles.optionRadio,
-                                            isSelected && styles.optionRadioSelected,
-                                        ]}>
-                                            {isSelected && <View style={styles.optionRadioInner} />}
-                                        </View>
-                                        <Text style={[
-                                            styles.optionText,
-                                            isSelected && styles.optionTextSelected,
-                                        ]}>
-                                            {option}
-                                        </Text>
-                                    </TouchableOpacity>
+                                        <SelectionCard
+                                            title={option}
+                                            selected={isSelected}
+                                            onPress={() => handleSelectOption(option)}
+                                            testID={`option-${option}`}
+                                            style={styles.optionCard}
+                                        />
+                                    </Animated.View>
                                 );
                             })}
-                        </View>
+                        </Animated.View>
                     )}
 
-                    {/* Multiple choice options */}
+                    {/* Multiple choice options with SelectionCard */}
                     {currentQuestion.type === 'multiple_choice' && currentQuestion.options && (
-                        <View style={styles.optionsContainer}>
-                            {currentQuestion.options.map((option) => {
+                        <Animated.View
+                            entering={FadeInUp.delay(100).duration(300)}
+                            style={styles.optionsContainer}
+                        >
+                            {currentQuestion.options.map((option, index) => {
                                 const selections = (responses[currentQuestion.id] as string[]) || [];
                                 const isSelected = selections.includes(option);
                                 return (
-                                    <TouchableOpacity
+                                    <Animated.View
                                         key={option}
-                                        style={[
-                                            styles.optionButton,
-                                            isSelected && styles.optionButtonSelected,
-                                        ]}
-                                        onPress={() => handleMultiSelect(option)}
-                                        activeOpacity={0.7}
+                                        entering={FadeInUp.delay(150 + index * 50).duration(300)}
                                     >
-                                        <View style={[
-                                            styles.optionCheckbox,
-                                            isSelected && styles.optionCheckboxSelected,
-                                        ]}>
-                                            {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                                        </View>
-                                        <Text style={[
-                                            styles.optionText,
-                                            isSelected && styles.optionTextSelected,
-                                        ]}>
-                                            {option}
-                                        </Text>
-                                    </TouchableOpacity>
+                                        <SelectionCard
+                                            title={option}
+                                            selected={isSelected}
+                                            onPress={() => handleMultiSelect(option)}
+                                            testID={`option-${option}`}
+                                            style={styles.optionCard}
+                                        />
+                                    </Animated.View>
                                 );
                             })}
                             <Text style={styles.helperText}>Select all that apply</Text>
-                        </View>
+                        </Animated.View>
                     )}
 
                     {/* Text input */}
                     {currentQuestion.type === 'text' && (
-                        <View style={styles.inputContainer}>
+                        <Animated.View
+                            entering={FadeInUp.delay(100).duration(300)}
+                            style={styles.inputContainer}
+                        >
                             <TextInput
                                 style={styles.textInput}
                                 value={textValue}
                                 onChangeText={setTextValue}
                                 placeholder={currentQuestion.placeholder || 'Type your answer...'}
-                                placeholderTextColor={colors.textTertiary}
+                                placeholderTextColor={colors.textMuted}
                                 multiline
                                 numberOfLines={4}
                                 textAlignVertical="top"
+                                testID="text-input"
                             />
-                        </View>
+                        </Animated.View>
                     )}
 
                     {/* Number input */}
                     {currentQuestion.type === 'number' && (
-                        <View style={styles.inputContainer}>
+                        <Animated.View
+                            entering={FadeInUp.delay(100).duration(300)}
+                            style={styles.inputContainer}
+                        >
                             <TextInput
                                 style={styles.numberInput}
                                 value={textValue}
                                 onChangeText={setTextValue}
-                                placeholder={currentQuestion.placeholder || 'Enter a number...'}
-                                placeholderTextColor={colors.textTertiary}
+                                placeholder={currentQuestion.placeholder || 'Enter a number'}
+                                placeholderTextColor={colors.textMuted}
                                 keyboardType="numeric"
+                                testID="number-input"
                             />
-                        </View>
+                        </Animated.View>
                     )}
+
+                    {/* Spacer for sticky CTA */}
+                    <View style={{ height: 120 }} />
                 </ScrollView>
 
-                {/* Footer with continue button */}
-                {(currentQuestion.type !== 'single_choice' || !currentQuestion.options) && (
-                    <View style={styles.footer}>
-                        <TouchableOpacity
-                            style={[
-                                styles.continueButton,
-                                !isAnswered() && styles.continueButtonDisabled,
-                            ]}
-                            onPress={() => {
-                                if (currentQuestion.type === 'text' || currentQuestion.type === 'number') {
-                                    handleTextSubmit();
-                                } else {
-                                    handleNext();
-                                }
-                            }}
-                            disabled={currentQuestion.required && !isAnswered()}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.continueButtonText}>
-                                {currentIndex === totalQuestions - 1 ? 'Continue' : 'Next'}
-                            </Text>
-                        </TouchableOpacity>
-                        {!currentQuestion.required && !isAnswered() && (
-                            <TouchableOpacity
-                                style={styles.skipButton}
-                                onPress={() => handleNext()}
-                            >
-                                <Text style={styles.skipButtonText}>Skip this question</Text>
-                            </TouchableOpacity>
-                        )}
+                {/* Sticky CTA */}
+                {showContinueButton && (
+                    <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + spacing.lg }]}>
+                        <LinearGradient
+                            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+                            style={styles.gradient}
+                        />
+                        <View style={styles.ctaContent}>
+                            <PremiumButton
+                                title={currentIndex === totalQuestions - 1 ? 'Continue' : 'Next'}
+                                onPress={() => {
+                                    if (currentQuestion.type === 'text' || currentQuestion.type === 'number') {
+                                        handleTextSubmit();
+                                    } else {
+                                        handleNext();
+                                    }
+                                }}
+                                disabled={currentQuestion.required && !isAnswered()}
+                                testID="continue-button"
+                            />
+                            {!currentQuestion.required && !isAnswered() && (
+                                <PremiumButton
+                                    title="Skip this question"
+                                    onPress={() => handleNext()}
+                                    variant="ghost"
+                                    style={styles.skipButton}
+                                />
+                            )}
+                        </View>
                     </View>
                 )}
             </KeyboardAvoidingView>
@@ -389,169 +404,79 @@ export default function QuestionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
     keyboardView: {
         flex: 1,
     },
-    loadingContainer: {
+    centerContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: screenSpacing.horizontal,
     },
     loadingText: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         marginTop: spacing.md,
     },
-    errorContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: spacing.xl,
-    },
-    errorIcon: {
-        fontSize: 64,
-        marginBottom: spacing.lg,
-    },
     errorTitle: {
-        ...typography.headingMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
         marginBottom: spacing.sm,
     },
     errorText: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
         textAlign: 'center',
         marginBottom: spacing.xl,
     },
-    errorButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.full,
-    },
-    errorButtonText: {
-        ...typography.button,
-        color: colors.primaryText,
-    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
     },
-    backButton: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    backText: {
-        fontSize: 24,
-        color: colors.text,
-    },
-    progressContainer: {
+    progressWrapper: {
         flex: 1,
         alignItems: 'center',
     },
-    progressBar: {
-        width: '80%',
-        height: 4,
-        backgroundColor: colors.border,
-        borderRadius: 2,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: colors.primary,
-    },
     progressText: {
-        ...typography.label,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.caption,
         color: colors.textTertiary,
         marginTop: spacing.xs,
     },
     headerSpacer: {
-        width: 40,
+        width: 44,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        padding: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.xl,
     },
     questionText: {
-        ...typography.headingMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: 26,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
+        lineHeight: 26 * 1.3,
         marginBottom: spacing.xl,
     },
     optionsContainer: {
-        gap: spacing.sm,
+        gap: spacing.md,
     },
-    optionButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.surfaceElevated,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-    },
-    optionButtonSelected: {
-        borderColor: colors.primary,
-        borderWidth: 2,
-        backgroundColor: colors.accentLight,
-    },
-    optionRadio: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        borderWidth: 2,
-        borderColor: colors.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    optionRadioSelected: {
-        borderColor: colors.primary,
-    },
-    optionRadioInner: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: colors.primary,
-    },
-    optionCheckbox: {
-        width: 22,
-        height: 22,
-        borderRadius: borderRadius.sm,
-        borderWidth: 2,
-        borderColor: colors.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    optionCheckboxSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primary,
-    },
-    checkmark: {
-        color: colors.primaryText,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    optionText: {
-        ...typography.bodyMedium,
-        color: colors.text,
-        flex: 1,
-    },
-    optionTextSelected: {
-        fontWeight: '500',
+    optionCard: {
+        marginBottom: 0,
     },
     helperText: {
-        ...typography.bodySmall,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
         color: colors.textTertiary,
         marginTop: spacing.sm,
     },
@@ -559,52 +484,42 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
     },
     textInput: {
-        backgroundColor: colors.surfaceElevated,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
+        borderRadius: borderRadius.xl,
+        padding: spacing.lg,
         minHeight: 120,
-        ...typography.bodyMedium,
-        color: colors.text,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
     },
     numberInput: {
-        backgroundColor: colors.surfaceElevated,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        ...typography.headingMedium,
-        color: colors.text,
+        borderRadius: borderRadius.xl,
+        padding: spacing.lg,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
         textAlign: 'center',
     },
-    footer: {
-        padding: spacing.lg,
-        backgroundColor: colors.background,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+    ctaContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
     },
-    continueButton: {
-        backgroundColor: colors.primary,
-        paddingVertical: spacing.md + 2,
-        borderRadius: borderRadius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...shadows.md,
+    gradient: {
+        height: 40,
     },
-    continueButtonDisabled: {
-        backgroundColor: colors.textTertiary,
-    },
-    continueButtonText: {
-        ...typography.button,
-        color: colors.primaryText,
+    ctaContent: {
+        backgroundColor: colors.white,
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.sm,
     },
     skipButton: {
-        alignItems: 'center',
-        paddingVertical: spacing.md,
-    },
-    skipButtonText: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
+        marginTop: spacing.sm,
     },
 });

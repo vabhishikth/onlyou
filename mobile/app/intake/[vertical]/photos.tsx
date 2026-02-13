@@ -1,19 +1,32 @@
+/**
+ * Photo Upload Screen
+ * PR 5: Treatment + Questionnaire + Photo Restyle
+ * Restyled with Clinical Luxe design system
+ */
+
 import React, { useState } from 'react';
 import {
     View,
     Text,
-    TouchableOpacity,
+    Pressable,
     StyleSheet,
     ScrollView,
     Image,
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from '@apollo/client';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Camera, Image as ImageIcon, X, Lock } from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
+import { BackButton, PremiumButton } from '@/components/ui';
 import {
     GET_QUESTIONNAIRE_TEMPLATE,
     GET_PRESIGNED_UPLOAD_URL,
@@ -31,6 +44,9 @@ const pathToVertical: Record<string, HealthVertical> = {
     'weight-management': 'WEIGHT_MANAGEMENT',
 };
 
+// Warm cream background for tips card
+const TIPS_BG_COLOR = '#FAF7F0';
+
 interface PhotoState {
     [key: string]: {
         localUri?: string;
@@ -45,6 +61,7 @@ export default function PhotosScreen() {
         responses: string;
     }>();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const [photos, setPhotos] = useState<PhotoState>({});
 
@@ -196,26 +213,11 @@ export default function PhotosScreen() {
         router.back();
     };
 
-    const handleSkip = () => {
-        if (requiredPhotos.length > 0) {
-            Alert.alert(
-                'Required Photos',
-                'Some photos are required for your assessment. Please upload them to continue.',
-                [{ text: 'OK' }]
-            );
-        } else {
-            handleContinue();
-        }
-    };
-
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="photos-screen">
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                    <Text style={styles.backText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Upload Photos</Text>
+                <BackButton onPress={handleBack} testID="back-button" />
                 <View style={styles.headerSpacer} />
             </View>
 
@@ -224,33 +226,66 @@ export default function PhotosScreen() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Instructions */}
-                <View style={styles.instructionsCard}>
-                    <Text style={styles.instructionsIcon}>📷</Text>
-                    <Text style={styles.instructionsTitle}>Photo Guidelines</Text>
-                    <Text style={styles.instructionsText}>
-                        Clear photos help our doctors provide accurate assessments. Use good lighting and follow the instructions for each photo.
+                {/* Title */}
+                <Animated.View entering={FadeInUp.duration(300)}>
+                    <Text style={styles.title}>Add photos</Text>
+                    <Text style={styles.subtitle}>
+                        Clear photos help our doctors provide accurate assessments
                     </Text>
-                </View>
+                </Animated.View>
 
-                {/* Photo requirements */}
+                {/* Photo Tips Card */}
+                <Animated.View
+                    entering={FadeInUp.delay(100).duration(300)}
+                    style={styles.tipsCard}
+                    testID="photo-tips-card"
+                >
+                    <View style={styles.tipsIconContainer}>
+                        <Lock size={18} color={colors.accent} strokeWidth={2} />
+                    </View>
+                    <View style={styles.tipsContent}>
+                        <Text style={styles.tipsTitle}>Photo tips for best results</Text>
+                        <Text style={styles.tipsText}>
+                            • Use good lighting (natural light is best){'\n'}
+                            • Keep the camera steady{'\n'}
+                            • Follow the specific instructions for each photo
+                        </Text>
+                    </View>
+                </Animated.View>
+
+                {/* Photo Requirements */}
                 <View style={styles.photosSection}>
-                    {photoRequirements.map((requirement) => {
+                    {photoRequirements.map((requirement, index) => {
                         const photo = photos[requirement.id];
                         const isUploading = photo?.uploading;
                         const hasPhoto = photo?.localUri || photo?.uploadedUrl;
 
                         return (
-                            <View key={requirement.id} style={styles.photoCard}>
+                            <Animated.View
+                                key={requirement.id}
+                                entering={FadeInUp.delay(150 + index * 50).duration(300)}
+                                style={styles.photoCard}
+                                testID={`photo-card-${requirement.id}`}
+                            >
                                 <View style={styles.photoHeader}>
-                                    <Text style={styles.photoLabel}>{requirement.label}</Text>
+                                    <View style={styles.labelRow}>
+                                        <Text style={styles.photoLabel}>{requirement.label}</Text>
+                                        {requirement.required && (
+                                            <Text
+                                                style={styles.requiredIndicator}
+                                                testID={`required-indicator-${requirement.id}`}
+                                            >
+                                                *
+                                            </Text>
+                                        )}
+                                    </View>
                                     <View style={[
-                                        styles.requiredBadge,
-                                        requirement.required ? styles.requiredBadgeRequired : styles.requiredBadgeOptional,
+                                        styles.badge,
+                                        requirement.required ? styles.badgeRequired : styles.badgeOptional,
                                     ]}>
                                         <Text style={[
-                                            styles.requiredBadgeText,
-                                            requirement.required ? styles.requiredTextRequired : styles.requiredTextOptional,
+                                            styles.badgeText,
+                                            requirement.required ? styles.badgeTextRequired : styles.badgeTextOptional,
                                         ]}>
                                             {requirement.required ? 'Required' : 'Optional'}
                                         </Text>
@@ -271,16 +306,16 @@ export default function PhotosScreen() {
                                         />
                                         {isUploading ? (
                                             <View style={styles.uploadingOverlay}>
-                                                <ActivityIndicator color={colors.primaryText} />
+                                                <ActivityIndicator color={colors.white} />
                                                 <Text style={styles.uploadingText}>Uploading...</Text>
                                             </View>
                                         ) : (
-                                            <TouchableOpacity
+                                            <Pressable
                                                 style={styles.removeButton}
                                                 onPress={() => handleRemovePhoto(requirement.id)}
                                             >
-                                                <Text style={styles.removeButtonText}>✕</Text>
-                                            </TouchableOpacity>
+                                                <X size={14} color={colors.white} strokeWidth={2.5} />
+                                            </Pressable>
                                         )}
                                         {photo.uploadedUrl && !isUploading && (
                                             <View style={styles.uploadedBadge}>
@@ -290,50 +325,52 @@ export default function PhotosScreen() {
                                     </View>
                                 ) : (
                                     <View style={styles.photoActions}>
-                                        <TouchableOpacity
+                                        <Pressable
                                             style={styles.photoButton}
                                             onPress={() => handleTakePhoto(requirement)}
-                                            activeOpacity={0.7}
+                                            testID={`camera-button-${requirement.id}`}
                                         >
-                                            <Text style={styles.photoButtonIcon}>📷</Text>
-                                            <Text style={styles.photoButtonText}>Take Photo</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.photoButton, styles.photoButtonSecondary]}
+                                            <Camera size={22} color={colors.textSecondary} strokeWidth={1.5} />
+                                            <Text style={styles.photoButtonText}>Camera</Text>
+                                        </Pressable>
+                                        <Pressable
+                                            style={styles.photoButton}
                                             onPress={() => handleChoosePhoto(requirement)}
-                                            activeOpacity={0.7}
+                                            testID={`gallery-button-${requirement.id}`}
                                         >
-                                            <Text style={styles.photoButtonIcon}>🖼️</Text>
-                                            <Text style={[styles.photoButtonText, styles.photoButtonTextSecondary]}>
-                                                Choose Photo
-                                            </Text>
-                                        </TouchableOpacity>
+                                            <ImageIcon size={22} color={colors.textSecondary} strokeWidth={1.5} />
+                                            <Text style={styles.photoButtonText}>Gallery</Text>
+                                        </Pressable>
                                     </View>
                                 )}
-                            </View>
+                            </Animated.View>
                         );
                     })}
                 </View>
+
+                {/* Spacer for sticky CTA */}
+                <View style={{ height: 120 }} />
             </ScrollView>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[
-                        styles.continueButton,
-                        !allRequiredUploaded && styles.continueButtonDisabled,
-                    ]}
-                    onPress={handleContinue}
-                    disabled={!allRequiredUploaded}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.continueButtonText}>Continue</Text>
-                </TouchableOpacity>
-                {!allRequiredUploaded && requiredPhotos.length === 0 && (
-                    <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-                        <Text style={styles.skipButtonText}>Skip photos</Text>
-                    </TouchableOpacity>
-                )}
+            {/* Sticky CTA */}
+            <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + spacing.lg }]}>
+                <LinearGradient
+                    colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
+                    style={styles.gradient}
+                />
+                <View style={styles.ctaContent}>
+                    <PremiumButton
+                        title="Continue"
+                        onPress={handleContinue}
+                        disabled={!allRequiredUploaded}
+                        testID="continue-button"
+                    />
+                    {!allRequiredUploaded && requiredPhotos.length > 0 && (
+                        <Text style={styles.helperText}>
+                            Please add all required photos to continue
+                        </Text>
+                    )}
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -342,73 +379,76 @@ export default function PhotosScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    backText: {
-        fontSize: 24,
-        color: colors.text,
-    },
-    headerTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
-        flex: 1,
-        textAlign: 'center',
     },
     headerSpacer: {
-        width: 40,
+        flex: 1,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        padding: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
     },
-    instructionsCard: {
-        backgroundColor: colors.infoLight,
-        borderRadius: borderRadius.lg,
-        padding: spacing.lg,
-        marginBottom: spacing.xl,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.info,
-    },
-    instructionsIcon: {
-        fontSize: 32,
-        marginBottom: spacing.sm,
-    },
-    instructionsTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
+    title: {
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: 28,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
         marginBottom: spacing.xs,
     },
-    instructionsText: {
-        ...typography.bodySmall,
+    subtitle: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
-        textAlign: 'center',
+        marginBottom: spacing.xl,
     },
-    photosSection: {
-        gap: spacing.lg,
-    },
-    photoCard: {
-        backgroundColor: colors.surfaceElevated,
+    tipsCard: {
+        backgroundColor: TIPS_BG_COLOR,
         borderRadius: borderRadius.xl,
         padding: spacing.lg,
+        marginBottom: spacing.xl,
+        flexDirection: 'row',
+    },
+    tipsIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    tipsContent: {
+        flex: 1,
+    },
+    tipsTitle: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.label,
+        color: colors.textPrimary,
+        marginBottom: spacing.xs,
+    },
+    tipsText: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
+        color: colors.textSecondary,
+        lineHeight: fontSizes.caption * 1.5,
+    },
+    photosSection: {
+        gap: spacing.md,
+    },
+    photoCard: {
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
+        borderRadius: 20,
+        padding: spacing.lg,
     },
     photoHeader: {
         flexDirection: 'row',
@@ -416,33 +456,45 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: spacing.sm,
     },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     photoLabel: {
-        ...typography.bodyLarge,
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
     },
-    requiredBadge: {
+    requiredIndicator: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.body,
+        color: colors.error,
+        marginLeft: 2,
+    },
+    badge: {
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-        borderRadius: borderRadius.sm,
+        paddingVertical: 4,
+        borderRadius: borderRadius.md,
     },
-    requiredBadgeRequired: {
-        backgroundColor: colors.errorLight,
+    badgeRequired: {
+        backgroundColor: `${colors.error}15`,
     },
-    requiredBadgeOptional: {
-        backgroundColor: colors.surface,
+    badgeOptional: {
+        backgroundColor: colors.surfaceAlt,
     },
-    requiredBadgeText: {
-        ...typography.label,
+    badgeText: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.caption,
     },
-    requiredTextRequired: {
+    badgeTextRequired: {
         color: colors.error,
     },
-    requiredTextOptional: {
+    badgeTextOptional: {
         color: colors.textTertiary,
     },
     photoInstructions: {
-        ...typography.bodySmall,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
         color: colors.textSecondary,
         marginBottom: spacing.md,
     },
@@ -455,25 +507,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.primary,
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: colors.border,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.lg,
         gap: spacing.xs,
     },
-    photoButtonSecondary: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    photoButtonIcon: {
-        fontSize: 18,
-    },
     photoButtonText: {
-        ...typography.buttonSmall,
-        color: colors.primaryText,
-    },
-    photoButtonTextSecondary: {
-        color: colors.text,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.label,
+        color: colors.textSecondary,
     },
     photoPreviewContainer: {
         position: 'relative',
@@ -492,8 +536,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     uploadingText: {
-        ...typography.bodySmall,
-        color: colors.primaryText,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.caption,
+        color: colors.white,
         marginTop: spacing.xs,
     },
     removeButton: {
@@ -507,11 +552,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    removeButtonText: {
-        color: colors.primaryText,
-        fontSize: 14,
-        fontWeight: '700',
-    },
     uploadedBadge: {
         position: 'absolute',
         bottom: spacing.sm,
@@ -522,36 +562,29 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.sm,
     },
     uploadedBadgeText: {
-        ...typography.label,
-        color: colors.primaryText,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.caption,
+        color: colors.white,
     },
-    footer: {
-        padding: spacing.lg,
-        backgroundColor: colors.background,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+    ctaContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
     },
-    continueButton: {
-        backgroundColor: colors.primary,
-        paddingVertical: spacing.md + 2,
-        borderRadius: borderRadius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...shadows.md,
+    gradient: {
+        height: 40,
     },
-    continueButtonDisabled: {
-        backgroundColor: colors.textTertiary,
+    ctaContent: {
+        backgroundColor: colors.white,
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.sm,
     },
-    continueButtonText: {
-        ...typography.button,
-        color: colors.primaryText,
-    },
-    skipButton: {
-        alignItems: 'center',
-        paddingVertical: spacing.md,
-    },
-    skipButtonText: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
+    helperText: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
+        color: colors.textTertiary,
+        textAlign: 'center',
+        marginTop: spacing.sm,
     },
 });
