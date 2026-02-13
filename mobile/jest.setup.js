@@ -102,6 +102,11 @@ jest.mock('lucide-react-native', () => {
         Scale: MockIcon,
         Flower2: MockIcon,
         Truck: MockIcon,
+        FlaskConical: MockIcon,
+        ShieldCheck: MockIcon,
+        Stethoscope: MockIcon,
+        Package: MockIcon,
+        MessageCircle: MockIcon,
     };
 });
 
@@ -154,11 +159,31 @@ const mockUseMutation = jest.fn(() => [
     jest.fn().mockResolvedValue({ data: { updateOnboarding: { success: true } } }),
     { loading: false },
 ]);
+const mockUseQuery = jest.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+    refetch: jest.fn(),
+}));
 jest.mock('@apollo/client', () => ({
     ...jest.requireActual('@apollo/client'),
+    useQuery: mockUseQuery,
     useLazyQuery: mockUseLazyQuery,
     useMutation: mockUseMutation,
     gql: (strings) => strings.join(''),
+}));
+
+// Mock @/lib/auth
+jest.mock('@/lib/auth', () => ({
+    useAuth: jest.fn(() => ({
+        user: { id: '1', phone: '+919876543210', name: 'Test User', isProfileComplete: true },
+        isAuthenticated: true,
+        isLoading: false,
+        login: jest.fn(),
+        logout: jest.fn(),
+        refreshSession: jest.fn(),
+    })),
+    AuthProvider: ({ children }) => children,
 }));
 
 // Silence console warnings during tests

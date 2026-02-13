@@ -1,21 +1,38 @@
+/**
+ * Home Screen
+ * PR 4: Home Dashboard Restyle with Clinical Luxe design system
+ */
+
 import React from 'react';
 import {
     View,
     Text,
     ScrollView,
     StyleSheet,
-    Platform,
-    ActivityIndicator,
     RefreshControl,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@apollo/client';
-import { colors, spacing, typography } from '@/styles/theme';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { ShieldCheck, Stethoscope, Package, MessageCircle } from 'lucide-react-native';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes } from '@/theme/typography';
+import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
 import { useAuth } from '@/lib/auth';
 import { GET_AVAILABLE_VERTICALS, VerticalInfo } from '@/graphql/intake';
 import { GET_ACTIVE_TRACKING, ActiveTrackingResponse } from '@/graphql/tracking';
-import ConditionCard from '@/components/ConditionCard';
-import TrackingBanner from '@/components/TrackingBanner';
+import TreatmentCard from '@/components/TreatmentCard';
+import ActiveOrderBanner from '@/components/ActiveOrderBanner';
+
+// Map vertical ID to icon name
+const verticalIcons = {
+    HAIR_LOSS: 'Sparkles',
+    SEXUAL_HEALTH: 'Heart',
+    PCOS: 'Flower2',
+    WEIGHT_MANAGEMENT: 'Scale',
+} as const;
 
 // Default verticals if API isn't ready yet
 const DEFAULT_VERTICALS: VerticalInfo[] = [
@@ -26,7 +43,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         tagline: 'Thicker, fuller hair with personalised treatments',
         pricePerMonth: 999,
         icon: '💇',
-        color: '#8B5A2B',
+        color: '#B8A472',
     },
     {
         id: 'SEXUAL_HEALTH',
@@ -35,7 +52,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         tagline: 'Discreet care for ED and performance concerns',
         pricePerMonth: 1499,
         icon: '❤️',
-        color: '#C41E3A',
+        color: '#7E86AD',
     },
     {
         id: 'PCOS',
@@ -44,7 +61,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         tagline: 'Manage symptoms and restore hormonal balance',
         pricePerMonth: 1299,
         icon: '🌸',
-        color: '#FF69B4',
+        color: '#AD7E8E',
     },
     {
         id: 'WEIGHT_MANAGEMENT',
@@ -53,7 +70,31 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         tagline: 'Science-backed plans that work for your body',
         pricePerMonth: 1999,
         icon: '⚖️',
-        color: '#228B22',
+        color: '#6E9E7E',
+    },
+];
+
+// Feature items for "Why Onlyou" section
+const FEATURES = [
+    {
+        icon: Stethoscope,
+        title: 'Expert Doctors',
+        description: 'Board-certified specialists',
+    },
+    {
+        icon: ShieldCheck,
+        title: '100% Private',
+        description: 'Discreet packaging & care',
+    },
+    {
+        icon: Package,
+        title: 'Doorstep Delivery',
+        description: 'Medication delivered free',
+    },
+    {
+        icon: MessageCircle,
+        title: '24/7 Support',
+        description: 'Message your doctor anytime',
     },
 ];
 
@@ -101,90 +142,94 @@ export default function HomeScreen() {
     const firstName = user?.name?.split(' ')[0] || '';
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top']} testID="home-screen">
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                testID="home-scroll-view"
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
+                        tintColor={colors.accent}
+                        colors={[colors.accent]}
                     />
                 }
             >
                 {/* Header */}
-                <View style={styles.header}>
+                <Animated.View
+                    entering={FadeInUp.delay(0).duration(400)}
+                    style={styles.header}
+                >
                     <Text style={styles.greeting}>
                         {getGreeting()}{firstName ? `, ${firstName}` : ''}
                     </Text>
                     <Text style={styles.title}>What can we help with?</Text>
-                </View>
+                </Animated.View>
 
-                {/* Active Tracking Banner */}
-                <TrackingBanner
-                    labOrders={labOrders}
-                    deliveryOrders={deliveryOrders}
-                />
+                {/* Active Order Banner */}
+                <Animated.View entering={FadeInUp.delay(100).duration(400)}>
+                    <ActiveOrderBanner
+                        labOrders={labOrders}
+                        deliveryOrders={deliveryOrders}
+                    />
+                </Animated.View>
 
-                {/* Condition Cards */}
+                {/* Treatment Cards */}
                 {verticalsLoading && !verticals.length ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.primary} />
+                    <View style={styles.loadingContainer} testID="home-loading">
+                        <ActivityIndicator size="large" color={colors.accent} />
                     </View>
                 ) : (
-                    <View style={styles.cardsSection}>
+                    <Animated.View
+                        entering={FadeInUp.delay(200).duration(400)}
+                        style={styles.cardsSection}
+                    >
                         <Text style={styles.sectionTitle}>Start your health journey</Text>
-                        {verticals.map((vertical) => (
-                            <ConditionCard
+                        {verticals.map((vertical, index) => (
+                            <Animated.View
                                 key={vertical.id}
-                                id={vertical.id}
-                                name={vertical.name}
-                                tagline={vertical.tagline}
-                                icon={vertical.icon}
-                                color={vertical.color}
-                                pricePerMonth={vertical.pricePerMonth}
-                            />
+                                entering={FadeInUp.delay(300 + index * 80).duration(400)}
+                            >
+                                <TreatmentCard
+                                    id={vertical.id}
+                                    name={vertical.name}
+                                    tagline={vertical.tagline}
+                                    icon={verticalIcons[vertical.id]}
+                                    pricePerMonth={vertical.pricePerMonth}
+                                />
+                            </Animated.View>
                         ))}
-                    </View>
+                    </Animated.View>
                 )}
 
                 {/* Why Onlyou Section */}
-                <View style={styles.whySection}>
+                <Animated.View
+                    entering={FadeInUp.delay(600).duration(400)}
+                    style={styles.whySection}
+                    testID="why-onlyou-section"
+                >
                     <Text style={styles.whySectionTitle}>Why Onlyou?</Text>
                     <View style={styles.featureGrid}>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>👨‍⚕️</Text>
-                            <Text style={styles.featureTitle}>Expert Doctors</Text>
-                            <Text style={styles.featureDesc}>
-                                Board-certified specialists
-                            </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>🔒</Text>
-                            <Text style={styles.featureTitle}>100% Private</Text>
-                            <Text style={styles.featureDesc}>
-                                Discreet packaging & care
-                            </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>💊</Text>
-                            <Text style={styles.featureTitle}>Doorstep Delivery</Text>
-                            <Text style={styles.featureDesc}>
-                                Medication delivered free
-                            </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Text style={styles.featureIcon}>💬</Text>
-                            <Text style={styles.featureTitle}>24/7 Support</Text>
-                            <Text style={styles.featureDesc}>
-                                Message your doctor anytime
-                            </Text>
-                        </View>
+                        {FEATURES.map((feature, index) => {
+                            const IconComponent = feature.icon;
+                            return (
+                                <View key={index} style={styles.featureItem}>
+                                    <View style={styles.featureIconContainer}>
+                                        <IconComponent
+                                            size={24}
+                                            color={colors.accent}
+                                            strokeWidth={1.5}
+                                        />
+                                    </View>
+                                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                                    <Text style={styles.featureDesc}>{feature.description}</Text>
+                                </View>
+                            );
+                        })}
                     </View>
-                </View>
+                </Animated.View>
             </ScrollView>
         </SafeAreaView>
     );
@@ -193,54 +238,58 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: screenSpacing.horizontal,
         paddingTop: spacing.lg,
-        paddingBottom: spacing.xxl,
+        paddingBottom: spacing['4xl'],
     },
     header: {
         marginBottom: spacing.xl,
     },
     greeting: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.label,
+        color: colors.textTertiary,
         marginBottom: spacing.xs,
     },
     title: {
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-        fontSize: 28,
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.title,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
     },
     loadingContainer: {
-        paddingVertical: spacing.xxxl,
+        paddingVertical: spacing['4xl'],
         alignItems: 'center',
     },
     cardsSection: {
         marginBottom: spacing.xl,
     },
     sectionTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.cardTitle,
+        color: colors.textPrimary,
         marginBottom: spacing.md,
     },
     whySection: {
         backgroundColor: colors.surface,
-        borderRadius: 16,
+        borderRadius: borderRadius['2xl'],
         padding: spacing.lg,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.borderLight,
     },
     whySectionTitle: {
-        ...typography.headingSmall,
-        color: colors.text,
-        marginBottom: spacing.md,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.sectionH,
+        color: colors.textPrimary,
+        marginBottom: spacing.lg,
         textAlign: 'center',
+        letterSpacing: -0.3,
     },
     featureGrid: {
         flexDirection: 'row',
@@ -253,19 +302,25 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
         alignItems: 'center',
     },
-    featureIcon: {
-        fontSize: 28,
-        marginBottom: spacing.xs,
+    featureIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.accentLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: spacing.sm,
     },
     featureTitle: {
-        ...typography.bodyMedium,
-        fontWeight: '600',
-        color: colors.text,
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: fontSizes.label,
+        color: colors.textPrimary,
         textAlign: 'center',
         marginBottom: 2,
     },
     featureDesc: {
-        ...typography.bodySmall,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
         color: colors.textSecondary,
         textAlign: 'center',
     },
