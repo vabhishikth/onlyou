@@ -63,6 +63,8 @@ jest.mock('react-native-reanimated', () => {
         FadeInUp,
         FadeIn: createAnimationBuilder(),
         FadeOut: createAnimationBuilder(),
+        FadeInRight: createAnimationBuilder(),
+        FadeOutLeft: createAnimationBuilder(),
         SlideInUp: createAnimationBuilder(),
         SlideOutDown: createAnimationBuilder(),
         runOnJS,
@@ -130,6 +132,33 @@ jest.mock('expo-router', () => ({
 jest.mock('@/theme/fonts', () => ({
     useFonts: () => [true], // Always return fonts loaded
     customFonts: {},
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => {
+    const { View } = require('react-native');
+    const React = require('react');
+    return {
+        SafeAreaProvider: ({ children }) => children,
+        SafeAreaView: (props) => React.createElement(View, props),
+        useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+    };
+});
+
+// Mock @apollo/client
+const mockUseLazyQuery = jest.fn(() => [
+    jest.fn().mockResolvedValue({ data: { lookupPincode: { found: true, city: 'Mumbai', state: 'Maharashtra' } } }),
+    { loading: false, data: null },
+]);
+const mockUseMutation = jest.fn(() => [
+    jest.fn().mockResolvedValue({ data: { updateOnboarding: { success: true } } }),
+    { loading: false },
+]);
+jest.mock('@apollo/client', () => ({
+    ...jest.requireActual('@apollo/client'),
+    useLazyQuery: mockUseLazyQuery,
+    useMutation: mockUseMutation,
+    gql: (strings) => strings.join(''),
 }));
 
 // Silence console warnings during tests

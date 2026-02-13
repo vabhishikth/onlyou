@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, PatientProfile, DoctorProfile, LabProfile, PhlebotomistProfile, PharmacyProfile, Gender } from '@prisma/client';
+import { User, PatientProfile, DoctorProfile, LabProfile, PhlebotomistProfile, PharmacyProfile, Gender, HealthProfile, Prisma } from '@prisma/client';
 
 export interface AgeValidationResult {
     valid: boolean;
@@ -93,6 +93,29 @@ export interface CreatePharmacyProfileInput {
     state: string;
     pincode: string;
 }
+
+// Onboarding input (saves all data from Steps 1-3)
+export interface UpdateOnboardingInput {
+    healthGoals: string[];
+    fullName: string;
+    dateOfBirth: Date;
+    gender: Gender;
+    pincode: string;
+    state: string;
+    city: string;
+    telehealthConsent: boolean;
+}
+
+// Health profile input (Step 4)
+export interface UpsertHealthProfileInput {
+    condition: string;
+    responses: Prisma.JsonValue;
+}
+
+// Patient profile with health profiles
+export type PatientProfileWithHealthProfiles = PatientProfile & {
+    healthProfiles: HealthProfile[];
+};
 
 @Injectable()
 export class UserService {
@@ -288,5 +311,125 @@ export class UserService {
             profile.state &&
             profile.pincode
         );
+    }
+
+    // ============================================
+    // ONBOARDING METHODS
+    // ============================================
+
+    // Update onboarding data (Steps 1-3: health goals, basic info, location, consent)
+    async updateOnboarding(userId: string, input: UpdateOnboardingInput): Promise<PatientProfileWithHealthProfiles> {
+        // Validate age
+        const ageValidation = this.validateAge(input.dateOfBirth);
+        if (!ageValidation.valid) {
+            throw new BadRequestException(ageValidation.message);
+        }
+
+        // Validate pincode format
+        if (!this.validatePincode(input.pincode)) {
+            throw new BadRequestException('Invalid pincode format. Must be 6 digits.');
+        }
+
+        // Update user name
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { name: input.fullName },
+        });
+
+        // Upsert patient profile with onboarding data
+        const patientProfile = await this.prisma.patientProfile.upsert({
+            where: { userId },
+            create: {
+                userId,
+                fullName: input.fullName,
+                dateOfBirth: input.dateOfBirth,
+                gender: input.gender,
+                pincode: input.pincode,
+                state: input.state,
+                city: input.city,
+                healthGoals: input.healthGoals,
+                telehealthConsent: input.telehealthConsent,
+                telehealthConsentDate: input.telehealthConsent ? new Date() : null,
+            },
+            update: {
+                fullName: input.fullName,
+                dateOfBirth: input.dateOfBirth,
+                gender: input.gender,
+                pincode: input.pincode,
+                state: input.state,
+                city: input.city,
+                healthGoals: input.healthGoals,
+                telehealthConsent: input.telehealthConsent,
+                telehealthConsentDate: input.telehealthConsent ? new Date() : null,
+            },
+            include: {
+                healthProfiles: true,
+            },
+        });
+
+        return patientProfile;
+    }
+
+    // Upsert health profile (Step 4: health snapshot for a specific condition)
+    async upsertHealthProfile(userId: string, input: UpsertHealthProfileInput): Promise<HealthProfile> {
+        // First ensure patient profile exists
+        let patientProfile = await this.prisma.patientProfile.findUnique({
+            where: { userId },
+        });
+
+        if (!patientProfile) {
+            patientProfile = await this.prisma.patientProfile.create({
+                data: { userId },
+            });
+        }
+
+        // Upsert health profile for this condition
+        const healthProfile = await this.prisma.healthProfile.upsert({
+            where: {
+                patientProfileId_condition: {
+                    patientProfileId: patientProfile.id,
+                    condition: input.condition,
+                },
+            },
+            create: {
+                patientProfileId: patientProfile.id,
+                condition: input.condition,
+                responses: input.responses,
+            },
+            update: {
+                responses: input.responses,
+            },
+        });
+
+        return healthProfile;
+    }
+
+    // Complete onboarding (called after all health snapshots are saved)
+    async completeOnboarding(userId: string): Promise<PatientProfileWithHealthProfiles> {
+        const patientProfile = await this.prisma.patientProfile.update({
+            where: { userId },
+            data: { onboardingComplete: true },
+            include: { healthProfiles: true },
+        });
+
+        return patientProfile;
+    }
+
+    // Get patient profile with health profiles
+    async getPatientProfileWithHealthProfiles(userId: string): Promise<PatientProfileWithHealthProfiles | null> {
+        return this.prisma.patientProfile.findUnique({
+            where: { userId },
+            include: { healthProfiles: true },
+        });
+    }
+
+    // Check if onboarding is complete
+    async isOnboardingComplete(userId: string): Promise<boolean> {
+        const profile = await this.prisma.patientProfile.findUnique({
+            where: { userId },
+            select: { onboardingComplete: true },
+        });
+
+        return profile?.onboardingComplete ?? false;
     }
 }
