@@ -7,7 +7,7 @@
         "userInterfaceStyle": "automatic",
         "scheme": "onlyou",
         "splash": {
-            "backgroundColor": "#0ea5e9"
+            "backgroundColor": "#FFFFFF"
         },
         "assetBundlePatterns": [
             "**/*"
@@ -22,7 +22,7 @@
         },
         "android": {
             "adaptiveIcon": {
-                "backgroundColor": "#0ea5e9"
+                "backgroundColor": "#FFFFFF"
             },
             "package": "com.onlyou.app",
             "permissions": [

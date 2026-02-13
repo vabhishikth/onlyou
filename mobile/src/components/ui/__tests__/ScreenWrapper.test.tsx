@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { ScreenWrapper } from '../ScreenWrapper';
 
 describe('ScreenWrapper', () => {

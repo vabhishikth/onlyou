@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { View, Text } from 'react-native';
+import { Text } from 'react-native';
 import { SelectionCard } from '../SelectionCard';
 import * as Haptics from 'expo-haptics';
 

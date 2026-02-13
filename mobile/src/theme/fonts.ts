@@ -3,6 +3,7 @@
  * Use useFonts hook from expo-font with our custom fonts
  */
 
+import { useFonts as useExpoFonts } from 'expo-font';
 import {
     PlayfairDisplay_400Regular,
     PlayfairDisplay_600SemiBold,
@@ -31,3 +32,12 @@ export const customFonts = {
 };
 
 export type FontKey = keyof typeof customFonts;
+
+/**
+ * Custom hook to load all Onlyou fonts
+ * @returns [fontsLoaded: boolean]
+ */
+export function useFonts(): [boolean] {
+    const [loaded] = useExpoFonts(customFonts);
+    return [loaded];
+}

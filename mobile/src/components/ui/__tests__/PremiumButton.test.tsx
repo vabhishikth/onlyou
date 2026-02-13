@@ -75,7 +75,7 @@ describe('PremiumButton', () => {
 
     describe('Loading state', () => {
         it('shows loading indicator when loading', () => {
-            const { queryByText, getByTestId } = render(
+            const { queryByText } = render(
                 <PremiumButton
                     title="Get Started"
                     onPress={mockOnPress}

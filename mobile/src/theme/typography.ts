@@ -104,6 +104,19 @@ export const textStyles = {
         fontSize: fontSizes.caption,
         lineHeight: fontSizes.caption * lineHeights.normal,
     },
+    bodySmall: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.label,
+        lineHeight: fontSizes.label * lineHeights.normal,
+    },
+
+    // Heading aliases
+    h2: {
+        fontFamily: fontFamilies.serifBlack,
+        fontSize: fontSizes.title,
+        lineHeight: fontSizes.title * lineHeights.tight,
+        letterSpacing: letterSpacing.tight,
+    },
 
     // Buttons
     button: {
