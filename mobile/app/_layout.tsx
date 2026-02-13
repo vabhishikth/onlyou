@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ApolloProvider } from '@apollo/client';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { apolloClient } from '@/lib/apollo';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { colors } from '@/styles/theme';
 
 // Auth-based navigation guard
 function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
@@ -33,22 +32,7 @@ function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
 function RootLayoutContent() {
     return (
         <AuthNavigationGuard>
-            <Stack
-                screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.background },
-                    animation: 'slide_from_right',
-                }}
-            >
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                    name="intake"
-                    options={{
-                        presentation: 'modal',
-                    }}
-                />
-            </Stack>
+            <Slot />
         </AuthNavigationGuard>
     );
 }
