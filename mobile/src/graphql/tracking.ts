@@ -291,3 +291,23 @@ export const CANCEL_LAB_ORDER = gql`
         }
     }
 `;
+
+// Spec: Section 8.2 Step 6 — Patient shows OTP to delivery person
+export const CONFIRM_DELIVERY_OTP = gql`
+    mutation ConfirmDeliveryOTP($input: ConfirmDeliveryOTPInput!) {
+        confirmDeliveryOTP(input: $input) {
+            success
+            verified
+            message
+        }
+    }
+`;
+
+export const RATE_DELIVERY = gql`
+    mutation RateDelivery($input: RateDeliveryInput!) {
+        rateDelivery(input: $input) {
+            success
+            message
+        }
+    }
+`;
