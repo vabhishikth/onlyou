@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-20
 
 ## Current Phase: Doctor Dashboard (Phase 3)
-## Current Task: PR 9 - Web Fixes + Seed Data
+## Current Task: PR 10 - Doctor Dashboard Polish
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -21,55 +21,60 @@
 ### Doctor Dashboard (Phase 3):
 - [x] PR 8: Consultation + Messaging Resolvers — 18 tests (TDD)
 - [x] PR 9: Web fixes + seed data
-- [ ] PR 10: End-to-end verification + polish
+- [x] PR 10: Doctor Dashboard Polish (4 commits)
 
 ## Test Counts:
-- Backend: 1,518 tests
+- Backend: 1,522 tests (4 new lab order tests added in PR 10)
 - Mobile: 350 tests
-- **Total: 1,868 tests**
+- **Total: 1,872 tests**
 
 ---
 
-## Last Completed: PR 9 - Web Fixes + Seed Data (2026-02-20)
+## Last Completed: PR 10 - Doctor Dashboard Polish (2026-02-20)
 
-### What was fixed:
+### Commit 1: fix(backend): add class-validator decorators to all InputType DTOs
+- Root cause fix for "Create Prescription does nothing" bug
+- `ValidationPipe({ whitelist: true })` was stripping properties without decorators
+- Added `@IsNotEmpty()`, `@IsOptional()`, `@IsArray()`, `@ValidateNested()` to 36 `@InputType()` classes across 12 DTO files
+- Files: admin, collect-portal, consultation, dashboard, lab-order, lab-portal, messaging, pharmacy-portal, prescription DTOs
 
-**Lab Order Resolver Auth Fix** (`backend/src/lab-order/lab-order.resolver.ts`):
-- Changed `createLabOrder`, `reviewLabResults`, `closeLabOrder` from `@Args('doctorId')` to `@UseGuards(JwtAuthGuard)` + `@CurrentUser()`
-- Removed doctorId from frontend GraphQL mutation strings
+### Commit 2: feat(backend): add lab orders to case detail response
+- Added `CaseLabOrderType` DTO (id, testPanel, panelName, status, orderedAt, resultFileUrl, criticalValues)
+- Added `labOrders` field to `CaseDetailType`
+- Updated `getCaseDetail()` Prisma include with labOrders orderBy desc
+- Mapped lab orders in dashboard resolver with null→undefined
+- 4 new tests in `dashboard.service.spec.ts` (50 total, all passing)
 
-**Blood Work Page Auth Fix** (`web/src/app/doctor/case/[id]/blood-work/page.tsx`):
-- Removed `mock-doctor-id` constant and `doctorId` variable
-- Mutations now use authenticated user context
+### Commit 3: feat(web): Clinical Luxe design system for doctor dashboard
+- Color palette: green→black (#141414), orange→lavender (#9B8EC4)
+- Added Playfair Display serif font for headings
+- Updated button variants, sidebar, login page, all doctor pages
 
-**Home Dashboard Wired** (`web/src/app/doctor/page.tsx`):
-- Replaced hardcoded mock stats with `useQuery(QUEUE_STATS)` from Apollo Client
-- Stats cards, quick actions, and summary section all use real data
+### Commit 4: feat(web): Start Review button, Case Progress card, message bubble fix
+- Start Review button for AI_REVIEWED cases → transitions to DOCTOR_REVIEWING
+- Case Progress card on Overview tab (blood work status, prescription, messages)
+- Message bubble alignment uses `useAuth()` currentUser.id instead of hardcoded 'doctor'
+- Updated CASE_DETAIL GraphQL query to include labOrders
 
-**Stub Pages Created:**
-- `web/src/app/doctor/prescriptions/page.tsx` — Prescriptions list stub
-- `web/src/app/doctor/lab-orders/page.tsx` — Lab Orders list stub
-- `web/src/app/doctor/messages/page.tsx` — Messages center stub
-- `web/src/app/doctor/templates/page.tsx` — Templates library stub
+---
 
-**Seed Data** (`backend/prisma/seed.ts`):
-- Doctor: Dr. Arjun Mehta (+919999999999, DOCTOR role, Dermatology, NMC: TEST/NMC/2024)
-- Patient 1: Rahul Sharma (+919888888888) — Hair Loss intake, consultation in DOCTOR_REVIEWING, AI assessment
-- Patient 2: Amit Patel (+919777777777) — Sexual Health intake, consultation in AI_REVIEWED, AI assessment
+## Next Up: End-to-End Testing with Real Data
+
+**Goal:** Test the full patient→doctor flow with real data (no seed data):
+1. Patient registers on mobile → completes intake → consultation created
+2. Doctor logs in on web → sees case in queue → clicks "Start Review"
+3. Doctor reviews case, orders blood work, prescribes, sends messages
+4. Verify all status transitions work correctly
+
+**What's needed next (Phase 4 - Blood Work & Delivery):**
+- Lab portal (lab.onlyou.life) for diagnostic centres
+- Phlebotomist portal (collect.onlyou.life)
+- Order & delivery system
+- Payment integration (Razorpay)
 
 ---
 
-## Next Up: PR 10 — End-to-End Verification + Polish
-
-**Goal:** Verify the full doctor workflow works end-to-end
-
-**What's needed:**
-- Doctor logs in via OTP → sees real queue stats on home dashboard
-- Queue page shows assigned consultations with real data
-- Case detail shows all 5 tabs (overview, assessment, prescription, blood work, messages)
-- Doctor can: send messages, create prescriptions, order blood work, approve/reject cases
-- Fix any integration issues discovered during E2E testing
-
----
+## Known Issues:
+- None currently
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
