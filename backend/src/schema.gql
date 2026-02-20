@@ -2,6 +2,11 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type ActiveTrackingResponse {
+  deliveryOrders: [TrackingDeliveryOrderType!]!
+  labOrders: [TrackingLabOrderType!]!
+}
+
 type AdminDashboardStats {
   activePatients: Int!
   deliveries: DeliveryStats!
@@ -195,11 +200,25 @@ type AdminPatientsResponse {
   total: Int!
 }
 
+input ApplyWalletAtCheckoutInput {
+  totalAmountPaise: Int!
+  useWallet: Boolean!
+  userId: String!
+}
+
 input ArrangeDeliveryInput {
   deliveryMethod: String!
   deliveryPersonName: String!
   deliveryPersonPhone: String!
   estimatedDeliveryTime: String
+  orderId: String!
+}
+
+input ArrangePickupInput {
+  deliveryMethod: String!
+  deliveryPersonName: String!
+  deliveryPersonPhone: String!
+  estimatedDeliveryTime: String!
   orderId: String!
 }
 
@@ -271,6 +290,12 @@ type AvailableTemplatesResponse {
   vertical: HealthVertical!
 }
 
+input BookSlotInput {
+  collectionAddress: String
+  labOrderId: String!
+  slotId: String!
+}
+
 input BulkAssignPhlebotomistInput {
   labOrderIds: [String!]!
   phlebotomistId: String!
@@ -281,6 +306,16 @@ type BulkAssignmentResponse {
   message: String!
   success: Boolean!
   updatedCount: Int!
+}
+
+input CancelLabInput {
+  labOrderId: String!
+  reason: String!
+}
+
+input CancelOrderInput {
+  orderId: String!
+  reason: String!
 }
 
 type CaseAIAssessmentType {
@@ -378,6 +413,12 @@ type CheckContraindicationsResponse {
   result: ContraindicationResultType!
 }
 
+type CheckoutResultType {
+  remainingAmountPaise: Int!
+  walletAmountUsed: Int!
+  walletFullyCovered: Boolean!
+}
+
 type CollectMutationResponse {
   message: String!
   success: Boolean!
@@ -388,6 +429,22 @@ type CollectTodaySummary {
   failed: Int!
   pending: Int!
   total: Int!
+}
+
+input ConfirmDeliveryInput {
+  orderId: String!
+  otp: String!
+}
+
+input ConfirmDeliveryOTPInput {
+  orderId: String!
+  otp: String!
+}
+
+type ConfirmOTPResponse {
+  message: String
+  success: Boolean!
+  verified: Boolean!
 }
 
 type ConsultationStatusResponse {
@@ -439,6 +496,15 @@ type CreateLabOrderResponse {
   success: Boolean!
 }
 
+input CreateOrderInput {
+  deliveryAddress: String!
+  deliveryCity: String!
+  deliveryCost: Int!
+  deliveryPincode: String!
+  medicationCost: Int!
+  prescriptionId: String!
+}
+
 input CreatePharmacyInput {
   address: String!
   avgPreparationMinutes: Int
@@ -478,6 +544,13 @@ type CreatePrescriptionResponse {
   message: String!
   prescription: PrescriptionType
   success: Boolean!
+}
+
+input CreditWalletInput {
+  amountPaise: Int!
+  creditType: String!
+  description: String
+  userId: String!
 }
 
 """Dashboard-friendly status for consultations"""
@@ -579,6 +652,22 @@ enum HealthVertical {
   PCOS
   SEXUAL_HEALTH
   WEIGHT_MANAGEMENT
+}
+
+type HomeBannerResponse {
+  bannerText: String
+  hasBanner: Boolean!
+  itemId: String
+  itemType: String
+}
+
+input InitiateRefundInput {
+  consultationId: String
+  method: String!
+  orderId: String
+  paymentId: String!
+  trigger: String!
+  userId: String!
 }
 
 type IntakeResponseType {
@@ -690,6 +779,11 @@ input MarkCollectedInput {
   tubeCount: Int!
 }
 
+input MarkDeliveryFailedInput {
+  orderId: String!
+  reason: String!
+}
+
 input MarkDeliveryStatusInput {
   failedReason: String
   orderId: String!
@@ -747,43 +841,58 @@ type MessageType {
 }
 
 type Mutation {
+  applyWalletAtCheckout(input: ApplyWalletAtCheckoutInput!): CheckoutResultType!
   arrangeDelivery(input: ArrangeDeliveryInput!): GenerateDeliveryOtpResponse!
+  arrangePickup(input: ArrangePickupInput!): OrderMutationResponse!
   assignCaseToDoctor(consultationId: String!, doctorId: String!): ConsultationStatusResponse!
   assignLab(input: AssignLabInput!): AdminLabOrderMutationResponse!
   assignPhlebotomist(input: AssignPhlebotomistInput!): AdminLabOrderMutationResponse!
+  bookLabSlot(input: BookSlotInput!): TrackingMutationResponse!
   bulkAssignPhlebotomist(input: BulkAssignPhlebotomistInput!): BulkAssignmentResponse!
+  cancelLabOrder(input: CancelLabInput!): TrackingMutationResponse!
+  cancelOrder(input: CancelOrderInput!): OrderMutationResponse!
   closeLabOrder(labOrderId: String!): ReviewLabResultsResponse!
   collectDeliverToLab(input: DeliverToLabInput!): TodayAssignment!
   collectMarkCollected(input: MarkCollectedInput!): TodayAssignment!
   collectMarkUnavailable(input: MarkUnavailableInput!): CollectMutationResponse!
   collectReportLate(input: ReportLateInput!): CollectMutationResponse!
   completeOnboarding: OnboardingResponse!
+  confirmDelivery(input: ConfirmDeliveryInput!): OrderMutationResponse!
+  confirmDeliveryOTP(input: ConfirmDeliveryOTPInput!): ConfirmOTPResponse!
   createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
   createLabOrder(input: CreateLabOrderInput!): CreateLabOrderResponse!
+  createOrder(input: CreateOrderInput!): OrderMutationResponse!
   createPharmacy(input: CreatePharmacyInput!): PharmacyDetails!
   createPhlebotomist(input: CreatePhlebotomistInput!): PhlebotomistDetails!
   createPrescription(input: CreatePrescriptionInput!): CreatePrescriptionResponse!
+  createReorder(originalOrderId: String!): OrderMutationResponse!
+  creditWallet(input: CreditWalletInput!): WalletMutationResponse!
   getPresignedUploadUrl(input: GetPresignedUrlInput!): PresignedUrlResponse!
+  initiateRefund(input: InitiateRefundInput!): RefundMutationResponse!
   labMarkSampleReceived(input: MarkSampleReceivedInput!): LabSampleSummary!
   labReportSampleIssue(input: ReportSampleIssueInput!): LabPortalMutationResponse!
   labStartProcessing(labOrderId: String!): LabSampleSummary!
   labUploadResults(input: UploadResultsInput!): LabSampleSummary!
   logout(refreshToken: String): RequestOtpResponse!
   markAllMessagesAsRead(consultationId: String!): MarkAllReadResponse!
+  markDeliveryFailed(input: MarkDeliveryFailedInput!): OrderMutationResponse!
   markMessageAsRead(messageId: String!): MessageType!
-  markOutForDelivery(orderId: String!): DeliveryMutationResponse!
+  markOutForDelivery(orderId: String!): OrderMutationResponse!
   overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
   pharmacyMarkReady(orderId: String!): PharmacyOrderSummary!
   pharmacyReportStockIssue(input: ReportStockIssueInput!): PharmacyMutationResponse!
   pharmacyStartPreparing(orderId: String!): PharmacyOrderSummary!
+  rateDelivery(input: RateDeliveryInput!): OrderMutationResponse!
   refreshToken(input: RefreshTokenInput!): AuthResponse!
   regenerateDeliveryOtp(orderId: String!): GenerateDeliveryOtpResponse!
   requestMoreInfo(consultationId: String!, message: String!): RequestMoreInfoResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
+  rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
+  rescheduleLabSlot(input: RescheduleLabInput!): TrackingMutationResponse!
   reviewLabResults(input: ReviewLabResultsInput!): ReviewLabResultsResponse!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
   sendMessage(consultationId: String!, content: String!): MessageType!
-  sendToPharmacy(input: SendToPharmacyInput!): DeliveryMutationResponse!
+  sendToPharmacy(input: SendToPharmacyInput!): OrderMutationResponse!
   submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
   testS3Connection: S3TestResult!
   toggleDiagnosticCentreActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
@@ -815,7 +924,13 @@ type OnboardingResponse {
   success: Boolean!
 }
 
-"""Order/delivery status"""
+type OrderMutationResponse {
+  message: String!
+  order: OrderType
+  success: Boolean!
+}
+
+"""Order delivery status values"""
 enum OrderStatus {
   CANCELLED
   DELIVERED
@@ -829,6 +944,42 @@ enum OrderStatus {
   RESCHEDULED
   RETURNED
   SENT_TO_PHARMACY
+}
+
+type OrderType {
+  cancellationReason: String
+  cancelledAt: DateTime
+  consultationId: String
+  deliveredAt: DateTime
+  deliveryAddress: String!
+  deliveryCity: String!
+  deliveryCost: Int!
+  deliveryFailedReason: String
+  deliveryMethod: String
+  deliveryOtp: String
+  deliveryPersonName: String
+  deliveryPersonPhone: String
+  deliveryPincode: String!
+  deliveryRating: Int
+  estimatedDeliveryTime: String
+  id: String!
+  isReorder: Boolean
+  medicationCost: Int!
+  orderNumber: String!
+  orderedAt: DateTime!
+  parentOrderId: String
+  patientId: String!
+  patientName: String
+  patientPhone: String
+  pharmacyAddress: String
+  pharmacyIssueReason: String
+  pharmacyPartnerId: String
+  pharmacyPartnerName: String
+  pharmacyReadyAt: DateTime
+  prescriptionId: String!
+  sentToPharmacyAt: DateTime
+  status: OrderStatus!
+  totalAmount: Int!
 }
 
 input OverrideLabOrderStatusInput {
@@ -1028,13 +1179,26 @@ type ProfileUpdateResponse {
   user: UserProfileType
 }
 
+type ProgressResponse {
+  steps: [ProgressStepType!]!
+}
+
+type ProgressStepType {
+  details: String
+  label: String!
+  status: String!
+  timestamp: DateTime
+}
+
 type Query {
+  activeTracking: ActiveTrackingResponse!
   adminDashboardStats: AdminDashboardStats!
   adminDeliveries(filter: AdminDeliveriesFilterInput): AdminDeliveriesResponse!
   adminLabOrders(filter: AdminLabOrdersFilterInput): AdminLabOrdersResponse!
   adminPatientDetail(patientId: String!): AdminPatientDetail
   adminPatients(filter: AdminPatientsFilterInput): AdminPatientsResponse!
   adminQueue(filters: QueueFiltersInput): QueueResponse!
+  availableActions(itemId: String!, type: String!): [String!]!
   availableLabs(city: String!): AvailableLabsResponse!
   availablePharmacies(pincode: String!): AvailablePharmaciesResponse!
   availablePhlebotomists(date: DateTime!, pincode: String!): AvailablePhlebotomistsResponse!
@@ -1045,6 +1209,7 @@ type Query {
   checkContraindications(input: CheckContraindicationsInput!): CheckContraindicationsResponse!
   collectTodaySummary: CollectTodaySummary!
   consultationMessages(consultationId: String!): [MessageType!]!
+  deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
   labCompletedSamples: [LabSampleSummary!]!
@@ -1052,6 +1217,7 @@ type Query {
   labIncomingSamples: [LabSampleSummary!]!
   labInfo: LabInfo!
   labOrder(id: String!): LabOrderType
+  labOrderProgress(labOrderId: String!): ProgressResponse!
   labOrdersByConsultation(consultationId: String!): [LabOrderType!]!
   labOrdersForReview(doctorId: String!): [LabOrderType!]!
   labTodaySummary: LabTodaySummary!
@@ -1060,6 +1226,10 @@ type Query {
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
   myIntakes: [IntakeResponseType!]!
   nearbyLabs: [NearbyLab!]!
+  order(id: String!): OrderMutationResponse!
+  ordersByPatient(patientId: String!): [OrderType!]!
+  ordersDueForReorder: [OrderType!]!
+  pendingDeliveries: [OrderType!]!
   pharmacies(city: String, page: Float, pageSize: Float, search: String): PharmaciesResponse!
   pharmacyInfo: PharmacyInfo!
   pharmacyNewOrders: [PharmacyOrderSummary!]!
@@ -1071,11 +1241,16 @@ type Query {
   prescriptionByConsultation(consultationId: String!): PrescriptionType
   questionnaireTemplate(input: GetQuestionnaireInput!): QuestionnaireTemplateType!
   queueStats: QueueStatsType!
+  refundStatus(refundId: String!): RefundMutationResponse!
+  refundsByUser(userId: String!): [RefundType!]!
   slaEscalations: [SLAEscalation!]!
   suggestTemplate(consultationId: String!): TemplateSuggestionType!
   todayAssignments: [TodayAssignment!]!
+  trackingHomeBanner: HomeBannerResponse!
+  transactionHistory(userId: String!): [WalletTransactionType!]!
   unassignedCases(filters: QueueFiltersInput): QueueResponse!
   unreadMessageCount(consultationId: String!): Int!
+  walletBalance(userId: String!): WalletBalanceType!
 }
 
 type QuestionnaireTemplateType {
@@ -1108,8 +1283,34 @@ type QueueStatsType {
   totalActive: Int!
 }
 
+input RateDeliveryInput {
+  orderId: String!
+  rating: Int!
+}
+
 input RefreshTokenInput {
   refreshToken: String!
+}
+
+type RefundMutationResponse {
+  message: String!
+  refund: RefundType
+  success: Boolean!
+}
+
+type RefundType {
+  amountPaise: Int!
+  consultationId: String
+  createdAt: DateTime!
+  id: String!
+  method: String!
+  orderId: String
+  paymentId: String!
+  processedAt: DateTime
+  razorpayRefundId: String
+  status: String!
+  trigger: String!
+  userId: String!
 }
 
 input ReportLateInput {
@@ -1139,6 +1340,16 @@ input RequestOtpInput {
 type RequestOtpResponse {
   message: String!
   success: Boolean!
+}
+
+input RescheduleDeliveryInput {
+  newDeliveryDate: String!
+  orderId: String!
+}
+
+input RescheduleLabInput {
+  labOrderId: String!
+  newSlotId: String!
 }
 
 input ReviewLabResultsInput {
@@ -1245,6 +1456,57 @@ type TodayAssignment {
   testsOrdered: [String!]!
   timeWindow: String!
   tubeCount: Int
+}
+
+type TrackingDeliveryOrderType {
+  deliveredAt: DateTime
+  deliveryFailedAt: DateTime
+  deliveryOtp: String
+  deliveryPersonName: String
+  deliveryPersonPhone: String
+  estimatedDeliveryTime: String
+  id: String!
+  outForDeliveryAt: DateTime
+  pharmacyPreparingAt: DateTime
+  pharmacyReadyAt: DateTime
+  pickupArrangedAt: DateTime
+  prescriptionCreatedAt: DateTime
+  prescriptionId: String
+  rescheduledAt: DateTime
+  sentToPharmacyAt: DateTime
+  status: String!
+}
+
+type TrackingLabOrderType {
+  abnormalFlags: String
+  bookedDate: String
+  bookedTimeSlot: String
+  collectionAddress: String
+  collectionFailedAt: DateTime
+  collectionFailedReason: String
+  criticalValues: Boolean!
+  deliveredToLabAt: DateTime
+  doctorNote: String
+  doctorReviewedAt: DateTime
+  id: String!
+  orderedAt: DateTime!
+  panelName: String
+  phlebotomistAssignedAt: DateTime
+  phlebotomistName: String
+  phlebotomistPhone: String
+  processingStartedAt: DateTime
+  resultFileUrl: String
+  resultsUploadedAt: DateTime
+  sampleCollectedAt: DateTime
+  sampleReceivedAt: DateTime
+  slotBookedAt: DateTime
+  status: String!
+  testPanel: [String!]!
+}
+
+type TrackingMutationResponse {
+  message: String!
+  success: Boolean!
 }
 
 input UpdateDiagnosticCentreInput {
@@ -1354,4 +1616,28 @@ type VerticalInfo {
   name: String!
   pricePerMonth: Int!
   tagline: String!
+}
+
+type WalletBalanceType {
+  balancePaise: Int!
+  balanceRupees: Float!
+}
+
+type WalletMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type WalletTransactionType {
+  amountPaise: Int!
+  balanceAfter: Int!
+  createdAt: DateTime!
+  creditType: String
+  description: String
+  expiresAt: DateTime
+  id: String!
+  referenceId: String
+  referenceType: String
+  type: String!
+  walletId: String!
 }

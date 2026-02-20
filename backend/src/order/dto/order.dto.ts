@@ -1,6 +1,6 @@
-import { Field, ObjectType, InputType, Int, Float, registerEnumType } from '@nestjs/graphql';
+import { Field, ObjectType, InputType, Int, registerEnumType } from '@nestjs/graphql';
 import { OrderStatus } from '@prisma/client';
-import { IsNotEmpty, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, Min, Max } from 'class-validator';
 
 // Spec: master spec Section 8 (Medication Delivery)
 

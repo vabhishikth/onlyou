@@ -7,15 +7,13 @@ import {
     ScrollView,
     Image,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import {
     GET_QUESTIONNAIRE_TEMPLATE,
-    SUBMIT_INTAKE,
     QuestionnaireSchema,
     PhotoInput,
     HealthVertical,
@@ -49,7 +47,6 @@ export default function ReviewScreen() {
     const router = useRouter();
 
     const [consentChecked, setConsentChecked] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
 
     const dbVertical = pathToVertical[vertical || ''] || 'HAIR_LOSS';
     const responses: Record<string, unknown> = responsesParam ? JSON.parse(responsesParam) : {};
@@ -59,9 +56,6 @@ export default function ReviewScreen() {
     const { data } = useQuery(GET_QUESTIONNAIRE_TEMPLATE, {
         variables: { input: { vertical: dbVertical } },
     });
-
-    // Submit mutation
-    const [submitIntake] = useMutation(SUBMIT_INTAKE);
 
     const schema = data?.questionnaireTemplate?.schema as QuestionnaireSchema | undefined;
 
@@ -77,41 +71,22 @@ export default function ReviewScreen() {
         router.back();
     };
 
-    const handleSubmit = async () => {
+    // Spec: Section 3.6 — Review → Plan Selection → Payment → Complete
+    const handleContinue = () => {
         if (!consentChecked) {
             Alert.alert('Consent Required', 'Please agree to the terms to continue.');
             return;
         }
 
-        setSubmitting(true);
-
-        try {
-            const { data: result } = await submitIntake({
-                variables: {
-                    input: {
-                        vertical: dbVertical,
-                        responses,
-                        photos: photos.length > 0 ? photos : undefined,
-                    },
-                },
-            });
-
-            if (result?.submitIntake.success) {
-                router.push({
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    pathname: `/intake/${vertical}/complete` as any,
-                    params: {
-                        consultationId: result.submitIntake.consultation?.id,
-                    },
-                });
-            } else {
-                Alert.alert('Error', result?.submitIntake.message || 'Failed to submit');
-            }
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Something went wrong');
-        } finally {
-            setSubmitting(false);
-        }
+        router.push({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            pathname: `/intake/${vertical}/plan-selection` as any,
+            params: {
+                vertical,
+                responses: responsesParam,
+                photos: photosParam || '[]',
+            },
+        });
     };
 
     // Group responses by section
@@ -245,17 +220,13 @@ export default function ReviewScreen() {
                 <TouchableOpacity
                     style={[
                         styles.submitButton,
-                        (!consentChecked || submitting) && styles.submitButtonDisabled,
+                        !consentChecked && styles.submitButtonDisabled,
                     ]}
-                    onPress={handleSubmit}
-                    disabled={!consentChecked || submitting}
+                    onPress={handleContinue}
+                    disabled={!consentChecked}
                     activeOpacity={0.8}
                 >
-                    {submitting ? (
-                        <ActivityIndicator color={colors.primaryText} />
-                    ) : (
-                        <Text style={styles.submitButtonText}>Submit Assessment</Text>
-                    )}
+                    <Text style={styles.submitButtonText}>Continue to Plan Selection</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

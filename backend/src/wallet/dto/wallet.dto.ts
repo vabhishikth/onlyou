@@ -1,4 +1,4 @@
-import { Field, ObjectType, InputType, Int, Float, registerEnumType } from '@nestjs/graphql';
+import { Field, ObjectType, InputType, Int, Float } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, IsNumber, Min } from 'class-validator';
 
 // Spec: master spec Section 10 (Refund & Wallet)

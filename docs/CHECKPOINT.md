@@ -2,7 +2,7 @@
 
 ## Current Phase: Phase 5 — Payment Integration
 ## Current Task: PR 14 - Payment Integration (Razorpay)
-## Status: IN PROGRESS (Tasks 1-2 of 4 complete)
+## Status: IN PROGRESS (Tasks 1-3 of 4 complete)
 
 ## Completed Work:
 
@@ -33,8 +33,8 @@
 
 ## Test Counts:
 - Backend: 1,917 tests (41 test suites)
-- Mobile: 398 tests (27 test suites)
-- **Total: 2,315 tests**
+- Mobile: 416 tests (28 test suites)
+- **Total: 2,333 tests**
 
 ---
 
@@ -53,14 +53,25 @@
 - Added @@unique([vertical, durationMonths]) to SubscriptionPlan in schema.prisma
 - Created mobile/src/graphql/payment.ts: types, queries (GET_AVAILABLE_PLANS, GET_MY_PAYMENTS), mutations (CREATE_PAYMENT_ORDER, VERIFY_PAYMENT), helpers (formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent)
 - 19 helper tests: formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent, GraphQL exports
-### Task 3: Mobile Plan Selection Screen — PENDING
+### Task 3: feat(mobile): add plan selection screen in intake flow — COMPLETE
+- Created mobile/app/intake/[vertical]/plan-selection.tsx (~300 lines)
+  - Fetches plans via GET_AVAILABLE_PLANS query
+  - 3 plan cards with radio selection, price, savings badge, features on select
+  - "Continue to Payment" CTA routes to payment screen with params
+  - Loading state, error state, Clinical Luxe theme
+- Modified mobile/app/intake/[vertical]/review.tsx
+  - Removed submitIntake mutation call from handleSubmit
+  - Changed routing: pushes to plan-selection instead of calling submitIntake + complete
+  - Passes params: vertical, responses, photos
+- 18 plan-selection tests: loading, error, plan display, prices, savings badges, selection, navigation
+
 ### Task 4: Mobile Payment Screen + Razorpay Integration — PENDING
 
 ---
 
-## Next Up: PR 14, Task 3
+## Next Up: PR 14, Task 4
 
-Create mobile plan selection screen in intake flow. Modify review.tsx routing.
+Create mobile payment screen with Razorpay SDK integration in intake flow.
 
 **Spec reference:** master spec Section 12 (Payment & Subscription)
 
