@@ -132,6 +132,15 @@ export class DashboardResolver {
       },
       photos: result.photos,
       messages: result.messages,
+      labOrders: result.labOrders.map((lo) => ({
+        id: lo.id,
+        testPanel: lo.testPanel,
+        panelName: lo.panelName ?? undefined,
+        status: lo.status,
+        orderedAt: lo.orderedAt,
+        resultFileUrl: lo.resultFileUrl ?? undefined,
+        criticalValues: lo.criticalValues,
+      })),
     };
 
     // Add optional fields

@@ -459,10 +459,32 @@ describe('DashboardService', () => {
   describe('getCaseDetail', () => {
     // Spec: master spec Section 5.2 — Case Review
 
+    const mockLabOrders = [
+      {
+        id: 'lab-1',
+        testPanel: ['TSH', 'CBC', 'Ferritin'],
+        panelName: 'Hair Loss Basic Panel',
+        status: 'ORDERED',
+        orderedAt: new Date('2026-02-15'),
+        resultFileUrl: null,
+        criticalValues: false,
+      },
+      {
+        id: 'lab-2',
+        testPanel: ['Fasting_Glucose', 'HbA1c'],
+        panelName: null,
+        status: 'RESULTS_UPLOADED',
+        orderedAt: new Date('2026-02-10'),
+        resultFileUrl: 'https://s3.example/results.pdf',
+        criticalValues: true,
+      },
+    ];
+
     const mockFullConsultation = {
       ...mockConsultation,
       prescription: null,
       messages: [],
+      labOrders: [],
       followUps: [],
     };
 
@@ -484,6 +506,7 @@ describe('DashboardService', () => {
       expect(result).toHaveProperty('aiAssessment');
       expect(result).toHaveProperty('photos');
       expect(result).toHaveProperty('messages');
+      expect(result).toHaveProperty('labOrders');
       expect(result.consultation.id).toBe('consultation-1');
     });
 
@@ -533,6 +556,72 @@ describe('DashboardService', () => {
       expect(result.photos).toHaveLength(2);
       expect(result.photos[0]).toHaveProperty('type');
       expect(result.photos[0]).toHaveProperty('url');
+    });
+
+    it('should include lab orders in case detail', async () => {
+      const consultationWithLabOrders = {
+        ...mockFullConsultation,
+        labOrders: mockLabOrders,
+      };
+      mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
+      mockPrismaService.consultation.findUnique.mockResolvedValue(consultationWithLabOrders);
+      mockPrismaService.patientPhoto.findMany.mockResolvedValue([]);
+
+      const result = await service.getCaseDetail('consultation-1', 'doctor-1');
+
+      expect(result.labOrders).toHaveLength(2);
+      expect(result.labOrders[0]).toEqual({
+        id: 'lab-1',
+        testPanel: ['TSH', 'CBC', 'Ferritin'],
+        panelName: 'Hair Loss Basic Panel',
+        status: 'ORDERED',
+        orderedAt: new Date('2026-02-15'),
+        resultFileUrl: null,
+        criticalValues: false,
+      });
+    });
+
+    it('should map lab order fields correctly including null panelName', async () => {
+      const consultationWithLabOrders = {
+        ...mockFullConsultation,
+        labOrders: mockLabOrders,
+      };
+      mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
+      mockPrismaService.consultation.findUnique.mockResolvedValue(consultationWithLabOrders);
+      mockPrismaService.patientPhoto.findMany.mockResolvedValue([]);
+
+      const result = await service.getCaseDetail('consultation-1', 'doctor-1');
+
+      // Second lab order has null panelName and a resultFileUrl
+      expect(result.labOrders[1].panelName).toBeNull();
+      expect(result.labOrders[1].resultFileUrl).toBe('https://s3.example/results.pdf');
+      expect(result.labOrders[1].criticalValues).toBe(true);
+    });
+
+    it('should return empty lab orders array when consultation has none', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
+      mockPrismaService.consultation.findUnique.mockResolvedValue(mockFullConsultation);
+      mockPrismaService.patientPhoto.findMany.mockResolvedValue([]);
+
+      const result = await service.getCaseDetail('consultation-1', 'doctor-1');
+
+      expect(result.labOrders).toEqual([]);
+    });
+
+    it('should fetch lab orders ordered by orderedAt descending', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
+      mockPrismaService.consultation.findUnique.mockResolvedValue(mockFullConsultation);
+      mockPrismaService.patientPhoto.findMany.mockResolvedValue([]);
+
+      await service.getCaseDetail('consultation-1', 'doctor-1');
+
+      expect(mockPrismaService.consultation.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            labOrders: { orderBy: { orderedAt: 'desc' } },
+          }),
+        }),
+      );
     });
 
     it('should include message history', async () => {

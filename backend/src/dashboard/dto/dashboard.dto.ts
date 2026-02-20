@@ -1,5 +1,6 @@
 import { Field, ObjectType, InputType, registerEnumType, Int } from '@nestjs/graphql';
 import { HealthVertical } from '@prisma/client';
+import { IsOptional } from 'class-validator';
 import GraphQLJSON from 'graphql-type-json';
 
 // Spec: master spec Section 5 (Doctor Dashboard)
@@ -24,12 +25,15 @@ registerEnumType(DashboardStatus, {
 @InputType()
 export class QueueFiltersInput {
   @Field(() => HealthVertical, { nullable: true })
+  @IsOptional()
   vertical?: HealthVertical;
 
   @Field(() => DashboardStatus, { nullable: true })
+  @IsOptional()
   dashboardStatus?: DashboardStatus;
 
   @Field(() => String, { nullable: true })
+  @IsOptional()
   attentionLevel?: string;
 }
 
@@ -217,6 +221,31 @@ export class CasePrescriptionType {
   issuedAt: Date;
 }
 
+// Lab order for case detail
+@ObjectType()
+export class CaseLabOrderType {
+  @Field(() => String)
+  id: string;
+
+  @Field(() => [String])
+  testPanel: string[];
+
+  @Field(() => String, { nullable: true })
+  panelName?: string | undefined;
+
+  @Field(() => String)
+  status: string;
+
+  @Field(() => Date)
+  orderedAt: Date;
+
+  @Field(() => String, { nullable: true })
+  resultFileUrl?: string | undefined;
+
+  @Field(() => Boolean)
+  criticalValues: boolean;
+}
+
 // Full case detail response
 @ObjectType()
 export class CaseDetailType {
@@ -240,4 +269,7 @@ export class CaseDetailType {
 
   @Field(() => CasePrescriptionType, { nullable: true })
   prescription?: CasePrescriptionType | undefined;
+
+  @Field(() => [CaseLabOrderType])
+  labOrders: CaseLabOrderType[];
 }

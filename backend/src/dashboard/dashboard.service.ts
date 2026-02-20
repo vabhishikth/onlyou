@@ -85,6 +85,15 @@ export interface CaseDetail {
     createdAt: Date;
   }>;
   prescription: any | null;
+  labOrders: Array<{
+    id: string;
+    testPanel: string[];
+    panelName: string | null;
+    status: string;
+    orderedAt: Date;
+    resultFileUrl: string | null;
+    criticalValues: boolean;
+  }>;
 }
 
 // Queue statistics
@@ -406,6 +415,9 @@ export class DashboardService {
         messages: {
           orderBy: { createdAt: 'asc' },
         },
+        labOrders: {
+          orderBy: { orderedAt: 'desc' },
+        },
         followUps: true,
       },
     });
@@ -466,6 +478,15 @@ export class DashboardService {
         createdAt: m.createdAt,
       })),
       prescription: consultation.prescription,
+      labOrders: (consultation.labOrders || []).map((lo) => ({
+        id: lo.id,
+        testPanel: lo.testPanel,
+        panelName: lo.panelName,
+        status: lo.status,
+        orderedAt: lo.orderedAt,
+        resultFileUrl: lo.resultFileUrl,
+        criticalValues: lo.criticalValues,
+      })),
     };
   }
 
