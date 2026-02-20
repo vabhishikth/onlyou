@@ -5,6 +5,7 @@ import {
     InputType,
     registerEnumType,
 } from '@nestjs/graphql';
+import { IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
 
 // Re-register enum for GraphQL
@@ -141,27 +142,36 @@ export class AdminDeliveriesResponse {
 @InputType()
 export class AdminDeliveriesFilterInput {
     @Field(() => [OrderStatus], { nullable: true })
+    @IsOptional()
+    @IsArray()
     statuses?: OrderStatus[];
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     pharmacyId?: string;
 
     @Field(() => Date, { nullable: true })
+    @IsOptional()
     dateFrom?: Date;
 
     @Field(() => Date, { nullable: true })
+    @IsOptional()
     dateTo?: Date;
 
     @Field(() => Boolean, { nullable: true })
+    @IsOptional()
     isReorder?: boolean;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     search?: string;
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     page?: number;
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     pageSize?: number;
 }
 
@@ -200,51 +210,64 @@ export class AvailablePharmaciesResponse {
 @InputType()
 export class SendToPharmacyInput {
     @Field()
+    @IsNotEmpty()
     orderId: string;
 
     @Field()
+    @IsNotEmpty()
     pharmacyId: string;
 }
 
 @InputType()
 export class ArrangeDeliveryInput {
     @Field()
+    @IsNotEmpty()
     orderId: string;
 
     @Field()
+    @IsNotEmpty()
     deliveryPersonName: string;
 
     @Field()
+    @IsNotEmpty()
     deliveryPersonPhone: string;
 
     @Field()
+    @IsNotEmpty()
     deliveryMethod: string;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     estimatedDeliveryTime?: string;
 }
 
 @InputType()
 export class MarkPharmacyStatusInput {
     @Field()
+    @IsNotEmpty()
     orderId: string;
 
     @Field(() => OrderStatus)
+    @IsNotEmpty()
     status: OrderStatus;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     issueReason?: string;
 }
 
 @InputType()
 export class MarkDeliveryStatusInput {
     @Field()
+    @IsNotEmpty()
     orderId: string;
 
     @Field(() => OrderStatus)
+    @IsNotEmpty()
     status: OrderStatus;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     failedReason?: string;
 }
 

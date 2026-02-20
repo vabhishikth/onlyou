@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
+import { IsNotEmpty } from 'class-validator';
 import GraphQLJSON from 'graphql-type-json';
 
 // Spec: master spec Section 7.1 — Lab Portal (lab.onlyou.life)
@@ -66,30 +67,37 @@ export class LabSampleSummary {
 @InputType()
 export class MarkSampleReceivedInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => Int)
+    @IsNotEmpty()
     tubeCount: number;
 }
 
 @InputType()
 export class ReportSampleIssueInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => String)
+    @IsNotEmpty()
     reason: string;
 }
 
 @InputType()
 export class UploadResultsInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => String)
+    @IsNotEmpty()
     resultFileUrl: string;
 
     @Field(() => GraphQLJSON)
+    @IsNotEmpty()
     abnormalFlags: Record<string, string>;
 }
 

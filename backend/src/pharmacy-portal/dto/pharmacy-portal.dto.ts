@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
+import { IsNotEmpty, IsArray } from 'class-validator';
 
 // Spec: master spec Section 8.1 — Pharmacy Portal (pharmacy.onlyou.life)
 
@@ -77,9 +78,11 @@ export class PharmacyOrderSummary {
 @InputType()
 export class ReportStockIssueInput {
     @Field()
+    @IsNotEmpty()
     orderId: string;
 
     @Field(() => [String])
+    @IsArray()
     missingMedications: string[];
 }
 

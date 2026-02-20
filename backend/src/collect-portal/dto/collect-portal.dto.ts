@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
+import { IsNotEmpty } from 'class-validator';
 
 // Spec: master spec Section 7.2 — Collection Portal (collect.onlyou.life)
 // THE SIMPLEST PORTAL. Used on the road, one hand, between collections.
@@ -96,36 +97,44 @@ export class NearbyLab {
 @InputType()
 export class MarkCollectedInput {
     @Field()
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => Int)
+    @IsNotEmpty()
     tubeCount: number;
 }
 
 @InputType()
 export class MarkUnavailableInput {
     @Field()
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field()
+    @IsNotEmpty()
     reason: string;
 }
 
 @InputType()
 export class ReportLateInput {
     @Field()
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field()
+    @IsNotEmpty()
     newEta: string;
 }
 
 @InputType()
 export class DeliverToLabInput {
     @Field()
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field()
+    @IsNotEmpty()
     labId: string;
 }
 

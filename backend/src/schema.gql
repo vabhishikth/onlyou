@@ -314,11 +314,22 @@ type CaseConsultationType {
 type CaseDetailType {
   aiAssessment: CaseAIAssessmentType
   consultation: CaseConsultationType!
+  labOrders: [CaseLabOrderType!]!
   messages: [CaseMessageType!]!
   patient: CasePatientType!
   photos: [CasePhotoType!]!
   prescription: CasePrescriptionType
   questionnaire: CaseQuestionnaireType!
+}
+
+type CaseLabOrderType {
+  criticalValues: Boolean!
+  id: String!
+  orderedAt: DateTime!
+  panelName: String
+  resultFileUrl: String
+  status: String!
+  testPanel: [String!]!
 }
 
 type CaseMessageType {
@@ -377,6 +388,14 @@ type CollectTodaySummary {
   failed: Int!
   pending: Int!
   total: Int!
+}
+
+type ConsultationStatusResponse {
+  doctorId: String
+  doctorNotes: String
+  id: String!
+  rejectionReason: String
+  status: String!
 }
 
 type ConsultationType {
@@ -662,6 +681,10 @@ type LabTodaySummary {
   incoming: Int!
 }
 
+type MarkAllReadResponse {
+  count: Int!
+}
+
 input MarkCollectedInput {
   labOrderId: String!
   tubeCount: Int!
@@ -711,19 +734,32 @@ type MedicationType {
   name: String!
 }
 
+type MessageType {
+  attachmentType: String
+  attachmentUrl: String
+  consultationId: String!
+  content: String!
+  createdAt: DateTime!
+  id: String!
+  isFromAI: Boolean!
+  readAt: DateTime
+  senderId: String!
+}
+
 type Mutation {
   arrangeDelivery(input: ArrangeDeliveryInput!): GenerateDeliveryOtpResponse!
+  assignCaseToDoctor(consultationId: String!, doctorId: String!): ConsultationStatusResponse!
   assignLab(input: AssignLabInput!): AdminLabOrderMutationResponse!
   assignPhlebotomist(input: AssignPhlebotomistInput!): AdminLabOrderMutationResponse!
   bulkAssignPhlebotomist(input: BulkAssignPhlebotomistInput!): BulkAssignmentResponse!
-  closeLabOrder(doctorId: String!, labOrderId: String!): ReviewLabResultsResponse!
+  closeLabOrder(labOrderId: String!): ReviewLabResultsResponse!
   collectDeliverToLab(input: DeliverToLabInput!): TodayAssignment!
   collectMarkCollected(input: MarkCollectedInput!): TodayAssignment!
   collectMarkUnavailable(input: MarkUnavailableInput!): CollectMutationResponse!
   collectReportLate(input: ReportLateInput!): CollectMutationResponse!
   completeOnboarding: OnboardingResponse!
   createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
-  createLabOrder(doctorId: String!, input: CreateLabOrderInput!): CreateLabOrderResponse!
+  createLabOrder(input: CreateLabOrderInput!): CreateLabOrderResponse!
   createPharmacy(input: CreatePharmacyInput!): PharmacyDetails!
   createPhlebotomist(input: CreatePhlebotomistInput!): PhlebotomistDetails!
   createPrescription(input: CreatePrescriptionInput!): CreatePrescriptionResponse!
@@ -733,6 +769,8 @@ type Mutation {
   labStartProcessing(labOrderId: String!): LabSampleSummary!
   labUploadResults(input: UploadResultsInput!): LabSampleSummary!
   logout(refreshToken: String): RequestOtpResponse!
+  markAllMessagesAsRead(consultationId: String!): MarkAllReadResponse!
+  markMessageAsRead(messageId: String!): MessageType!
   markOutForDelivery(orderId: String!): DeliveryMutationResponse!
   overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
   pharmacyMarkReady(orderId: String!): PharmacyOrderSummary!
@@ -740,15 +778,18 @@ type Mutation {
   pharmacyStartPreparing(orderId: String!): PharmacyOrderSummary!
   refreshToken(input: RefreshTokenInput!): AuthResponse!
   regenerateDeliveryOtp(orderId: String!): GenerateDeliveryOtpResponse!
+  requestMoreInfo(consultationId: String!, message: String!): RequestMoreInfoResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
-  reviewLabResults(doctorId: String!, input: ReviewLabResultsInput!): ReviewLabResultsResponse!
+  reviewLabResults(input: ReviewLabResultsInput!): ReviewLabResultsResponse!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
+  sendMessage(consultationId: String!, content: String!): MessageType!
   sendToPharmacy(input: SendToPharmacyInput!): DeliveryMutationResponse!
   submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
   testS3Connection: S3TestResult!
   toggleDiagnosticCentreActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   togglePharmacyActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   togglePhlebotomistActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  updateConsultationStatus(consultationId: String!, doctorNotes: String, rejectionReason: String, status: String!): ConsultationStatusResponse!
   updateDeliveryStatus(input: MarkDeliveryStatusInput!): DeliveryMutationResponse!
   updateDiagnosticCentre(input: UpdateDiagnosticCentreInput!): DiagnosticCentre!
   updateOnboarding(input: UpdateOnboardingInput!): OnboardingResponse!
@@ -1003,6 +1044,7 @@ type Query {
   caseDetail(consultationId: String!): CaseDetailType!
   checkContraindications(input: CheckContraindicationsInput!): CheckContraindicationsResponse!
   collectTodaySummary: CollectTodaySummary!
+  consultationMessages(consultationId: String!): [MessageType!]!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
   labCompletedSamples: [LabSampleSummary!]!
@@ -1033,6 +1075,7 @@ type Query {
   suggestTemplate(consultationId: String!): TemplateSuggestionType!
   todayAssignments: [TodayAssignment!]!
   unassignedCases(filters: QueueFiltersInput): QueueResponse!
+  unreadMessageCount(consultationId: String!): Int!
 }
 
 type QuestionnaireTemplateType {
@@ -1082,6 +1125,11 @@ input ReportSampleIssueInput {
 input ReportStockIssueInput {
   missingMedications: [String!]!
   orderId: String!
+}
+
+type RequestMoreInfoResponse {
+  consultationStatus: String!
+  message: MessageType!
 }
 
 input RequestOtpInput {

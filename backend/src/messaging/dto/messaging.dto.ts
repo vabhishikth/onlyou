@@ -1,4 +1,4 @@
-import { ObjectType, Field, InputType, Int } from '@nestjs/graphql';
+import { ObjectType, Field, Int } from '@nestjs/graphql';
 
 // Spec: master spec Section 5.5 (Messaging)
 // These DTOs match the frontend mutation shapes in web/src/app/doctor/case/[id]/page.tsx

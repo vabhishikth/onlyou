@@ -4,6 +4,7 @@ import {
     Int,
     InputType,
 } from '@nestjs/graphql';
+import { IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 import { HealthVertical, LabOrderStatus } from '@prisma/client';
 
 // Note: LabOrderStatus is registered in lab-order.dto.ts, HealthVertical is registered in intake module
@@ -139,30 +140,40 @@ export class AdminLabOrdersResponse {
 @InputType()
 export class AdminLabOrdersFilterInput {
     @Field(() => [LabOrderStatus], { nullable: true })
+    @IsOptional()
+    @IsArray()
     statuses?: LabOrderStatus[];
 
     @Field(() => Date, { nullable: true })
+    @IsOptional()
     dateFrom?: Date;
 
     @Field(() => Date, { nullable: true })
+    @IsOptional()
     dateTo?: Date;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     phlebotomistId?: string;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     labId?: string;
 
     @Field(() => HealthVertical, { nullable: true })
+    @IsOptional()
     vertical?: HealthVertical;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     search?: string; // Patient name or phone
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     page?: number;
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     pageSize?: number;
 }
 
@@ -226,39 +237,49 @@ export class AvailableLabsResponse {
 @InputType()
 export class AssignPhlebotomistInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => String)
+    @IsNotEmpty()
     phlebotomistId: string;
 }
 
 @InputType()
 export class AssignLabInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => String)
+    @IsNotEmpty()
     labId: string;
 }
 
 @InputType()
 export class BulkAssignPhlebotomistInput {
     @Field(() => [String])
+    @IsNotEmpty()
+    @IsArray()
     labOrderIds: string[];
 
     @Field(() => String)
+    @IsNotEmpty()
     phlebotomistId: string;
 }
 
 @InputType()
 export class OverrideLabOrderStatusInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => LabOrderStatus)
+    @IsNotEmpty()
     newStatus: LabOrderStatus;
 
     @Field(() => String)
+    @IsNotEmpty()
     reason: string;
 }
 

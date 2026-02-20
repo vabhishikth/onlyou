@@ -1,5 +1,6 @@
 import { Field, ObjectType, InputType, registerEnumType } from '@nestjs/graphql';
 import { HealthVertical, LabOrderStatus } from '@prisma/client';
+import { IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 // Spec: master spec Section 7 (Blood Work & Diagnostics)
 
@@ -199,15 +200,19 @@ export class LabOrderType {
 @InputType()
 export class CreateLabOrderInput {
     @Field(() => String)
+    @IsNotEmpty()
     consultationId: string;
 
     @Field(() => [String])
+    @IsArray()
     testPanel: string[];
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     panelName?: string | undefined;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     doctorNotes?: string | undefined;
 }
 
@@ -228,9 +233,11 @@ export class CreateLabOrderResponse {
 @InputType()
 export class ReviewLabResultsInput {
     @Field(() => String)
+    @IsNotEmpty()
     labOrderId: string;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     reviewNotes?: string | undefined;
 }
 

@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
+import { IsOptional } from 'class-validator';
 
 // Spec: master spec Section 3.2 — Patient Profiles
 
@@ -62,15 +63,19 @@ export class AdminPatientsResponse {
 @InputType()
 export class AdminPatientsFilterInput {
     @Field(() => String, { nullable: true })
+    @IsOptional()
     search?: string;
 
     @Field(() => String, { nullable: true })
+    @IsOptional()
     vertical?: string;
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     page?: number;
 
     @Field(() => Int, { nullable: true })
+    @IsOptional()
     pageSize?: number;
 }
 

@@ -1,5 +1,7 @@
 import { Field, ObjectType, InputType, registerEnumType } from '@nestjs/graphql';
 import { HealthVertical } from '@prisma/client';
+import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import GraphQLJSON from 'graphql-type-json';
 import { PrescriptionTemplate } from '../prescription.service';
 
@@ -34,18 +36,23 @@ export class MedicationType {
 @InputType()
 export class MedicationInput {
   @Field(() => String)
+  @IsNotEmpty()
   name: string;
 
   @Field(() => String)
+  @IsNotEmpty()
   dosage: string;
 
   @Field(() => String)
+  @IsNotEmpty()
   frequency: string;
 
   @Field(() => String, { nullable: true })
+  @IsOptional()
   duration?: string | undefined;
 
   @Field(() => String, { nullable: true })
+  @IsOptional()
   instructions?: string | undefined;
 }
 
@@ -141,15 +148,21 @@ export class PrescriptionType {
 @InputType()
 export class CreatePrescriptionInput {
   @Field(() => String)
+  @IsNotEmpty()
   consultationId: string;
 
   @Field(() => PrescriptionTemplate)
+  @IsNotEmpty()
   template: PrescriptionTemplate;
 
   @Field(() => [MedicationInput], { nullable: true })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => MedicationInput)
   customMedications?: MedicationInput[] | undefined;
 
   @Field(() => String, { nullable: true })
+  @IsOptional()
   instructions?: string | undefined;
 }
 
@@ -180,9 +193,11 @@ export class AvailableTemplatesResponse {
 @InputType()
 export class CheckContraindicationsInput {
   @Field(() => String)
+  @IsNotEmpty()
   consultationId: string;
 
   @Field(() => PrescriptionTemplate)
+  @IsNotEmpty()
   template: PrescriptionTemplate;
 }
 

@@ -25,8 +25,8 @@ export class ConsultationResolver {
     async updateConsultationStatus(
         @Args('consultationId') consultationId: string,
         @Args('status') status: string,
-        @Args('doctorNotes', { nullable: true }) doctorNotes: string | undefined,
-        @Args('rejectionReason', { nullable: true }) rejectionReason: string | undefined,
+        @Args('doctorNotes', { type: () => String, nullable: true }) _doctorNotes: string | undefined,
+        @Args('rejectionReason', { type: () => String, nullable: true }) rejectionReason: string | undefined,
         @CurrentUser() user: any,
     ): Promise<ConsultationStatusResponse> {
         const consultationStatus = status as ConsultationStatus;
