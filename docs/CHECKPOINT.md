@@ -1,8 +1,8 @@
 # CHECKPOINT — Last Updated: 2026-02-20
 
 ## Current Phase: Phase 4 — Blood Work & Delivery
-## Current Task: PR 12 - Portal Test Coverage
-## Status: COMPLETE
+## Current Task: PR 13 - Patient Tracking Screens
+## Status: IN PROGRESS (Task 1 of 4 complete)
 
 ## Completed Work:
 
@@ -26,64 +26,43 @@
 ### Phase 4 — Blood Work & Delivery:
 - [x] PR 11: Order + Wallet GraphQL Resolvers (2 commits)
 - [x] PR 12: Portal Test Coverage (4 commits)
+- [ ] PR 13: Patient Tracking Screens (IN PROGRESS)
 
 ## Test Counts:
-- Backend: 1,868 tests (38 test suites)
+- Backend: 1,892 tests (39 test suites)
 - Mobile: 350 tests
-- **Total: 2,218 tests**
+- **Total: 2,242 tests**
 
 ---
 
-## Last Completed: PR 11 + PR 12 (2026-02-20)
+## PR 13 Progress:
 
-### PR 11: Order + Wallet GraphQL Resolvers
+### Task 1: Tracking Resolver + DTOs (TDD) — COMPLETE
+**Commit: feat(tracking): add GraphQL resolver + DTOs for patient tracking (TDD)**
+- 24 resolver tests (TDD)
+- 5 queries: activeTracking, labOrderProgress, deliveryOrderProgress, trackingHomeBanner, availableActions
+- 5 mutations: bookLabSlot, rescheduleLabSlot, cancelLabOrder, confirmDeliveryOTP, rateDelivery
+- DTOs match mobile's GET_ACTIVE_TRACKING query shape (labOrders + deliveryOrders)
+- Added TrackingModule, OrderModule, WalletModule to app.module.ts
+- Files: tracking.resolver.ts, tracking.resolver.spec.ts, dto/tracking.dto.ts, tracking.module.ts, app.module.ts
 
-**Commit 1: feat(order): add GraphQL resolver + DTOs for order/delivery system**
-- 23 resolver tests (TDD)
-- 4 queries: order, ordersByPatient, pendingDeliveries, ordersDueForReorder
-- 10 mutations: createOrder, sendToPharmacy, arrangePickup, markOutForDelivery, confirmDelivery, markDeliveryFailed, rescheduleDelivery, cancelOrder, createReorder, rateDelivery
-- DTOs with class-validator decorators
+### Task 2: Lab Results Viewer Screen — PENDING
+- Create mobile/app/lab/[labOrderId]/results.tsx
+- Summary table with abnormalFlags parsing
+- Critical values banner, doctor's note, PDF link
 
-**Commit 2: feat(wallet): add GraphQL resolver + DTOs for wallet/refund system**
-- 15 resolver tests (TDD)
-- 4 queries: walletBalance, transactionHistory, refundStatus, refundsByUser
-- 3 mutations: creditWallet, applyWalletAtCheckout, initiateRefund
+### Task 3: Delivery OTP Modal — PENDING
+- Create mobile/src/components/DeliveryOTPModal.tsx
+- OTP display, delivery person details, rating stars
 
-### PR 12: Portal Test Coverage
-
-**Commit 3: test(lab-portal): 71 tests for diagnostic centre portal**
-- getLabInfo, getTodaySummary, incoming/inProgress/completed samples
-- markSampleReceived, reportSampleIssue, startProcessing, uploadResults
-- Permission checks, tube count mismatch, critical value detection
-
-**Commit 4: test(collect-portal): 66 tests for phlebotomist portal**
-- getPhlebotomistInfo, getTodaySummary, getTodayAssignments
-- markCollected, markPatientUnavailable, reportRunningLate, deliverToLab
-- getNearbyLabs, time window formatting, stat increments
-
-**Commit 5: test(pharmacy-portal): 53 tests for pharmacy portal**
-- getPharmacyInfo, getTodaySummary, getNewOrders, getPreparingOrders, getReadyOrders
-- startPreparing, markReady, reportStockIssue
-- Medication parsing, patient anonymization
-
-**Commit 6: test(admin): 118 tests for admin dashboard + SLA engine**
-- getDashboardStats, countSLABreaches (5 breach types)
-- calculateLabOrderSLA (ON_TIME/APPROACHING/BREACHED for all statuses)
-- getAdminLabOrders, getAdminDeliveries, getPatients, getPatientDetail
-- assignPhlebotomist, arrangeDelivery, partner toggles
+### Task 4: Mobile Tests — PENDING
+- Tests for results viewer and OTP modal
 
 ---
 
-## Next Up: PR 13 — Mobile Patient Tracking Screens
+## Next Up: PR 13 Task 2 — Lab Results Viewer Screen
 
-**Goal:** Build patient-facing mobile screens for blood work and delivery tracking.
-
-**Tasks:**
-1. Blood work stepper screen (lab order status progression)
-2. Delivery tracking screen (order status + OTP display)
-3. Lab results viewer screen (summary + PDF)
-
-**Spec reference:** master spec Section 7 (Blood Work), Section 8 (Delivery)
+**Spec reference:** master spec Section 4.5 (Lab Results Presentation)
 
 ---
 
