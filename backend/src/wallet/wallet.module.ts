@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WalletService } from './wallet.service';
+import { WalletResolver } from './wallet.resolver';
 
 // Spec: master spec Section 10 (Refund & Wallet)
 
@@ -24,7 +25,7 @@ const razorpayFactory = {
 
 @Module({
   imports: [PrismaModule],
-  providers: [WalletService, razorpayFactory],
+  providers: [WalletService, WalletResolver, razorpayFactory],
   exports: [WalletService],
 })
 export class WalletModule {}
