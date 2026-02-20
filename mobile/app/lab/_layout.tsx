@@ -1,5 +1,5 @@
 import { Slot } from 'expo-router';
 
-export default function IntakeLayout() {
+export default function LabLayout() {
     return <Slot />;
 }

@@ -3,7 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '@prisma/client';
+import { User, Prisma } from '@prisma/client';
 import {
     UserProfileType,
     UpdateProfileInput,
@@ -194,7 +194,7 @@ export class UserResolver {
         try {
             const healthProfile = await this.userService.upsertHealthProfile(user.id, {
                 condition: input.condition,
-                responses: input.responses,
+                responses: input.responses as unknown as Prisma.InputJsonValue,
             });
 
             return {

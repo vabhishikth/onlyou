@@ -29,41 +29,41 @@ export class QueueFiltersInput {
   @Field(() => DashboardStatus, { nullable: true })
   dashboardStatus?: DashboardStatus;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   attentionLevel?: string;
 }
 
 // Case card type for queue display
 @ObjectType()
 export class CaseCardType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field()
+  @Field(() => String)
   patientName: string;
 
   @Field(() => Int, { nullable: true })
   patientAge?: number | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   patientSex?: string | undefined;
 
   @Field(() => HealthVertical)
   vertical: HealthVertical;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   aiAttentionLevel?: string | undefined;
 
   @Field(() => DashboardStatus)
   dashboardStatus: DashboardStatus;
 
-  @Field()
+  @Field(() => String)
   statusBadge: string;
 
-  @Field()
+  @Field(() => Boolean)
   isFollowUp: boolean;
 }
 
@@ -105,29 +105,29 @@ export class QueueStatsType {
 // Patient info for case detail
 @ObjectType()
 export class CasePatientType {
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   name?: string | undefined;
 
   @Field(() => Int, { nullable: true })
   age?: number | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   sex?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   city?: string | undefined;
 
-  @Field()
+  @Field(() => String)
   phone: string;
 }
 
 // AI assessment for case detail
 @ObjectType()
 export class CaseAIAssessmentType {
-  @Field()
+  @Field(() => String)
   summary: string;
 
-  @Field()
+  @Field(() => String)
   riskLevel: string;
 
   @Field(() => [String])
@@ -140,29 +140,29 @@ export class CaseAIAssessmentType {
 // Photo for case detail
 @ObjectType()
 export class CasePhotoType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field()
+  @Field(() => String)
   type: string;
 
-  @Field()
+  @Field(() => String)
   url: string;
 }
 
 // Message for case detail
 @ObjectType()
 export class CaseMessageType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field()
+  @Field(() => String)
   content: string;
 
-  @Field()
+  @Field(() => String)
   senderId: string;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 }
 
@@ -179,41 +179,41 @@ export class CaseQuestionnaireType {
 // Consultation info for case detail
 @ObjectType()
 export class CaseConsultationType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field()
+  @Field(() => String)
   status: string;
 
   @Field(() => HealthVertical)
   vertical: HealthVertical;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   doctorNotes?: string | undefined;
 }
 
 // Prescription for case detail
 @ObjectType()
 export class CasePrescriptionType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   pdfUrl?: string | undefined;
 
   @Field(() => GraphQLJSON)
   medications: any;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   instructions?: string | undefined;
 
-  @Field()
+  @Field(() => Date)
   validUntil: Date;
 
-  @Field()
+  @Field(() => Date)
   issuedAt: Date;
 }
 

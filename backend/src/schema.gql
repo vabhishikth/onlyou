@@ -2,12 +2,381 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AdminDashboardStats {
+  activePatients: Int!
+  deliveries: DeliveryStats!
+  labCollections: LabCollectionStats!
+  openCases: Int!
+  revenueThisMonthPaise: Int!
+  slaBreaches: Int!
+}
+
+input AdminDeliveriesFilterInput {
+  dateFrom: DateTime
+  dateTo: DateTime
+  isReorder: Boolean
+  page: Int
+  pageSize: Int
+  pharmacyId: String
+  search: String
+  statuses: [OrderStatus!]
+}
+
+type AdminDeliveriesResponse {
+  deliveries: [AdminDelivery!]!
+  page: Int!
+  pageSize: Int!
+  total: Int!
+}
+
+type AdminDelivery {
+  deliveredAt: DateTime
+  deliveryAddress: String!
+  deliveryCity: String!
+  deliveryFailedReason: String
+  deliveryMethod: String
+  deliveryOtp: String
+  deliveryPersonName: String
+  deliveryPersonPhone: String
+  deliveryPincode: String!
+  estimatedDeliveryTime: String
+  id: String!
+  isReorder: Boolean!
+  medications: [AdminDeliveryMedication!]!
+  orderedAt: DateTime!
+  outForDeliveryAt: DateTime
+  patient: AdminDeliveryPatient!
+  pharmacy: AdminDeliveryPharmacy
+  pharmacyIssueReason: String
+  pharmacyReadyAt: DateTime
+  sentToPharmacyAt: DateTime
+  status: OrderStatus!
+  totalAmountPaise: Int!
+}
+
+type AdminDeliveryMedication {
+  dosage: String!
+  frequency: String!
+  name: String!
+}
+
+type AdminDeliveryPatient {
+  id: String!
+  name: String
+  phone: String
+}
+
+type AdminDeliveryPharmacy {
+  address: String
+  id: String!
+  name: String!
+  phone: String
+}
+
+type AdminLabOrder {
+  bookedDate: DateTime
+  bookedTimeSlot: String
+  collectionAddress: String!
+  collectionCity: String!
+  collectionPincode: String!
+  id: String!
+  lab: AdminLabOrderLab
+  orderedAt: DateTime!
+  panelName: String
+  patient: AdminLabOrderPatient!
+  phlebotomist: AdminLabOrderPhlebotomist
+  slaInfo: AdminLabOrderSLA!
+  status: LabOrderStatus!
+  testPanel: [String!]!
+  timeline: [AdminLabOrderTimelineEvent!]!
+  vertical: HealthVertical
+}
+
+type AdminLabOrderLab {
+  id: String!
+  name: String!
+  phone: String
+}
+
+type AdminLabOrderMutationResponse {
+  labOrder: AdminLabOrder
+  message: String!
+  success: Boolean!
+}
+
+type AdminLabOrderPatient {
+  id: String!
+  name: String
+  phone: String
+}
+
+type AdminLabOrderPhlebotomist {
+  id: String!
+  name: String!
+  phone: String!
+}
+
+type AdminLabOrderSLA {
+  hoursOverdue: Int
+  reason: String
+  status: String!
+}
+
+type AdminLabOrderTimelineEvent {
+  details: String
+  status: String!
+  timestamp: DateTime!
+}
+
+input AdminLabOrdersFilterInput {
+  dateFrom: DateTime
+  dateTo: DateTime
+  labId: String
+  page: Int
+  pageSize: Int
+  phlebotomistId: String
+  search: String
+  statuses: [LabOrderStatus!]
+  vertical: HealthVertical
+}
+
+type AdminLabOrdersResponse {
+  labOrders: [AdminLabOrder!]!
+  page: Int!
+  pageSize: Int!
+  total: Int!
+}
+
+type AdminPatientDetail {
+  address: String
+  city: String
+  consultations: [PatientConsultationSummary!]!
+  createdAt: DateTime!
+  dateOfBirth: DateTime
+  email: String
+  gender: String
+  id: String!
+  labOrders: [PatientLabOrderSummary!]!
+  name: String
+  notes: [PatientNote!]!
+  orders: [PatientOrderSummary!]!
+  phone: String!
+  pincode: String
+  state: String
+}
+
+type AdminPatientSummary {
+  activeConsultations: Int!
+  city: String
+  createdAt: DateTime!
+  dateOfBirth: DateTime
+  email: String
+  gender: String
+  id: String!
+  lastActivityAt: DateTime
+  name: String
+  pendingDeliveries: Int!
+  pendingLabOrders: Int!
+  phone: String!
+  state: String
+}
+
+input AdminPatientsFilterInput {
+  page: Int
+  pageSize: Int
+  search: String
+  vertical: String
+}
+
+type AdminPatientsResponse {
+  page: Int!
+  pageSize: Int!
+  patients: [AdminPatientSummary!]!
+  total: Int!
+}
+
+input ArrangeDeliveryInput {
+  deliveryMethod: String!
+  deliveryPersonName: String!
+  deliveryPersonPhone: String!
+  estimatedDeliveryTime: String
+  orderId: String!
+}
+
+input AssignLabInput {
+  labId: String!
+  labOrderId: String!
+}
+
+input AssignPhlebotomistInput {
+  labOrderId: String!
+  phlebotomistId: String!
+}
+
 type AuthResponse {
   accessToken: String
   message: String!
   refreshToken: String
   success: Boolean!
   user: UserType
+}
+
+type AvailableLab {
+  address: String!
+  avgTurnaroundHours: Int!
+  city: String!
+  id: String!
+  name: String!
+  testsOffered: [String!]!
+}
+
+type AvailableLabsResponse {
+  labs: [AvailableLab!]!
+}
+
+type AvailablePanelsResponse {
+  panels: [TestPanelType!]!
+  vertical: HealthVertical!
+}
+
+type AvailablePharmaciesResponse {
+  pharmacies: [AvailablePharmacy!]!
+}
+
+type AvailablePharmacy {
+  address: String!
+  avgPreparationMinutes: Int!
+  city: String!
+  id: String!
+  name: String!
+  phone: String!
+  serviceableAreas: [String!]!
+}
+
+type AvailablePhlebotomist {
+  id: String!
+  isAvailable: Boolean!
+  maxDailyCollections: Int!
+  name: String!
+  phone: String!
+  todayAssignments: Int!
+}
+
+type AvailablePhlebotomistsResponse {
+  phlebotomists: [AvailablePhlebotomist!]!
+}
+
+type AvailableTemplatesResponse {
+  templates: JSON!
+  vertical: HealthVertical!
+}
+
+input BulkAssignPhlebotomistInput {
+  labOrderIds: [String!]!
+  phlebotomistId: String!
+}
+
+type BulkAssignmentResponse {
+  failedIds: [String!]!
+  message: String!
+  success: Boolean!
+  updatedCount: Int!
+}
+
+type CaseAIAssessmentType {
+  flags: [String!]!
+  rawResponse: JSON
+  riskLevel: String!
+  summary: String!
+}
+
+type CaseCardType {
+  aiAttentionLevel: String
+  createdAt: DateTime!
+  dashboardStatus: DashboardStatus!
+  id: String!
+  isFollowUp: Boolean!
+  patientAge: Int
+  patientName: String!
+  patientSex: String
+  statusBadge: String!
+  vertical: HealthVertical!
+}
+
+type CaseConsultationType {
+  createdAt: DateTime!
+  doctorNotes: String
+  id: String!
+  status: String!
+  vertical: HealthVertical!
+}
+
+type CaseDetailType {
+  aiAssessment: CaseAIAssessmentType
+  consultation: CaseConsultationType!
+  messages: [CaseMessageType!]!
+  patient: CasePatientType!
+  photos: [CasePhotoType!]!
+  prescription: CasePrescriptionType
+  questionnaire: CaseQuestionnaireType!
+}
+
+type CaseMessageType {
+  content: String!
+  createdAt: DateTime!
+  id: String!
+  senderId: String!
+}
+
+type CasePatientType {
+  age: Int
+  city: String
+  name: String
+  phone: String!
+  sex: String
+}
+
+type CasePhotoType {
+  id: String!
+  type: String!
+  url: String!
+}
+
+type CasePrescriptionType {
+  id: String!
+  instructions: String
+  issuedAt: DateTime!
+  medications: JSON!
+  pdfUrl: String
+  validUntil: DateTime!
+}
+
+type CaseQuestionnaireType {
+  responses: JSON!
+  template: JSON!
+}
+
+input CheckContraindicationsInput {
+  consultationId: String!
+  template: PrescriptionTemplate!
+}
+
+type CheckContraindicationsResponse {
+  alternativeTemplate: PrescriptionTemplate
+  canProceed: Boolean!
+  result: ContraindicationResultType!
+}
+
+type CollectMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type CollectTodaySummary {
+  completed: Int!
+  failed: Int!
+  pending: Int!
+  total: Int!
 }
 
 type ConsultationType {
@@ -17,16 +386,148 @@ type ConsultationType {
   vertical: HealthVertical!
 }
 
+type ContraindicationResultType {
+  flags: [String!]!
+  isBlocked: Boolean!
+  reasons: [String!]!
+  requiresDoctorReview: Boolean!
+  suggestMinoxidilOnly: Boolean
+}
+
+input CreateDiagnosticCentreInput {
+  address: String!
+  avgTurnaroundHours: Int
+  city: String!
+  contactPerson: String
+  email: String
+  name: String!
+  phone: String!
+  pincode: String!
+  state: String!
+  testsOffered: [String!]!
+}
+
+input CreateLabOrderInput {
+  consultationId: String!
+  doctorNotes: String
+  panelName: String
+  testPanel: [String!]!
+}
+
+type CreateLabOrderResponse {
+  labOrder: LabOrderType
+  message: String!
+  success: Boolean!
+}
+
+input CreatePharmacyInput {
+  address: String!
+  avgPreparationMinutes: Int
+  city: String!
+  contactPerson: String
+  drugLicenseNumber: String!
+  email: String
+  gstNumber: String
+  name: String!
+  phone: String!
+  pincode: String!
+  serviceableAreas: [String!]!
+  state: String!
+}
+
+input CreatePhlebotomistInput {
+  availableDays: [String!]!
+  availableTimeEnd: String
+  availableTimeStart: String
+  certification: String
+  currentCity: String!
+  email: String
+  maxDailyCollections: Int
+  name: String!
+  phone: String!
+  serviceableAreas: [String!]!
+}
+
+input CreatePrescriptionInput {
+  consultationId: String!
+  customMedications: [MedicationInput!]
+  instructions: String
+  template: PrescriptionTemplate!
+}
+
+type CreatePrescriptionResponse {
+  message: String!
+  prescription: PrescriptionType
+  success: Boolean!
+}
+
+"""Dashboard-friendly status for consultations"""
+enum DashboardStatus {
+  AWAITING_RESPONSE
+  COMPLETED
+  FOLLOW_UP
+  IN_REVIEW
+  LAB_RESULTS_READY
+  NEW
+  REFERRED
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+input DeliverToLabInput {
+  labId: String!
+  labOrderId: String!
+}
+
+type DeliveryMutationResponse {
+  delivery: AdminDelivery
+  message: String!
+  success: Boolean!
+}
+
+type DeliveryStats {
+  delivered: Int!
+  failed: Int!
+  outForDelivery: Int!
+  pending: Int!
+}
+
+type DiagnosticCentre {
+  address: String!
+  avgTurnaroundHours: Int!
+  city: String!
+  contactPerson: String
+  createdAt: DateTime!
+  email: String
+  id: String!
+  isActive: Boolean!
+  name: String!
+  phone: String!
+  pincode: String!
+  rating: Float
+  state: String!
+  testsOffered: [String!]!
+}
+
+type DiagnosticCentresResponse {
+  centres: [DiagnosticCentre!]!
+  total: Int!
+}
 
 """User gender"""
 enum Gender {
   FEMALE
   MALE
   OTHER
+}
+
+type GenerateDeliveryOtpResponse {
+  message: String!
+  otp: String
+  success: Boolean!
 }
 
 input GetPresignedUrlInput {
@@ -37,6 +538,20 @@ input GetPresignedUrlInput {
 input GetQuestionnaireInput {
   version: Int
   vertical: HealthVertical!
+}
+
+type HealthProfileResponse {
+  healthProfile: HealthProfileType
+  message: String!
+  success: Boolean!
+}
+
+type HealthProfileType {
+  condition: String!
+  createdAt: DateTime!
+  id: String!
+  responses: JSON!
+  updatedAt: DateTime!
 }
 
 """Available health treatment verticals"""
@@ -63,16 +578,257 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON
 
+type LabCollectionStats {
+  completed: Int!
+  failed: Int!
+  scheduled: Int!
+}
+
+type LabInfo {
+  city: String!
+  id: String!
+  isActive: Boolean!
+  name: String!
+}
+
+"""Lab order status values"""
+enum LabOrderStatus {
+  CANCELLED
+  CLOSED
+  COLLECTION_FAILED
+  DELIVERED_TO_LAB
+  DOCTOR_REVIEWED
+  EXPIRED
+  ORDERED
+  PHLEBOTOMIST_ASSIGNED
+  PROCESSING
+  RESULTS_READY
+  RESULTS_UPLOADED
+  SAMPLE_COLLECTED
+  SAMPLE_ISSUE
+  SAMPLE_RECEIVED
+  SLOT_BOOKED
+}
+
+type LabOrderType {
+  bookedDate: DateTime
+  bookedTimeSlot: String
+  closedAt: DateTime
+  collectionAddress: String!
+  collectionCity: String!
+  collectionPincode: String!
+  consultationId: String!
+  criticalValues: Boolean
+  diagnosticCentreId: String
+  doctorId: String!
+  doctorNotes: String
+  doctorReviewedAt: DateTime
+  id: String!
+  orderedAt: DateTime!
+  panelName: String
+  patientId: String!
+  patientName: String
+  patientPhone: String
+  phlebotomistId: String
+  resultFileUrl: String
+  resultsUploadedAt: DateTime
+  sampleCollectedAt: DateTime
+  slotBookedAt: DateTime
+  status: LabOrderStatus!
+  testPanel: [String!]!
+}
+
+type LabPortalMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type LabSampleSummary {
+  createdAt: DateTime!
+  deliveredAt: DateTime
+  deliveredBy: String
+  id: String!
+  panelName: String!
+  patientInitials: String!
+  sampleId: String!
+  status: String!
+  testsOrdered: [String!]!
+  tubeCount: Int
+}
+
+type LabTodaySummary {
+  completed: Int!
+  inProgress: Int!
+  incoming: Int!
+}
+
+input MarkCollectedInput {
+  labOrderId: String!
+  tubeCount: Int!
+}
+
+input MarkDeliveryStatusInput {
+  failedReason: String
+  orderId: String!
+  status: OrderStatus!
+}
+
+input MarkPharmacyStatusInput {
+  issueReason: String
+  orderId: String!
+  status: OrderStatus!
+}
+
+input MarkSampleReceivedInput {
+  labOrderId: String!
+  tubeCount: Int!
+}
+
+input MarkUnavailableInput {
+  labOrderId: String!
+  reason: String!
+}
+
+input MedicationInput {
+  dosage: String!
+  duration: String
+  frequency: String!
+  instructions: String
+  name: String!
+}
+
+type MedicationItem {
+  dosage: String!
+  name: String!
+  quantity: Int!
+}
+
+type MedicationType {
+  dosage: String!
+  duration: String
+  frequency: String!
+  instructions: String
+  name: String!
+}
+
 type Mutation {
+  arrangeDelivery(input: ArrangeDeliveryInput!): GenerateDeliveryOtpResponse!
+  assignLab(input: AssignLabInput!): AdminLabOrderMutationResponse!
+  assignPhlebotomist(input: AssignPhlebotomistInput!): AdminLabOrderMutationResponse!
+  bulkAssignPhlebotomist(input: BulkAssignPhlebotomistInput!): BulkAssignmentResponse!
+  closeLabOrder(doctorId: String!, labOrderId: String!): ReviewLabResultsResponse!
+  collectDeliverToLab(input: DeliverToLabInput!): TodayAssignment!
+  collectMarkCollected(input: MarkCollectedInput!): TodayAssignment!
+  collectMarkUnavailable(input: MarkUnavailableInput!): CollectMutationResponse!
+  collectReportLate(input: ReportLateInput!): CollectMutationResponse!
+  completeOnboarding: OnboardingResponse!
+  createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
+  createLabOrder(doctorId: String!, input: CreateLabOrderInput!): CreateLabOrderResponse!
+  createPharmacy(input: CreatePharmacyInput!): PharmacyDetails!
+  createPhlebotomist(input: CreatePhlebotomistInput!): PhlebotomistDetails!
+  createPrescription(input: CreatePrescriptionInput!): CreatePrescriptionResponse!
   getPresignedUploadUrl(input: GetPresignedUrlInput!): PresignedUrlResponse!
+  labMarkSampleReceived(input: MarkSampleReceivedInput!): LabSampleSummary!
+  labReportSampleIssue(input: ReportSampleIssueInput!): LabPortalMutationResponse!
+  labStartProcessing(labOrderId: String!): LabSampleSummary!
+  labUploadResults(input: UploadResultsInput!): LabSampleSummary!
   logout(refreshToken: String): RequestOtpResponse!
+  markOutForDelivery(orderId: String!): DeliveryMutationResponse!
+  overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
+  pharmacyMarkReady(orderId: String!): PharmacyOrderSummary!
+  pharmacyReportStockIssue(input: ReportStockIssueInput!): PharmacyMutationResponse!
+  pharmacyStartPreparing(orderId: String!): PharmacyOrderSummary!
   refreshToken(input: RefreshTokenInput!): AuthResponse!
+  regenerateDeliveryOtp(orderId: String!): GenerateDeliveryOtpResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
+  reviewLabResults(doctorId: String!, input: ReviewLabResultsInput!): ReviewLabResultsResponse!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
+  sendToPharmacy(input: SendToPharmacyInput!): DeliveryMutationResponse!
   submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
   testS3Connection: S3TestResult!
+  toggleDiagnosticCentreActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  togglePharmacyActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  togglePhlebotomistActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  updateDeliveryStatus(input: MarkDeliveryStatusInput!): DeliveryMutationResponse!
+  updateDiagnosticCentre(input: UpdateDiagnosticCentreInput!): DiagnosticCentre!
+  updateOnboarding(input: UpdateOnboardingInput!): OnboardingResponse!
+  updatePharmacy(input: UpdatePharmacyInput!): PharmacyDetails!
+  updatePharmacyStatus(input: MarkPharmacyStatusInput!): DeliveryMutationResponse!
+  updatePhlebotomist(input: UpdatePhlebotomistInput!): PhlebotomistDetails!
   updateProfile(input: UpdateProfileInput!): ProfileUpdateResponse!
+  upsertHealthProfile(input: UpsertHealthProfileInput!): HealthProfileResponse!
   verifyOtp(input: VerifyOtpInput!): AuthResponse!
+}
+
+type NearbyLab {
+  address: String!
+  city: String!
+  id: String!
+  name: String!
+  phone: String!
+}
+
+type OnboardingResponse {
+  message: String!
+  patientProfile: PatientProfileType
+  success: Boolean!
+}
+
+"""Order/delivery status"""
+enum OrderStatus {
+  CANCELLED
+  DELIVERED
+  DELIVERY_FAILED
+  OUT_FOR_DELIVERY
+  PHARMACY_ISSUE
+  PHARMACY_PREPARING
+  PHARMACY_READY
+  PICKUP_ARRANGED
+  PRESCRIPTION_CREATED
+  RESCHEDULED
+  RETURNED
+  SENT_TO_PHARMACY
+}
+
+input OverrideLabOrderStatusInput {
+  labOrderId: String!
+  newStatus: LabOrderStatus!
+  reason: String!
+}
+
+type PartnerMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type PatientConsultationSummary {
+  createdAt: DateTime!
+  doctorName: String
+  id: String!
+  status: String!
+  vertical: String!
+}
+
+type PatientLabOrderSummary {
+  bookedDate: DateTime
+  createdAt: DateTime!
+  id: String!
+  panelName: String
+  status: String!
+}
+
+type PatientNote {
+  content: String!
+  createdAt: DateTime!
+  createdBy: String!
+  id: String!
+}
+
+type PatientOrderSummary {
+  createdAt: DateTime!
+  id: String!
+  status: String!
+  totalAmountPaise: Int!
 }
 
 type PatientProfileType {
@@ -80,17 +836,143 @@ type PatientProfileType {
   addressLine2: String
   city: String
   dateOfBirth: DateTime
+  fullName: String
   gender: Gender
+  healthGoals: [String!]!
+  healthProfiles: [HealthProfileType!]
   height: Float
   id: String!
+  onboardingComplete: Boolean!
   pincode: String
   state: String
+  telehealthConsent: Boolean!
+  telehealthConsentDate: DateTime
   weight: Float
+}
+
+type PharmaciesResponse {
+  pharmacies: [PharmacyDetails!]!
+  total: Int!
+}
+
+type PharmacyDetails {
+  address: String!
+  avgPreparationMinutes: Int!
+  city: String!
+  contactPerson: String
+  createdAt: DateTime!
+  drugLicenseNumber: String!
+  email: String
+  gstNumber: String
+  id: String!
+  isActive: Boolean!
+  name: String!
+  phone: String!
+  pincode: String!
+  rating: Float
+  serviceableAreas: [String!]!
+  state: String!
+}
+
+type PharmacyInfo {
+  address: String!
+  city: String!
+  id: String!
+  isActive: Boolean!
+  name: String!
+}
+
+type PharmacyMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type PharmacyOrderSummary {
+  createdAt: DateTime!
+  deliveryPersonName: String
+  deliveryPersonPhone: String
+  id: String!
+  medications: [MedicationItem!]!
+  orderId: String!
+  patientArea: String!
+  prescriptionUrl: String
+  status: String!
+}
+
+type PharmacyTodaySummary {
+  newOrders: Int!
+  preparing: Int!
+  ready: Int!
+}
+
+type PhlebotomistDetails {
+  availableDays: [String!]!
+  availableTimeEnd: String
+  availableTimeStart: String
+  certification: String
+  completedCollections: Int!
+  createdAt: DateTime!
+  currentCity: String!
+  email: String
+  failedCollections: Int!
+  id: String!
+  isActive: Boolean!
+  maxDailyCollections: Int!
+  name: String!
+  phone: String!
+  rating: Float
+  serviceableAreas: [String!]!
+  todayAssignments: Int!
+}
+
+type PhlebotomistInfo {
+  currentCity: String!
+  id: String!
+  isActive: Boolean!
+  name: String!
+  phone: String!
+}
+
+type PhlebotomistsResponse {
+  phlebotomists: [PhlebotomistDetails!]!
+  total: Int!
 }
 
 input PhotoInput {
   type: String!
   url: String!
+}
+
+type PincodeLookupResponse {
+  city: String
+  found: Boolean!
+  state: String
+}
+
+"""Available prescription templates"""
+enum PrescriptionTemplate {
+  ADVANCED
+  COMBINATION_PLUS
+  CONSERVATIVE
+  CUSTOM
+  FEMALE_AGA
+  MINOXIDIL_ONLY
+  STANDARD
+}
+
+type PrescriptionType {
+  consultationId: String!
+  createdAt: DateTime!
+  doctorName: String
+  doctorRegistrationNo: String
+  id: String!
+  instructions: String
+  issuedAt: DateTime!
+  medications: JSON!
+  patientName: String
+  patientPhone: String
+  pdfUrl: String
+  validUntil: DateTime!
 }
 
 type PresignedUrlResponse {
@@ -106,11 +988,51 @@ type ProfileUpdateResponse {
 }
 
 type Query {
+  adminDashboardStats: AdminDashboardStats!
+  adminDeliveries(filter: AdminDeliveriesFilterInput): AdminDeliveriesResponse!
+  adminLabOrders(filter: AdminLabOrdersFilterInput): AdminLabOrdersResponse!
+  adminPatientDetail(patientId: String!): AdminPatientDetail
+  adminPatients(filter: AdminPatientsFilterInput): AdminPatientsResponse!
+  adminQueue(filters: QueueFiltersInput): QueueResponse!
+  availableLabs(city: String!): AvailableLabsResponse!
+  availablePharmacies(pincode: String!): AvailablePharmaciesResponse!
+  availablePhlebotomists(date: DateTime!, pincode: String!): AvailablePhlebotomistsResponse!
+  availableTemplates(vertical: HealthVertical!): AvailableTemplatesResponse!
+  availableTestPanels(vertical: HealthVertical!): AvailablePanelsResponse!
   availableVerticals: [VerticalInfo!]!
+  caseDetail(consultationId: String!): CaseDetailType!
+  checkContraindications(input: CheckContraindicationsInput!): CheckContraindicationsResponse!
+  collectTodaySummary: CollectTodaySummary!
+  diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
+  doctorQueue(filters: QueueFiltersInput): QueueResponse!
+  labCompletedSamples: [LabSampleSummary!]!
+  labInProgressSamples: [LabSampleSummary!]!
+  labIncomingSamples: [LabSampleSummary!]!
+  labInfo: LabInfo!
+  labOrder(id: String!): LabOrderType
+  labOrdersByConsultation(consultationId: String!): [LabOrderType!]!
+  labOrdersForReview(doctorId: String!): [LabOrderType!]!
+  labTodaySummary: LabTodaySummary!
+  lookupPincode(pincode: String!): PincodeLookupResponse!
   me: UserProfileType
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
   myIntakes: [IntakeResponseType!]!
+  nearbyLabs: [NearbyLab!]!
+  pharmacies(city: String, page: Float, pageSize: Float, search: String): PharmaciesResponse!
+  pharmacyInfo: PharmacyInfo!
+  pharmacyNewOrders: [PharmacyOrderSummary!]!
+  pharmacyPreparingOrders: [PharmacyOrderSummary!]!
+  pharmacyReadyOrders: [PharmacyOrderSummary!]!
+  pharmacyTodaySummary: PharmacyTodaySummary!
+  phlebotomistInfo: PhlebotomistInfo!
+  phlebotomists(city: String, page: Float, pageSize: Float, search: String): PhlebotomistsResponse!
+  prescriptionByConsultation(consultationId: String!): PrescriptionType
   questionnaireTemplate(input: GetQuestionnaireInput!): QuestionnaireTemplateType!
+  queueStats: QueueStatsType!
+  slaEscalations: [SLAEscalation!]!
+  suggestTemplate(consultationId: String!): TemplateSuggestionType!
+  todayAssignments: [TodayAssignment!]!
+  unassignedCases(filters: QueueFiltersInput): QueueResponse!
 }
 
 type QuestionnaireTemplateType {
@@ -122,8 +1044,44 @@ type QuestionnaireTemplateType {
   vertical: HealthVertical!
 }
 
+input QueueFiltersInput {
+  attentionLevel: String
+  dashboardStatus: DashboardStatus
+  vertical: HealthVertical
+}
+
+type QueueResponse {
+  cases: [CaseCardType!]!
+}
+
+type QueueStatsType {
+  awaitingResponse: Int!
+  completed: Int!
+  followUp: Int!
+  inReview: Int!
+  labResultsReady: Int!
+  new: Int!
+  referred: Int!
+  totalActive: Int!
+}
+
 input RefreshTokenInput {
   refreshToken: String!
+}
+
+input ReportLateInput {
+  labOrderId: String!
+  newEta: String!
+}
+
+input ReportSampleIssueInput {
+  labOrderId: String!
+  reason: String!
+}
+
+input ReportStockIssueInput {
+  missingMedications: [String!]!
+  orderId: String!
 }
 
 input RequestOtpInput {
@@ -135,9 +1093,46 @@ type RequestOtpResponse {
   success: Boolean!
 }
 
+input ReviewLabResultsInput {
+  labOrderId: String!
+  reviewNotes: String
+}
+
+type ReviewLabResultsResponse {
+  labOrder: LabOrderType
+  message: String!
+  success: Boolean!
+}
+
 type S3TestResult {
   message: String!
   success: Boolean!
+}
+
+type SLAEscalation {
+  createdAt: DateTime!
+  id: String!
+  patientName: String
+  resourceId: String!
+  responsibleContact: String
+  responsibleParty: String!
+  slaInfo: SLAInfo!
+  type: String!
+  vertical: String
+}
+
+type SLAInfo {
+  deadlineAt: DateTime
+  hoursOverdue: Int
+  reason: String
+  status: SLAStatus!
+}
+
+"""SLA compliance status"""
+enum SLAStatus {
+  APPROACHING
+  BREACHED
+  ON_TIME
 }
 
 input SaveDraftInput {
@@ -150,6 +1145,11 @@ type SaveDraftResponse {
   intakeResponse: IntakeResponseType
   message: String!
   success: Boolean!
+}
+
+input SendToPharmacyInput {
+  orderId: String!
+  pharmacyId: String!
 }
 
 input SubmitIntakeInput {
@@ -165,6 +1165,86 @@ type SubmitIntakeResponse {
   success: Boolean!
 }
 
+type TemplateDefinitionType {
+  description: String!
+  medications: [MedicationType!]!
+  name: String!
+  whenToUse: String!
+}
+
+type TemplateSuggestionType {
+  contraindications: ContraindicationResultType!
+  suggestedTemplate: PrescriptionTemplate!
+  templateDefinition: TemplateDefinitionType!
+}
+
+type TestPanelType {
+  description: String!
+  name: String!
+  tests: [String!]!
+}
+
+type TodayAssignment {
+  collectedAt: DateTime
+  fullAddress: String!
+  id: String!
+  notes: String
+  panelName: String!
+  patientArea: String!
+  patientFirstName: String!
+  patientPhone: String!
+  status: String!
+  testsOrdered: [String!]!
+  timeWindow: String!
+  tubeCount: Int
+}
+
+input UpdateDiagnosticCentreInput {
+  address: String
+  avgTurnaroundHours: Int
+  contactPerson: String
+  email: String
+  id: String!
+  name: String
+  phone: String
+  testsOffered: [String!]
+}
+
+input UpdateOnboardingInput {
+  city: String!
+  dateOfBirth: String!
+  fullName: String!
+  gender: Gender!
+  healthGoals: [String!]!
+  pincode: String!
+  state: String!
+  telehealthConsent: Boolean!
+}
+
+input UpdatePharmacyInput {
+  address: String
+  avgPreparationMinutes: Int
+  contactPerson: String
+  email: String
+  id: String!
+  name: String
+  phone: String
+  serviceableAreas: [String!]
+}
+
+input UpdatePhlebotomistInput {
+  availableDays: [String!]
+  availableTimeEnd: String
+  availableTimeStart: String
+  certification: String
+  email: String
+  id: String!
+  maxDailyCollections: Int
+  name: String
+  phone: String
+  serviceableAreas: [String!]
+}
+
 input UpdateProfileInput {
   addressLine1: String
   addressLine2: String
@@ -177,6 +1257,17 @@ input UpdateProfileInput {
   pincode: String
   state: String
   weight: Float
+}
+
+input UploadResultsInput {
+  abnormalFlags: JSON!
+  labOrderId: String!
+  resultFileUrl: String!
+}
+
+input UpsertHealthProfileInput {
+  condition: String!
+  responses: JSON!
 }
 
 type UserProfileType {

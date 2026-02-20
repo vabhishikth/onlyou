@@ -14,67 +14,67 @@ registerEnumType(PrescriptionTemplate, {
 // Medication type
 @ObjectType()
 export class MedicationType {
-  @Field()
+  @Field(() => String)
   name: string;
 
-  @Field()
+  @Field(() => String)
   dosage: string;
 
-  @Field()
+  @Field(() => String)
   frequency: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   duration?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   instructions?: string | undefined;
 }
 
 // Medication input
 @InputType()
 export class MedicationInput {
-  @Field()
+  @Field(() => String)
   name: string;
 
-  @Field()
+  @Field(() => String)
   dosage: string;
 
-  @Field()
+  @Field(() => String)
   frequency: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   duration?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   instructions?: string | undefined;
 }
 
 // Template definition type
 @ObjectType()
 export class TemplateDefinitionType {
-  @Field()
+  @Field(() => String)
   name: string;
 
-  @Field()
+  @Field(() => String)
   description: string;
 
   @Field(() => [MedicationType])
   medications: MedicationType[];
 
-  @Field()
+  @Field(() => String)
   whenToUse: string;
 }
 
 // Contraindication result type
 @ObjectType()
 export class ContraindicationResultType {
-  @Field()
+  @Field(() => Boolean)
   isBlocked: boolean;
 
-  @Field()
+  @Field(() => Boolean)
   requiresDoctorReview: boolean;
 
-  @Field({ nullable: true })
+  @Field(() => Boolean, { nullable: true })
   suggestMinoxidilOnly?: boolean | undefined;
 
   @Field(() => [String])
@@ -100,47 +100,47 @@ export class TemplateSuggestionType {
 // Prescription type (database record)
 @ObjectType()
 export class PrescriptionType {
-  @Field()
+  @Field(() => String)
   id: string;
 
-  @Field()
+  @Field(() => String)
   consultationId: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   pdfUrl?: string | undefined;
 
   @Field(() => GraphQLJSON)
   medications: unknown;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   instructions?: string | undefined;
 
-  @Field()
+  @Field(() => Date)
   validUntil: Date;
 
-  @Field()
+  @Field(() => Date)
   issuedAt: Date;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   doctorName?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   doctorRegistrationNo?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   patientName?: string | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   patientPhone?: string | undefined;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 }
 
 // Create prescription input
 @InputType()
 export class CreatePrescriptionInput {
-  @Field()
+  @Field(() => String)
   consultationId: string;
 
   @Field(() => PrescriptionTemplate)
@@ -149,17 +149,17 @@ export class CreatePrescriptionInput {
   @Field(() => [MedicationInput], { nullable: true })
   customMedications?: MedicationInput[] | undefined;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   instructions?: string | undefined;
 }
 
 // Create prescription response
 @ObjectType()
 export class CreatePrescriptionResponse {
-  @Field()
+  @Field(() => Boolean)
   success: boolean;
 
-  @Field()
+  @Field(() => String)
   message: string;
 
   @Field(() => PrescriptionType, { nullable: true })
@@ -179,7 +179,7 @@ export class AvailableTemplatesResponse {
 // Check contraindications input
 @InputType()
 export class CheckContraindicationsInput {
-  @Field()
+  @Field(() => String)
   consultationId: string;
 
   @Field(() => PrescriptionTemplate)
@@ -189,7 +189,7 @@ export class CheckContraindicationsInput {
 // Check contraindications response
 @ObjectType()
 export class CheckContraindicationsResponse {
-  @Field()
+  @Field(() => Boolean)
   canProceed: boolean;
 
   @Field(() => ContraindicationResultType)

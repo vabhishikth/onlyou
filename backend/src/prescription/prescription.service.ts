@@ -23,6 +23,7 @@ export interface Medication {
   frequency: string;
   duration?: string | undefined;
   instructions?: string | undefined;
+  quantity?: number | undefined;
 }
 
 // Template definition

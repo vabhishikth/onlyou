@@ -109,7 +109,7 @@ export interface UpdateOnboardingInput {
 // Health profile input (Step 4)
 export interface UpsertHealthProfileInput {
     condition: string;
-    responses: Prisma.JsonValue;
+    responses: Prisma.InputJsonValue;
 }
 
 // Patient profile with health profiles

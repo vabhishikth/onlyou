@@ -1,20 +1,20 @@
 import { ObjectType, Field, Int, InputType } from '@nestjs/graphql';
-import { GraphQLJSON } from 'graphql-scalars';
+import GraphQLJSON from 'graphql-type-json';
 
 // Spec: master spec Section 7.1 — Lab Portal (lab.onlyou.life)
 
 @ObjectType()
 export class LabInfo {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
-    @Field()
+    @Field(() => String)
     city: string;
 
-    @Field()
+    @Field(() => Boolean)
     isActive: boolean;
 }
 
@@ -32,13 +32,13 @@ export class LabTodaySummary {
 
 @ObjectType()
 export class LabSampleSummary {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     sampleId: string;
 
-    @Field()
+    @Field(() => String)
     panelName: string;
 
     @Field(() => [String])
@@ -50,22 +50,22 @@ export class LabSampleSummary {
     @Field(() => Date, { nullable: true })
     deliveredAt: Date | null;
 
-    @Field()
+    @Field(() => String)
     status: string;
 
     @Field(() => Int, { nullable: true })
     tubeCount: number | null;
 
-    @Field()
+    @Field(() => String)
     patientInitials: string;
 
-    @Field()
+    @Field(() => Date)
     createdAt: Date;
 }
 
 @InputType()
 export class MarkSampleReceivedInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
     @Field(() => Int)
@@ -74,19 +74,19 @@ export class MarkSampleReceivedInput {
 
 @InputType()
 export class ReportSampleIssueInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
-    @Field()
+    @Field(() => String)
     reason: string;
 }
 
 @InputType()
 export class UploadResultsInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
-    @Field()
+    @Field(() => String)
     resultFileUrl: string;
 
     @Field(() => GraphQLJSON)
@@ -95,9 +95,9 @@ export class UploadResultsInput {
 
 @ObjectType()
 export class LabPortalMutationResponse {
-    @Field()
+    @Field(() => Boolean)
     success: boolean;
 
-    @Field()
+    @Field(() => String)
     message: string;
 }

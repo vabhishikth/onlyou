@@ -3,26 +3,16 @@ import {
     Field,
     Int,
     InputType,
-    registerEnumType,
 } from '@nestjs/graphql';
-import { LabOrderStatus, HealthVertical } from '@prisma/client';
+import { HealthVertical, LabOrderStatus } from '@prisma/client';
 
-// Re-register enums for GraphQL
-registerEnumType(LabOrderStatus, {
-    name: 'LabOrderStatus',
-    description: 'Lab order status',
-});
-
-registerEnumType(HealthVertical, {
-    name: 'HealthVertical',
-    description: 'Health vertical/condition',
-});
+// Note: LabOrderStatus is registered in lab-order.dto.ts, HealthVertical is registered in intake module
 
 // Spec: master spec Section 7 — Blood Work & Diagnostics
 
 @ObjectType()
 export class AdminLabOrderPatient {
-    @Field()
+    @Field(() => String)
     id: string;
 
     @Field(() => String, { nullable: true })
@@ -34,22 +24,22 @@ export class AdminLabOrderPatient {
 
 @ObjectType()
 export class AdminLabOrderPhlebotomist {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
-    @Field()
+    @Field(() => String)
     phone: string;
 }
 
 @ObjectType()
 export class AdminLabOrderLab {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
     @Field(() => String, { nullable: true })
@@ -58,7 +48,7 @@ export class AdminLabOrderLab {
 
 @ObjectType()
 export class AdminLabOrderSLA {
-    @Field()
+    @Field(() => String)
     status: string; // ON_TIME, APPROACHING, BREACHED
 
     @Field(() => String, { nullable: true })
@@ -70,10 +60,10 @@ export class AdminLabOrderSLA {
 
 @ObjectType()
 export class AdminLabOrderTimelineEvent {
-    @Field()
+    @Field(() => String)
     status: string;
 
-    @Field()
+    @Field(() => Date)
     timestamp: Date;
 
     @Field(() => String, { nullable: true })
@@ -82,7 +72,7 @@ export class AdminLabOrderTimelineEvent {
 
 @ObjectType()
 export class AdminLabOrder {
-    @Field()
+    @Field(() => String)
     id: string;
 
     @Field(() => AdminLabOrderPatient)
@@ -112,19 +102,19 @@ export class AdminLabOrder {
     @Field(() => String, { nullable: true })
     bookedTimeSlot: string | null;
 
-    @Field()
+    @Field(() => String)
     collectionAddress: string;
 
-    @Field()
+    @Field(() => String)
     collectionCity: string;
 
-    @Field()
+    @Field(() => String)
     collectionPincode: string;
 
     @Field(() => AdminLabOrderSLA)
     slaInfo: AdminLabOrderSLA;
 
-    @Field()
+    @Field(() => Date)
     orderedAt: Date;
 
     @Field(() => [AdminLabOrderTimelineEvent])
@@ -179,13 +169,13 @@ export class AdminLabOrdersFilterInput {
 // Available phlebotomists for assignment
 @ObjectType()
 export class AvailablePhlebotomist {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
-    @Field()
+    @Field(() => String)
     phone: string;
 
     @Field(() => Int)
@@ -194,7 +184,7 @@ export class AvailablePhlebotomist {
     @Field(() => Int)
     maxDailyCollections: number;
 
-    @Field()
+    @Field(() => Boolean)
     isAvailable: boolean;
 }
 
@@ -207,16 +197,16 @@ export class AvailablePhlebotomistsResponse {
 // Available labs for assignment
 @ObjectType()
 export class AvailableLab {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
-    @Field()
+    @Field(() => String)
     address: string;
 
-    @Field()
+    @Field(() => String)
     city: string;
 
     @Field(() => Int)
@@ -235,19 +225,19 @@ export class AvailableLabsResponse {
 // Assignment mutation inputs
 @InputType()
 export class AssignPhlebotomistInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
-    @Field()
+    @Field(() => String)
     phlebotomistId: string;
 }
 
 @InputType()
 export class AssignLabInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
-    @Field()
+    @Field(() => String)
     labId: string;
 }
 
@@ -256,28 +246,28 @@ export class BulkAssignPhlebotomistInput {
     @Field(() => [String])
     labOrderIds: string[];
 
-    @Field()
+    @Field(() => String)
     phlebotomistId: string;
 }
 
 @InputType()
 export class OverrideLabOrderStatusInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
     @Field(() => LabOrderStatus)
     newStatus: LabOrderStatus;
 
-    @Field()
+    @Field(() => String)
     reason: string;
 }
 
 @ObjectType()
 export class AdminLabOrderMutationResponse {
-    @Field()
+    @Field(() => Boolean)
     success: boolean;
 
-    @Field()
+    @Field(() => String)
     message: string;
 
     @Field(() => AdminLabOrder, { nullable: true })
@@ -286,10 +276,10 @@ export class AdminLabOrderMutationResponse {
 
 @ObjectType()
 export class BulkAssignmentResponse {
-    @Field()
+    @Field(() => Boolean)
     success: boolean;
 
-    @Field()
+    @Field(() => String)
     message: string;
 
     @Field(() => Int)

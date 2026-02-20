@@ -1,10 +1,9 @@
 import { Field, ObjectType, InputType, registerEnumType } from '@nestjs/graphql';
-import { HealthVertical } from '@prisma/client';
-import { LabOrderStatus } from '../lab-order.service';
+import { HealthVertical, LabOrderStatus } from '@prisma/client';
 
 // Spec: master spec Section 7 (Blood Work & Diagnostics)
 
-// Register LabOrderStatus enum
+// Register LabOrderStatus enum (use Prisma's enum as the single source of truth)
 registerEnumType(LabOrderStatus, {
     name: 'LabOrderStatus',
     description: 'Lab order status values',
@@ -83,26 +82,26 @@ export const TEST_PANELS_BY_VERTICAL: Record<
 // Individual test type
 @ObjectType()
 export class TestType {
-    @Field()
+    @Field(() => String)
     code: string;
 
-    @Field()
+    @Field(() => String)
     name: string;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     description?: string | undefined;
 }
 
 // Test panel type
 @ObjectType()
 export class TestPanelType {
-    @Field()
+    @Field(() => String)
     name: string;
 
     @Field(() => [String])
     tests: string[];
 
-    @Field()
+    @Field(() => String)
     description: string;
 }
 
@@ -119,106 +118,106 @@ export class AvailablePanelsResponse {
 // Lab order type
 @ObjectType()
 export class LabOrderType {
-    @Field()
+    @Field(() => String)
     id: string;
 
-    @Field()
+    @Field(() => String)
     patientId: string;
 
-    @Field()
+    @Field(() => String)
     consultationId: string;
 
-    @Field()
+    @Field(() => String)
     doctorId: string;
 
     @Field(() => [String])
     testPanel: string[];
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     panelName?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     doctorNotes?: string | undefined;
 
     @Field(() => LabOrderStatus)
     status: LabOrderStatus;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     bookedDate?: Date | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     bookedTimeSlot?: string | undefined;
 
-    @Field()
+    @Field(() => String)
     collectionAddress: string;
 
-    @Field()
+    @Field(() => String)
     collectionCity: string;
 
-    @Field()
+    @Field(() => String)
     collectionPincode: string;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     phlebotomistId?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     diagnosticCentreId?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     resultFileUrl?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => Boolean, { nullable: true })
     criticalValues?: boolean | undefined;
 
-    @Field()
+    @Field(() => Date)
     orderedAt: Date;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     slotBookedAt?: Date | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     sampleCollectedAt?: Date | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     resultsUploadedAt?: Date | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     doctorReviewedAt?: Date | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => Date, { nullable: true })
     closedAt?: Date | undefined;
 
     // Patient info (nested)
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     patientName?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     patientPhone?: string | undefined;
 }
 
 // Create lab order input
 @InputType()
 export class CreateLabOrderInput {
-    @Field()
+    @Field(() => String)
     consultationId: string;
 
     @Field(() => [String])
     testPanel: string[];
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     panelName?: string | undefined;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     doctorNotes?: string | undefined;
 }
 
 // Create lab order response
 @ObjectType()
 export class CreateLabOrderResponse {
-    @Field()
+    @Field(() => Boolean)
     success: boolean;
 
-    @Field()
+    @Field(() => String)
     message: string;
 
     @Field(() => LabOrderType, { nullable: true })
@@ -228,20 +227,20 @@ export class CreateLabOrderResponse {
 // Review lab results input
 @InputType()
 export class ReviewLabResultsInput {
-    @Field()
+    @Field(() => String)
     labOrderId: string;
 
-    @Field({ nullable: true })
+    @Field(() => String, { nullable: true })
     reviewNotes?: string | undefined;
 }
 
 // Review lab results response
 @ObjectType()
 export class ReviewLabResultsResponse {
-    @Field()
+    @Field(() => Boolean)
     success: boolean;
 
-    @Field()
+    @Field(() => String)
     message: string;
 
     @Field(() => LabOrderType, { nullable: true })
