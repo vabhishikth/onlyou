@@ -1,8 +1,8 @@
 # CHECKPOINT — Last Updated: 2026-02-20
 
-## Current Phase: Phase 4 — Blood Work & Delivery
-## Current Task: PR 13 - Patient Tracking Screens
-## Status: COMPLETE
+## Current Phase: Phase 5 — Payment Integration
+## Current Task: PR 14 - Payment Integration (Razorpay)
+## Status: IN PROGRESS (Task 1 of 4 complete)
 
 ## Completed Work:
 
@@ -28,48 +28,37 @@
 - [x] PR 12: Portal Test Coverage (4 commits)
 - [x] PR 13: Patient Tracking Screens (4 commits)
 
+### Phase 5 — Payment Integration:
+- [x] PR 14, Task 1: Payment + Subscription GraphQL Resolvers (TDD)
+
 ## Test Counts:
-- Backend: 1,892 tests (39 test suites)
+- Backend: 1,917 tests (41 test suites)
 - Mobile: 379 tests (26 test suites)
-- **Total: 2,271 tests**
+- **Total: 2,296 tests**
 
 ---
 
-## Last Completed: PR 13 (2026-02-20)
+## Current PR: PR 14 — Payment Integration (Razorpay)
 
-### PR 13: Patient Tracking Screens
+### Task 1: feat(payment): add payment + subscription GraphQL resolvers (TDD) — COMPLETE
+- 16 payment resolver tests (TDD): createPaymentOrder, verifyPayment, paymentWebhook, myPayments, supportedPaymentMethods, validatePricing
+- 9 subscription resolver tests (TDD): availablePlans, mySubscriptions, cancelSubscription, pauseSubscription, resumeSubscription
+- Payment DTOs: CreatePaymentOrderInput, VerifyPaymentInput, WebhookInput, PaymentType, PaymentOrderResponse, PaymentMutationResponse, PricingValidationResponse
+- Subscription DTOs: SubscriptionPlanType, SubscriptionType, SubscriptionMutationResponse, CancelSubscriptionInput
+- Updated payment.module.ts, subscription.module.ts (added resolvers)
+- Updated app.module.ts (added PaymentModule, SubscriptionModule)
 
-**Commit 1: feat(tracking): add GraphQL resolver + DTOs for patient tracking (TDD)**
-- 24 resolver tests (TDD)
-- 5 queries: activeTracking, labOrderProgress, deliveryOrderProgress, trackingHomeBanner, availableActions
-- 5 mutations: bookLabSlot, rescheduleLabSlot, cancelLabOrder, confirmDeliveryOTP, rateDelivery
-- DTOs match mobile's GET_ACTIVE_TRACKING query shape (labOrders + deliveryOrders)
-- Added TrackingModule, OrderModule, WalletModule to app.module.ts
-
-**Commit 2: feat(mobile): add lab results viewer with simplified summary**
-- Results summary table parsing abnormalFlags JSON
-- Color-coded rows: normal (green), abnormal (amber), critical (red)
-- Critical values banner, doctor's note section, PDF link via Linking
-
-**Commit 3: feat(mobile): add delivery OTP display and rating modal**
-- 3-step modal: show OTP → confirmed → rate delivery (1-5 stars)
-- Added CONFIRM_DELIVERY_OTP and RATE_DELIVERY mutations to graphql/tracking.ts
-
-**Commit 4: test(mobile): add tests for lab results viewer and delivery OTP modal**
-- 18 lab results viewer tests (loading, error, display, critical values, empty data)
-- 11 delivery OTP modal tests (OTP display, confirmation flow, visibility, rating)
+### Task 2: Seed SubscriptionPlans + Mobile Payment GraphQL — PENDING
+### Task 3: Mobile Plan Selection Screen — PENDING
+### Task 4: Mobile Payment Screen + Razorpay Integration — PENDING
 
 ---
 
-## Next Up: PR 14 — TBD
+## Next Up: PR 14, Task 2
 
-Possible next steps:
-1. Payment integration (Razorpay)
-2. Chat/messaging mobile screens
-3. Mobile lab slot booking flow polish
-4. End-to-end integration testing
+Seed 12 SubscriptionPlan records (4 verticals × 3 durations) and create mobile/src/graphql/payment.ts.
 
-**Spec reference:** master spec Section 9 (Payments), Section 5.5 (Messaging)
+**Spec reference:** master spec Section 12 (Payment & Subscription)
 
 ---
 

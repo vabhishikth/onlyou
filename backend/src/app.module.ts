@@ -20,6 +20,8 @@ import { MessagingModule } from './messaging/messaging.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { OrderModule } from './order/order.module';
 import { WalletModule } from './wallet/wallet.module';
+import { PaymentModule } from './payment/payment.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
     imports: [
@@ -52,6 +54,8 @@ import { WalletModule } from './wallet/wallet.module';
         TrackingModule,
         OrderModule,
         WalletModule,
+        PaymentModule,
+        SubscriptionModule,
     ],
 })
 export class AppModule { }
