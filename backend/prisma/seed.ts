@@ -839,6 +839,65 @@ async function main() {
         }
     }
 
+    // ============================================
+    // SEED SUBSCRIPTION PLANS
+    // Spec: master spec Section 12 — Pricing
+    // ============================================
+    console.log('\n--- Seeding Subscription Plans ---');
+
+    const baseFeatures = [
+        'Doctor consultation',
+        'Personalized treatment plan',
+        'Monthly medication refill',
+        'Unlimited doctor chat',
+        'Progress tracking',
+    ];
+
+    const plans = [
+        // Hair Loss
+        { vertical: HealthVertical.HAIR_LOSS, name: 'Hair Loss Monthly', priceInPaise: 99900, durationMonths: 1, features: [...baseFeatures] },
+        { vertical: HealthVertical.HAIR_LOSS, name: 'Hair Loss Quarterly', priceInPaise: 249900, durationMonths: 3, features: [...baseFeatures, 'Save 17%'] },
+        { vertical: HealthVertical.HAIR_LOSS, name: 'Hair Loss Annual', priceInPaise: 899900, durationMonths: 12, features: [...baseFeatures, 'Save 25%', 'Priority support'] },
+        // Sexual Health
+        { vertical: HealthVertical.SEXUAL_HEALTH, name: 'Sexual Health Monthly', priceInPaise: 129900, durationMonths: 1, features: [...baseFeatures] },
+        { vertical: HealthVertical.SEXUAL_HEALTH, name: 'Sexual Health Quarterly', priceInPaise: 329900, durationMonths: 3, features: [...baseFeatures, 'Save 15%'] },
+        { vertical: HealthVertical.SEXUAL_HEALTH, name: 'Sexual Health Annual', priceInPaise: 1199900, durationMonths: 12, features: [...baseFeatures, 'Save 23%', 'Priority support'] },
+        // PCOS
+        { vertical: HealthVertical.PCOS, name: 'PCOS Monthly', priceInPaise: 149900, durationMonths: 1, features: [...baseFeatures] },
+        { vertical: HealthVertical.PCOS, name: 'PCOS Quarterly', priceInPaise: 379900, durationMonths: 3, features: [...baseFeatures, 'Save 16%'] },
+        { vertical: HealthVertical.PCOS, name: 'PCOS Annual', priceInPaise: 1399900, durationMonths: 12, features: [...baseFeatures, 'Save 22%', 'Priority support'] },
+        // Weight Management
+        { vertical: HealthVertical.WEIGHT_MANAGEMENT, name: 'Weight Management Monthly', priceInPaise: 299900, durationMonths: 1, features: [...baseFeatures] },
+        { vertical: HealthVertical.WEIGHT_MANAGEMENT, name: 'Weight Management Quarterly', priceInPaise: 799900, durationMonths: 3, features: [...baseFeatures, 'Save 11%'] },
+        { vertical: HealthVertical.WEIGHT_MANAGEMENT, name: 'Weight Management Annual', priceInPaise: 2799900, durationMonths: 12, features: [...baseFeatures, 'Save 22%', 'Priority support'] },
+    ];
+
+    for (const plan of plans) {
+        await prisma.subscriptionPlan.upsert({
+            where: {
+                vertical_durationMonths: {
+                    vertical: plan.vertical,
+                    durationMonths: plan.durationMonths,
+                },
+            },
+            update: {
+                name: plan.name,
+                priceInPaise: plan.priceInPaise,
+                features: plan.features,
+                isActive: true,
+            },
+            create: {
+                vertical: plan.vertical,
+                name: plan.name,
+                priceInPaise: plan.priceInPaise,
+                durationMonths: plan.durationMonths,
+                features: plan.features,
+                isActive: true,
+            },
+        });
+    }
+    console.log(`  - ${plans.length} subscription plans seeded`);
+
     console.log('\nSeeding complete!');
 }
 

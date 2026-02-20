@@ -2,7 +2,7 @@
 
 ## Current Phase: Phase 5 — Payment Integration
 ## Current Task: PR 14 - Payment Integration (Razorpay)
-## Status: IN PROGRESS (Task 1 of 4 complete)
+## Status: IN PROGRESS (Tasks 1-2 of 4 complete)
 
 ## Completed Work:
 
@@ -33,8 +33,8 @@
 
 ## Test Counts:
 - Backend: 1,917 tests (41 test suites)
-- Mobile: 379 tests (26 test suites)
-- **Total: 2,296 tests**
+- Mobile: 398 tests (27 test suites)
+- **Total: 2,315 tests**
 
 ---
 
@@ -48,15 +48,19 @@
 - Updated payment.module.ts, subscription.module.ts (added resolvers)
 - Updated app.module.ts (added PaymentModule, SubscriptionModule)
 
-### Task 2: Seed SubscriptionPlans + Mobile Payment GraphQL — PENDING
+### Task 2: feat(payment): seed subscription plans + mobile payment GraphQL — COMPLETE
+- Added 12 SubscriptionPlan records to seed.ts (4 verticals × 3 durations)
+- Added @@unique([vertical, durationMonths]) to SubscriptionPlan in schema.prisma
+- Created mobile/src/graphql/payment.ts: types, queries (GET_AVAILABLE_PLANS, GET_MY_PAYMENTS), mutations (CREATE_PAYMENT_ORDER, VERIFY_PAYMENT), helpers (formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent)
+- 19 helper tests: formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent, GraphQL exports
 ### Task 3: Mobile Plan Selection Screen — PENDING
 ### Task 4: Mobile Payment Screen + Razorpay Integration — PENDING
 
 ---
 
-## Next Up: PR 14, Task 2
+## Next Up: PR 14, Task 3
 
-Seed 12 SubscriptionPlan records (4 verticals × 3 durations) and create mobile/src/graphql/payment.ts.
+Create mobile plan selection screen in intake flow. Modify review.tsx routing.
 
 **Spec reference:** master spec Section 12 (Payment & Subscription)
 
