@@ -2,7 +2,7 @@
 
 ## Current Phase: Phase 5 — Payment Integration
 ## Current Task: PR 14 - Payment Integration (Razorpay)
-## Status: IN PROGRESS (Tasks 1-3 of 4 complete)
+## Status: COMPLETE (All 4 tasks done)
 
 ## Completed Work:
 
@@ -33,8 +33,8 @@
 
 ## Test Counts:
 - Backend: 1,917 tests (41 test suites)
-- Mobile: 416 tests (28 test suites)
-- **Total: 2,333 tests**
+- Mobile: 431 tests (29 test suites)
+- **Total: 2,348 tests**
 
 ---
 
@@ -65,15 +65,21 @@
   - Passes params: vertical, responses, photos
 - 18 plan-selection tests: loading, error, plan display, prices, savings badges, selection, navigation
 
-### Task 4: Mobile Payment Screen + Razorpay Integration — PENDING
+### Task 4: feat(mobile): add Razorpay payment screen in intake flow — COMPLETE
+- Created mobile/app/intake/[vertical]/payment.tsx (~280 lines)
+  - Order summary card, secure payment notice, Razorpay SDK integration
+  - Full flow: createPaymentOrder → Razorpay checkout → verifyPayment → submitIntake → complete
+  - Error handling: order creation failure, Razorpay cancellation (code 2), payment failure, verification failure
+  - Processing steps with loading indicators
+- 15 payment tests: rendering, full payment flow, error handling, navigation
 
 ---
 
-## Next Up: PR 14, Task 4
+## PR 14 — COMPLETE
 
-Create mobile payment screen with Razorpay SDK integration in intake flow.
+New intake flow: Review → Plan Selection → Payment (Razorpay) → Complete
 
-**Spec reference:** master spec Section 12 (Payment & Subscription)
+**Spec reference:** master spec Section 3.6, Section 12
 
 ---
 
