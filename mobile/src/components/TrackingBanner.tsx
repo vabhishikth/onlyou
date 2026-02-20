@@ -6,7 +6,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import {
     LabOrder,
     Order,

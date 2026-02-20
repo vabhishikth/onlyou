@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 
 const verticalNames: Record<string, string> = {
     'hair-loss': 'Hair Loss',

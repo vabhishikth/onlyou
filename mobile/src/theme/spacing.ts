@@ -15,6 +15,9 @@ export const spacing = {
     '4xl': 48,
     '5xl': 64,
     '6xl': 80,
+    // Legacy aliases
+    xxl: 32,
+    xxxl: 48,
 } as const;
 
 // Screen-specific spacing

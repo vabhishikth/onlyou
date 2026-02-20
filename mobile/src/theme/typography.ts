@@ -139,3 +139,76 @@ export const textStyles = {
         textTransform: 'uppercase' as const,
     },
 } as const;
+
+// Legacy typography object (matches old @/styles/theme API shape)
+export const typography = {
+    displayLarge: {
+        fontFamily: fontFamilies.serifBold,
+        fontSize: 32,
+        lineHeight: 40,
+        fontWeight: '700' as const,
+        letterSpacing: -0.5,
+    },
+    displayMedium: {
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: 28,
+        lineHeight: 36,
+        fontWeight: '600' as const,
+        letterSpacing: -0.3,
+    },
+    headingLarge: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: 24,
+        lineHeight: 32,
+        fontWeight: '600' as const,
+    },
+    headingMedium: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: 20,
+        lineHeight: 28,
+        fontWeight: '600' as const,
+    },
+    headingSmall: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: 18,
+        lineHeight: 24,
+        fontWeight: '600' as const,
+    },
+    bodyLarge: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: 16,
+        lineHeight: 24,
+        fontWeight: '400' as const,
+    },
+    bodyMedium: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: 14,
+        lineHeight: 20,
+        fontWeight: '400' as const,
+    },
+    bodySmall: {
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: 12,
+        lineHeight: 16,
+        fontWeight: '400' as const,
+    },
+    label: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: 12,
+        lineHeight: 16,
+        fontWeight: '500' as const,
+        letterSpacing: 0.5,
+    },
+    button: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: 16,
+        lineHeight: 24,
+        fontWeight: '600' as const,
+    },
+    buttonSmall: {
+        fontFamily: fontFamilies.sansSemiBold,
+        fontSize: 14,
+        lineHeight: 20,
+        fontWeight: '600' as const,
+    },
+} as const;

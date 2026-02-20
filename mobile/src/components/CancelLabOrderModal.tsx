@@ -11,7 +11,7 @@ import {
     Platform,
 } from 'react-native';
 import { useMutation } from '@apollo/client';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import { CANCEL_LAB_ORDER, LabOrder } from '@/graphql/tracking';
 
 interface CancelLabOrderModalProps {

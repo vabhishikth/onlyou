@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from '@apollo/client';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import {
     GET_QUESTIONNAIRE_TEMPLATE,
     SUBMIT_INTAKE,

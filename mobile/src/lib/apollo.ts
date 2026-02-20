@@ -12,7 +12,7 @@ import * as SecureStore from 'expo-secure-store';
 // For physical device testing, use your machine's local IP
 // For simulator, use localhost
 const API_URL = __DEV__
-    ? 'http://192.168.0.101:4000/graphql'  // Change to your local IP for device testing
+    ? 'http://192.168.0.105:4000/graphql'  // Change to your local IP for device testing
     : 'https://api.onlyou.life/graphql';
 
 const TOKEN_KEY = 'accessToken';

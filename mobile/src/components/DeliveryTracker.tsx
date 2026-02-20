@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography } from '@/theme';
 import VerticalStepper, { StepperStep } from './VerticalStepper';
 import {
     Order,

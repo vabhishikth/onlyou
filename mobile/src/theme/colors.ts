@@ -52,11 +52,16 @@ export const colors = {
     weightTint: '#F2F7F4', // barely-there sage
     weightIcon: '#6E9E7E', // muted sage green
 
-    // Legacy compatibility (can be removed later)
+    // Legacy compatibility aliases (used by older screens)
     primary: '#141414',
     primaryLight: '#333333',
     primaryDark: '#000000',
     primaryText: '#FFFFFF',
+    text: '#141414',
+    textInverse: '#FFFFFF',
+    surfaceElevated: '#FFFFFF',
+    info: '#0284C7',
+    infoLight: '#E0F2FE',
 } as const;
 
 export type ColorKey = keyof typeof colors;

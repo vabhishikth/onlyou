@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from '@apollo/client';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, borderRadius, typography, shadows } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import {
     GET_MESSAGES,
     SEND_MESSAGE,

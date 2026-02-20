@@ -1,20 +1,28 @@
+/**
+ * Phone Entry Screen — Onlyou Design System
+ * Clinical Luxe design with consistent branding
+ */
+
 import React, { useState } from 'react';
 import {
     View,
     Text,
     TextInput,
-    TouchableOpacity,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
-    ActivityIndicator,
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+import { colors } from '@/theme/colors';
+import { fontFamilies, fontSizes, textStyles } from '@/theme/typography';
+import { spacing, screenSpacing, borderRadius, dimensions } from '@/theme/spacing';
+import { BackButton, PremiumButton } from '@/components/ui';
 import { REQUEST_OTP, RequestOtpResponse } from '@/graphql/auth';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
 
 export default function PhoneScreen() {
     const router = useRouter();
@@ -43,31 +51,50 @@ export default function PhoneScreen() {
             } else {
                 Alert.alert('Error', data?.requestOtp.message || 'Failed to send OTP');
             }
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Something went wrong');
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+            Alert.alert('Error', errorMessage);
         }
     };
 
+    const handleBack = () => {
+        router.back();
+    };
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} testID="phone-screen">
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
             >
                 <View style={styles.content}>
-                    {/* Logo / Brand */}
-                    <View style={styles.brandSection}>
-                        <Text style={styles.brandName}>Onlyou</Text>
-                        <Text style={styles.tagline}>Healthcare, made personal</Text>
-                    </View>
+                    {/* Back button */}
+                    <BackButton onPress={handleBack} testID="back-button" />
 
-                    {/* Phone Input */}
-                    <View style={styles.formSection}>
+                    {/* Logo */}
+                    <Animated.Text
+                        entering={FadeInUp.delay(0).duration(400)}
+                        style={styles.logo}
+                        testID="phone-logo"
+                    >
+                        onlyou
+                    </Animated.Text>
+
+                    {/* Header */}
+                    <Animated.View
+                        entering={FadeInUp.delay(80).duration(400)}
+                        style={styles.header}
+                    >
                         <Text style={styles.heading}>Welcome</Text>
                         <Text style={styles.subheading}>
                             Enter your mobile number to get started
                         </Text>
+                    </Animated.View>
 
+                    {/* Phone Input */}
+                    <Animated.View
+                        entering={FadeInUp.delay(160).duration(400)}
+                    >
                         <View style={styles.inputContainer}>
                             <View style={styles.countryCode}>
                                 <Text style={styles.countryCodeText}>+91</Text>
@@ -75,38 +102,41 @@ export default function PhoneScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="10-digit mobile number"
-                                placeholderTextColor={colors.textTertiary}
+                                placeholderTextColor={colors.textMuted}
                                 keyboardType="phone-pad"
                                 maxLength={10}
                                 value={phone}
                                 onChangeText={(text) => setPhone(text.replace(/\D/g, ''))}
                                 autoFocus
+                                testID="phone-input"
                             />
                         </View>
+                    </Animated.View>
 
-                        <TouchableOpacity
-                            style={[
-                                styles.button,
-                                (!isValidPhone || loading) && styles.buttonDisabled,
-                            ]}
+                    {/* Continue Button */}
+                    <Animated.View
+                        entering={FadeInUp.delay(240).duration(400)}
+                        style={styles.buttonContainer}
+                    >
+                        <PremiumButton
+                            title="Continue"
                             onPress={handleSubmit}
+                            variant="primary"
                             disabled={!isValidPhone || loading}
-                            activeOpacity={0.8}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color={colors.primaryText} />
-                            ) : (
-                                <Text style={styles.buttonText}>Continue</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                            loading={loading}
+                            testID="continue-button"
+                        />
+                    </Animated.View>
 
                     {/* Terms */}
-                    <Text style={styles.terms}>
+                    <Animated.Text
+                        entering={FadeInUp.delay(320).duration(400)}
+                        style={styles.terms}
+                    >
                         By continuing, you agree to our{' '}
                         <Text style={styles.link}>Terms of Service</Text> and{' '}
                         <Text style={styles.link}>Privacy Policy</Text>
-                    </Text>
+                    </Animated.Text>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -116,41 +146,37 @@ export default function PhoneScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.white,
     },
     keyboardView: {
         flex: 1,
     },
     content: {
         flex: 1,
-        paddingHorizontal: spacing.xl,
-        justifyContent: 'center',
+        paddingHorizontal: screenSpacing.horizontal,
+        paddingTop: spacing.lg,
     },
-    brandSection: {
-        alignItems: 'center',
-        marginBottom: spacing.xxxl,
+    logo: {
+        ...textStyles.logo,
+        color: colors.textPrimary,
+        marginTop: spacing['3xl'],
+        marginBottom: spacing.xl,
     },
-    brandName: {
-        ...typography.displayLarge,
-        color: colors.primary,
-    },
-    tagline: {
-        ...typography.bodyMedium,
-        color: colors.textSecondary,
-        marginTop: spacing.xs,
-    },
-    formSection: {
-        marginBottom: spacing.xxxl,
+    header: {
+        marginBottom: spacing['2xl'],
     },
     heading: {
-        ...typography.headingLarge,
-        color: colors.text,
-        marginBottom: spacing.xs,
+        fontFamily: fontFamilies.serifSemiBold,
+        fontSize: fontSizes.title,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
+        marginBottom: spacing.sm,
     },
     subheading: {
-        ...typography.bodyMedium,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
         color: colors.textSecondary,
-        marginBottom: spacing.xl,
+        lineHeight: fontSizes.body * 1.5,
     },
     inputContainer: {
         flexDirection: 'row',
@@ -158,50 +184,42 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
-        backgroundColor: colors.surfaceElevated,
-        marginBottom: spacing.lg,
+        backgroundColor: colors.surface,
+        height: dimensions.inputHeight,
     },
     countryCode: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.base,
+        height: '100%',
+        justifyContent: 'center',
         borderRightWidth: 1,
         borderRightColor: colors.border,
     },
     countryCodeText: {
-        ...typography.bodyLarge,
-        color: colors.text,
-        fontWeight: '500',
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
     },
     input: {
         flex: 1,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        ...typography.bodyLarge,
-        color: colors.text,
+        paddingHorizontal: spacing.base,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.body,
+        color: colors.textPrimary,
     },
-    button: {
-        backgroundColor: colors.primary,
-        paddingVertical: spacing.md + 2,
-        borderRadius: borderRadius.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
-    buttonDisabled: {
-        backgroundColor: colors.textTertiary,
-    },
-    buttonText: {
-        ...typography.button,
-        color: colors.primaryText,
+    buttonContainer: {
+        marginTop: spacing.xl,
     },
     terms: {
-        ...typography.bodySmall,
+        fontFamily: fontFamilies.sansRegular,
+        fontSize: fontSizes.caption,
         color: colors.textTertiary,
         textAlign: 'center',
         paddingHorizontal: spacing.lg,
+        marginTop: spacing.xl,
+        lineHeight: fontSizes.caption * 1.6,
     },
     link: {
-        color: colors.primary,
-        fontWeight: '500',
+        color: colors.accent,
+        fontFamily: fontFamilies.sansMedium,
     },
 });

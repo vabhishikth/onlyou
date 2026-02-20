@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from '@apollo/client';
-import { colors, spacing, borderRadius, typography } from '@/styles/theme';
+import { colors, spacing, borderRadius, typography } from '@/theme';
 import {
     GET_NOTIFICATION_PREFERENCES,
     UPDATE_NOTIFICATION_PREFERENCES,
