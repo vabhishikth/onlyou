@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-20
 
-## Current Phase: Doctor Dashboard (Phase 3)
-## Current Task: PR 10 - Doctor Dashboard Polish
+## Current Phase: Phase 4 — Blood Work & Delivery
+## Current Task: PR 12 - Portal Test Coverage
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -23,54 +23,67 @@
 - [x] PR 9: Web fixes + seed data
 - [x] PR 10: Doctor Dashboard Polish (4 commits)
 
+### Phase 4 — Blood Work & Delivery:
+- [x] PR 11: Order + Wallet GraphQL Resolvers (2 commits)
+- [x] PR 12: Portal Test Coverage (4 commits)
+
 ## Test Counts:
-- Backend: 1,522 tests (4 new lab order tests added in PR 10)
+- Backend: 1,868 tests (38 test suites)
 - Mobile: 350 tests
-- **Total: 1,872 tests**
+- **Total: 2,218 tests**
 
 ---
 
-## Last Completed: PR 10 - Doctor Dashboard Polish (2026-02-20)
+## Last Completed: PR 11 + PR 12 (2026-02-20)
 
-### Commit 1: fix(backend): add class-validator decorators to all InputType DTOs
-- Root cause fix for "Create Prescription does nothing" bug
-- `ValidationPipe({ whitelist: true })` was stripping properties without decorators
-- Added `@IsNotEmpty()`, `@IsOptional()`, `@IsArray()`, `@ValidateNested()` to 36 `@InputType()` classes across 12 DTO files
-- Files: admin, collect-portal, consultation, dashboard, lab-order, lab-portal, messaging, pharmacy-portal, prescription DTOs
+### PR 11: Order + Wallet GraphQL Resolvers
 
-### Commit 2: feat(backend): add lab orders to case detail response
-- Added `CaseLabOrderType` DTO (id, testPanel, panelName, status, orderedAt, resultFileUrl, criticalValues)
-- Added `labOrders` field to `CaseDetailType`
-- Updated `getCaseDetail()` Prisma include with labOrders orderBy desc
-- Mapped lab orders in dashboard resolver with null→undefined
-- 4 new tests in `dashboard.service.spec.ts` (50 total, all passing)
+**Commit 1: feat(order): add GraphQL resolver + DTOs for order/delivery system**
+- 23 resolver tests (TDD)
+- 4 queries: order, ordersByPatient, pendingDeliveries, ordersDueForReorder
+- 10 mutations: createOrder, sendToPharmacy, arrangePickup, markOutForDelivery, confirmDelivery, markDeliveryFailed, rescheduleDelivery, cancelOrder, createReorder, rateDelivery
+- DTOs with class-validator decorators
 
-### Commit 3: feat(web): Clinical Luxe design system for doctor dashboard
-- Color palette: green→black (#141414), orange→lavender (#9B8EC4)
-- Added Playfair Display serif font for headings
-- Updated button variants, sidebar, login page, all doctor pages
+**Commit 2: feat(wallet): add GraphQL resolver + DTOs for wallet/refund system**
+- 15 resolver tests (TDD)
+- 4 queries: walletBalance, transactionHistory, refundStatus, refundsByUser
+- 3 mutations: creditWallet, applyWalletAtCheckout, initiateRefund
 
-### Commit 4: feat(web): Start Review button, Case Progress card, message bubble fix
-- Start Review button for AI_REVIEWED cases → transitions to DOCTOR_REVIEWING
-- Case Progress card on Overview tab (blood work status, prescription, messages)
-- Message bubble alignment uses `useAuth()` currentUser.id instead of hardcoded 'doctor'
-- Updated CASE_DETAIL GraphQL query to include labOrders
+### PR 12: Portal Test Coverage
+
+**Commit 3: test(lab-portal): 71 tests for diagnostic centre portal**
+- getLabInfo, getTodaySummary, incoming/inProgress/completed samples
+- markSampleReceived, reportSampleIssue, startProcessing, uploadResults
+- Permission checks, tube count mismatch, critical value detection
+
+**Commit 4: test(collect-portal): 66 tests for phlebotomist portal**
+- getPhlebotomistInfo, getTodaySummary, getTodayAssignments
+- markCollected, markPatientUnavailable, reportRunningLate, deliverToLab
+- getNearbyLabs, time window formatting, stat increments
+
+**Commit 5: test(pharmacy-portal): 53 tests for pharmacy portal**
+- getPharmacyInfo, getTodaySummary, getNewOrders, getPreparingOrders, getReadyOrders
+- startPreparing, markReady, reportStockIssue
+- Medication parsing, patient anonymization
+
+**Commit 6: test(admin): 118 tests for admin dashboard + SLA engine**
+- getDashboardStats, countSLABreaches (5 breach types)
+- calculateLabOrderSLA (ON_TIME/APPROACHING/BREACHED for all statuses)
+- getAdminLabOrders, getAdminDeliveries, getPatients, getPatientDetail
+- assignPhlebotomist, arrangeDelivery, partner toggles
 
 ---
 
-## Next Up: End-to-End Testing with Real Data
+## Next Up: PR 13 — Mobile Patient Tracking Screens
 
-**Goal:** Test the full patient→doctor flow with real data (no seed data):
-1. Patient registers on mobile → completes intake → consultation created
-2. Doctor logs in on web → sees case in queue → clicks "Start Review"
-3. Doctor reviews case, orders blood work, prescribes, sends messages
-4. Verify all status transitions work correctly
+**Goal:** Build patient-facing mobile screens for blood work and delivery tracking.
 
-**What's needed next (Phase 4 - Blood Work & Delivery):**
-- Lab portal (lab.onlyou.life) for diagnostic centres
-- Phlebotomist portal (collect.onlyou.life)
-- Order & delivery system
-- Payment integration (Razorpay)
+**Tasks:**
+1. Blood work stepper screen (lab order status progression)
+2. Delivery tracking screen (order status + OTP display)
+3. Lab results viewer screen (summary + PDF)
+
+**Spec reference:** master spec Section 7 (Blood Work), Section 8 (Delivery)
 
 ---
 
