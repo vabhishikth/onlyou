@@ -1,7 +1,10 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { LabOrderService, LabOrderStatus } from './lab-order.service';
 import { HealthVertical } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
     AvailablePanelsResponse,
     CreateLabOrderInput,
@@ -100,10 +103,12 @@ export class LabOrderResolver {
      * Spec: Section 7.2 Step 1 — Doctor Orders Blood Work
      */
     @Mutation(() => CreateLabOrderResponse)
+    @UseGuards(JwtAuthGuard)
     async createLabOrder(
         @Args('input') input: CreateLabOrderInput,
-        @Args('doctorId') doctorId: string,
+        @CurrentUser() user: any,
     ): Promise<CreateLabOrderResponse> {
+        const doctorId = user.id;
         try {
             const labOrder = await this.labOrderService.createLabOrder({
                 consultationId: input.consultationId,
@@ -138,10 +143,12 @@ export class LabOrderResolver {
      * Spec: Section 7.2 Step 8 — Doctor Reviews Results
      */
     @Mutation(() => ReviewLabResultsResponse)
+    @UseGuards(JwtAuthGuard)
     async reviewLabResults(
         @Args('input') input: ReviewLabResultsInput,
-        @Args('doctorId') doctorId: string,
+        @CurrentUser() user: any,
     ): Promise<ReviewLabResultsResponse> {
+        const doctorId = user.id;
         try {
             const labOrder = await this.prisma.labOrder.findUnique({
                 where: { id: input.labOrderId },
@@ -202,10 +209,12 @@ export class LabOrderResolver {
      * Close a lab order after review
      */
     @Mutation(() => ReviewLabResultsResponse)
+    @UseGuards(JwtAuthGuard)
     async closeLabOrder(
         @Args('labOrderId') labOrderId: string,
-        @Args('doctorId') doctorId: string,
+        @CurrentUser() user: any,
     ): Promise<ReviewLabResultsResponse> {
+        const doctorId = user.id;
         try {
             const labOrder = await this.prisma.labOrder.findUnique({
                 where: { id: labOrderId },

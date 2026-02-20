@@ -1,4 +1,4 @@
-import { PrismaClient, HealthVertical } from '@prisma/client';
+import { PrismaClient, HealthVertical, ConsultationStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -580,7 +580,266 @@ async function main() {
     });
     console.log('  - Weight Management questionnaire created');
 
-    console.log('Seeding complete!');
+    // ============================================
+    // SEED: Test Doctor
+    // ============================================
+    console.log('\nSeeding test doctor...');
+
+    const doctor = await prisma.user.upsert({
+        where: { phone: '+919999999999' },
+        update: { name: 'Dr. Arjun Mehta', role: 'DOCTOR', isVerified: true },
+        create: {
+            phone: '+919999999999',
+            name: 'Dr. Arjun Mehta',
+            role: 'DOCTOR',
+            isVerified: true,
+        },
+    });
+
+    await prisma.doctorProfile.upsert({
+        where: { userId: doctor.id },
+        update: {},
+        create: {
+            userId: doctor.id,
+            registrationNo: 'TEST/NMC/2024',
+            specialization: 'Dermatology',
+            qualifications: ['MBBS', 'MD Dermatology'],
+            yearsOfExperience: 8,
+            bio: 'Specialist in hair loss and skin conditions with 8 years of clinical experience.',
+            isAvailable: true,
+            consultationFee: 79900, // ₹799 in paise
+        },
+    });
+    console.log('  - Doctor created: Dr. Arjun Mehta (+919999999999)');
+
+    // ============================================
+    // SEED: Test Patient with completed intake
+    // ============================================
+    console.log('\nSeeding test patient...');
+
+    const patient = await prisma.user.upsert({
+        where: { phone: '+919888888888' },
+        update: { name: 'Rahul Sharma', role: 'PATIENT', isVerified: true },
+        create: {
+            phone: '+919888888888',
+            name: 'Rahul Sharma',
+            role: 'PATIENT',
+            isVerified: true,
+        },
+    });
+
+    const patientProfile = await prisma.patientProfile.upsert({
+        where: { userId: patient.id },
+        update: {},
+        create: {
+            userId: patient.id,
+            fullName: 'Rahul Sharma',
+            dateOfBirth: new Date('1995-03-15'),
+            gender: 'MALE',
+            height: 175,
+            weight: 72,
+            addressLine1: '42, MG Road',
+            city: 'Bengaluru',
+            state: 'Karnataka',
+            pincode: '560001',
+            healthGoals: ['HAIR_LOSS'],
+            onboardingComplete: true,
+            telehealthConsent: true,
+            telehealthConsentDate: new Date(),
+        },
+    });
+    console.log('  - Patient created: Rahul Sharma (+919888888888)');
+
+    // Get the hair loss template for the intake response
+    const hairLossTemplate = await prisma.questionnaireTemplate.findFirst({
+        where: { vertical: HealthVertical.HAIR_LOSS, isActive: true },
+    });
+
+    if (hairLossTemplate) {
+        // Check if we already have an intake response for this patient/template
+        const existingIntake = await prisma.intakeResponse.findFirst({
+            where: {
+                patientProfileId: patientProfile.id,
+                questionnaireTemplateId: hairLossTemplate.id,
+            },
+        });
+
+        if (!existingIntake) {
+            console.log('\nSeeding intake response + consultation...');
+
+            const intakeResponse = await prisma.intakeResponse.create({
+                data: {
+                    patientProfileId: patientProfile.id,
+                    questionnaireTemplateId: hairLossTemplate.id,
+                    isDraft: false,
+                    submittedAt: new Date(),
+                    responses: {
+                        duration: '1-2 years',
+                        pattern: 'Crown/top of head',
+                        family_history: 'Yes, father',
+                        stress_level: 'Moderate',
+                        sleep_hours: '6-7 hours',
+                        smoking: 'No, never',
+                        diet: 'Balanced with fruits, vegetables, and protein',
+                        previous_treatments: ['Biotin supplements'],
+                        medical_conditions: ['None of the above'],
+                        medications: 'None',
+                        allergies: 'None',
+                        primary_goal: 'Both stop loss and regrow',
+                        commitment: 'Very committed - I can follow a daily routine',
+                    },
+                },
+            });
+
+            // Create consultation assigned to the test doctor
+            const consultation = await prisma.consultation.create({
+                data: {
+                    patientId: patient.id,
+                    doctorId: doctor.id,
+                    intakeResponseId: intakeResponse.id,
+                    vertical: HealthVertical.HAIR_LOSS,
+                    status: ConsultationStatus.DOCTOR_REVIEWING,
+                },
+            });
+
+            // Create AI pre-assessment
+            await prisma.aIPreAssessment.create({
+                data: {
+                    consultationId: consultation.id,
+                    summary: 'Male patient, 29 years old, presenting with 1-2 years of crown/vertex pattern hair loss consistent with androgenetic alopecia (AGA). Family history positive (paternal). No significant medical comorbidities. Non-smoker with balanced diet and moderate stress levels. Previously tried biotin supplements only. Highly motivated for treatment.',
+                    riskLevel: 'LOW',
+                    recommendedPlan: 'Start with combination therapy: Finasteride 1mg daily + Minoxidil 5% topical twice daily. Consider adding ketoconazole 2% shampoo 2-3x/week. Baseline blood work recommended (TSH, Ferritin, Vitamin D). Follow-up in 3 months for progress assessment.',
+                    flags: [
+                        'Family history of hair loss (paternal)',
+                        'Crown pattern — classic AGA presentation',
+                        'Good candidate for Finasteride (no contraindications)',
+                        'Recommend baseline blood work before starting treatment',
+                    ],
+                    rawResponse: {
+                        model: 'claude-sonnet-4-5-20250929',
+                        timestamp: new Date().toISOString(),
+                        prompt_version: '1.0',
+                    },
+                    modelVersion: 'claude-sonnet-4-5-20250929',
+                },
+            });
+
+            console.log('  - Intake response created with hair loss answers');
+            console.log('  - Consultation created (DOCTOR_REVIEWING)');
+            console.log('  - AI pre-assessment created');
+        } else {
+            console.log('\n  - Intake response already exists, skipping...');
+        }
+    }
+
+    // ============================================
+    // SEED: Second test patient (Sexual Health)
+    // ============================================
+    console.log('\nSeeding second test patient...');
+
+    const patient2 = await prisma.user.upsert({
+        where: { phone: '+919777777777' },
+        update: { name: 'Amit Patel', role: 'PATIENT', isVerified: true },
+        create: {
+            phone: '+919777777777',
+            name: 'Amit Patel',
+            role: 'PATIENT',
+            isVerified: true,
+        },
+    });
+
+    const patientProfile2 = await prisma.patientProfile.upsert({
+        where: { userId: patient2.id },
+        update: {},
+        create: {
+            userId: patient2.id,
+            fullName: 'Amit Patel',
+            dateOfBirth: new Date('1990-07-22'),
+            gender: 'MALE',
+            height: 170,
+            weight: 78,
+            addressLine1: '15, Park Street',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '400001',
+            healthGoals: ['SEXUAL_HEALTH'],
+            onboardingComplete: true,
+            telehealthConsent: true,
+            telehealthConsentDate: new Date(),
+        },
+    });
+    console.log('  - Patient created: Amit Patel (+919777777777)');
+
+    const sexualHealthTemplate = await prisma.questionnaireTemplate.findFirst({
+        where: { vertical: HealthVertical.SEXUAL_HEALTH, isActive: true },
+    });
+
+    if (sexualHealthTemplate) {
+        const existingIntake2 = await prisma.intakeResponse.findFirst({
+            where: {
+                patientProfileId: patientProfile2.id,
+                questionnaireTemplateId: sexualHealthTemplate.id,
+            },
+        });
+
+        if (!existingIntake2) {
+            const intakeResponse2 = await prisma.intakeResponse.create({
+                data: {
+                    patientProfileId: patientProfile2.id,
+                    questionnaireTemplateId: sexualHealthTemplate.id,
+                    isDraft: false,
+                    submittedAt: new Date(),
+                    responses: {
+                        primary_concern: 'Difficulty maintaining erection',
+                        duration: '6-12 months',
+                        frequency: 'Sometimes',
+                        heart_conditions: 'No',
+                        medications: 'None',
+                        nitrates: 'No',
+                        smoking: 'No, never',
+                        alcohol: 'Occasionally',
+                        exercise: '1-2 times per week',
+                    },
+                },
+            });
+
+            const consultation2 = await prisma.consultation.create({
+                data: {
+                    patientId: patient2.id,
+                    doctorId: doctor.id,
+                    intakeResponseId: intakeResponse2.id,
+                    vertical: HealthVertical.SEXUAL_HEALTH,
+                    status: ConsultationStatus.AI_REVIEWED,
+                },
+            });
+
+            await prisma.aIPreAssessment.create({
+                data: {
+                    consultationId: consultation2.id,
+                    summary: 'Male patient, 35 years old, experiencing intermittent erectile dysfunction for 6-12 months. No cardiovascular conditions or contraindications to PDE5 inhibitors. Non-smoker, occasional alcohol use, low exercise frequency. No current medications.',
+                    riskLevel: 'LOW',
+                    recommendedPlan: 'Consider starting with Tadalafil 5mg daily or Sildenafil 50mg as needed. Lifestyle modifications recommended: increase exercise frequency, reduce alcohol. Follow-up in 4 weeks.',
+                    flags: [
+                        'No cardiovascular contraindications',
+                        'No nitrate use — safe for PDE5 inhibitors',
+                        'Low exercise — lifestyle modification recommended',
+                    ],
+                    rawResponse: {
+                        model: 'claude-sonnet-4-5-20250929',
+                        timestamp: new Date().toISOString(),
+                        prompt_version: '1.0',
+                    },
+                    modelVersion: 'claude-sonnet-4-5-20250929',
+                },
+            });
+
+            console.log('  - Intake + consultation (AI_REVIEWED) + AI assessment created');
+        } else {
+            console.log('  - Intake response already exists, skipping...');
+        }
+    }
+
+    console.log('\nSeeding complete!');
 }
 
 main()

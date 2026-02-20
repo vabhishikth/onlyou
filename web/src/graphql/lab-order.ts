@@ -50,8 +50,8 @@ export const LAB_ORDERS_BY_CONSULTATION = gql`
 
 // Create a new lab order
 export const CREATE_LAB_ORDER = gql`
-    mutation CreateLabOrder($input: CreateLabOrderInput!, $doctorId: String!) {
-        createLabOrder(input: $input, doctorId: $doctorId) {
+    mutation CreateLabOrder($input: CreateLabOrderInput!) {
+        createLabOrder(input: $input) {
             success
             message
             labOrder {
@@ -67,8 +67,8 @@ export const CREATE_LAB_ORDER = gql`
 
 // Review lab results
 export const REVIEW_LAB_RESULTS = gql`
-    mutation ReviewLabResults($input: ReviewLabResultsInput!, $doctorId: String!) {
-        reviewLabResults(input: $input, doctorId: $doctorId) {
+    mutation ReviewLabResults($input: ReviewLabResultsInput!) {
+        reviewLabResults(input: $input) {
             success
             message
             labOrder {

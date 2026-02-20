@@ -98,9 +98,6 @@ export default function BloodWorkPage() {
 
         if (testPanel.length === 0) return;
 
-        // TODO: Get actual doctorId from auth context
-        const doctorId = 'mock-doctor-id';
-
         await createLabOrder({
             variables: {
                 input: {
@@ -109,7 +106,6 @@ export default function BloodWorkPage() {
                     panelName: showCustom ? 'Custom Panel' : selectedPanel?.name,
                     doctorNotes: doctorNotes || undefined,
                 },
-                doctorId,
             },
         });
     };

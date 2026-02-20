@@ -1,44 +1,50 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useQuery } from '@apollo/client';
 import { Users, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { QUEUE_STATS } from '@/graphql/dashboard';
 
-// Mock stats - will be replaced with real data
-const stats = [
-    {
-        label: 'New Cases',
-        value: 12,
-        icon: Users,
-        color: 'text-warning',
-        bgColor: 'bg-warning/10',
-    },
-    {
-        label: 'In Review',
-        value: 5,
-        icon: Clock,
-        color: 'text-primary',
-        bgColor: 'bg-primary/10',
-    },
-    {
-        label: 'Completed Today',
-        value: 8,
-        icon: CheckCircle,
-        color: 'text-success',
-        bgColor: 'bg-success/10',
-    },
-    {
-        label: 'Needs Attention',
-        value: 3,
-        icon: AlertTriangle,
-        color: 'text-error',
-        bgColor: 'bg-error/10',
-    },
-];
+// Spec: master spec Section 5 (Doctor Dashboard — Home)
 
 export default function DoctorDashboard() {
     const { user } = useAuth();
+    const { data, loading } = useQuery(QUEUE_STATS);
+
+    const queueStats = data?.queueStats;
+
+    const stats = [
+        {
+            label: 'New Cases',
+            value: queueStats?.new ?? 0,
+            icon: Users,
+            color: 'text-warning',
+            bgColor: 'bg-warning/10',
+        },
+        {
+            label: 'In Review',
+            value: queueStats?.inReview ?? 0,
+            icon: Clock,
+            color: 'text-primary',
+            bgColor: 'bg-primary/10',
+        },
+        {
+            label: 'Completed',
+            value: queueStats?.completed ?? 0,
+            icon: CheckCircle,
+            color: 'text-success',
+            bgColor: 'bg-success/10',
+        },
+        {
+            label: 'Needs Attention',
+            value: (queueStats?.awaitingResponse ?? 0) + (queueStats?.labResultsReady ?? 0),
+            icon: AlertTriangle,
+            color: 'text-error',
+            bgColor: 'bg-error/10',
+        },
+    ];
 
     const greeting = getGreeting();
 
@@ -54,7 +60,7 @@ export default function DoctorDashboard() {
                     {greeting}, Dr. {user?.name?.split(' ')[0] || 'Doctor'}
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                    Here's what's happening with your patients today.
+                    Here&apos;s what&apos;s happening with your patients today.
                 </p>
             </motion.div>
 
@@ -74,7 +80,7 @@ export default function DoctorDashboard() {
                             </div>
                         </div>
                         <p className="text-2xl lg:text-3xl font-bold text-foreground">
-                            {stat.value}
+                            {loading ? '\u2014' : stat.value}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
                             {stat.label}
@@ -97,25 +103,25 @@ export default function DoctorDashboard() {
                     <QuickAction
                         href="/doctor/queue"
                         title="Review Cases"
-                        description="12 cases waiting for review"
+                        description={`${queueStats?.new ?? 0} cases waiting for review`}
                         color="primary"
                     />
                     <QuickAction
                         href="/doctor/queue?filter=lab"
                         title="Lab Results"
-                        description="3 new lab results available"
+                        description={`${queueStats?.labResultsReady ?? 0} new lab results available`}
                         color="accent"
                     />
                     <QuickAction
                         href="/doctor/messages"
                         title="Messages"
-                        description="5 unread patient messages"
+                        description={`${queueStats?.awaitingResponse ?? 0} patients awaiting response`}
                         color="secondary"
                     />
                 </div>
             </motion.div>
 
-            {/* Recent cases placeholder */}
+            {/* Active cases summary */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -123,10 +129,13 @@ export default function DoctorDashboard() {
                 className="card-premium p-6 mt-6"
             >
                 <h2 className="text-lg font-semibold text-foreground mb-4">
-                    Recent Cases
+                    Summary
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                    Case list will appear here once connected to the backend.
+                    You have <span className="font-semibold text-foreground">{queueStats?.totalActive ?? 0}</span> active cases.
+                    {(queueStats?.followUp ?? 0) > 0 && (
+                        <> <span className="font-semibold text-foreground">{queueStats.followUp}</span> follow-ups pending.</>
+                    )}
                 </p>
             </motion.div>
         </div>
