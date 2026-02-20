@@ -4,26 +4,27 @@
 
 @layer base {
     :root {
+        /* Clinical Luxe palette — matches mobile/src/theme/colors.ts */
         --background: 40 10% 97%; /* #FAFAF8 */
-        --foreground: 60 3% 9%; /* #171716 */
+        --foreground: 0 0% 8%; /* #141414 */
         --card: 0 0% 100%; /* #FFFFFF */
-        --card-foreground: 60 3% 9%;
+        --card-foreground: 0 0% 8%;
         --popover: 0 0% 100%;
-        --popover-foreground: 60 3% 9%;
-        --primary: 157 79% 24%; /* #0D6B4B */
+        --popover-foreground: 0 0% 8%;
+        --primary: 0 0% 8%; /* #141414 — black CTA */
         --primary-foreground: 0 0% 100%;
-        --secondary: 240 28% 14%; /* #1A1A2E */
-        --secondary-foreground: 0 0% 100%;
+        --secondary: 40 7% 97%; /* #F8F8F6 — light warm */
+        --secondary-foreground: 0 0% 8%;
         --muted: 40 7% 96%; /* #F5F5F3 */
-        --muted-foreground: 60 2% 32%; /* #525250 */
-        --accent: 27 87% 67%; /* #F4A261 */
-        --accent-foreground: 60 3% 9%;
-        --destructive: 0 72% 51%; /* #DC2626 */
+        --muted-foreground: 0 0% 36%; /* #5C5C5C */
+        --accent: 256 29% 66%; /* #9B8EC4 — lavender */
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 63% 50%; /* #CC3333 */
         --destructive-foreground: 0 0% 100%;
-        --border: 40 4% 91%; /* #E8E8E6 */
-        --input: 40 4% 91%;
-        --ring: 157 79% 24%; /* primary */
-        --radius: 0.5rem;
+        --border: 0 0% 92%; /* #EBEBEB */
+        --input: 0 0% 92%;
+        --ring: 256 29% 66%; /* lavender focus */
+        --radius: 0.75rem;
     }
 
     * {
@@ -35,26 +36,23 @@
         font-feature-settings: 'rlig' 1, 'calt' 1;
     }
 
-    /* Smooth scrolling */
     html {
         scroll-behavior: smooth;
     }
 
-    /* Focus styles */
     :focus-visible {
         @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
     }
 
-    /* Selection color */
     ::selection {
-        @apply bg-primary/20 text-foreground;
+        @apply bg-accent/20 text-foreground;
     }
 }
 
 @layer components {
-    /* Premium card with soft shadow */
+    /* Premium card with subtle shadow */
     .card-premium {
-        @apply bg-card rounded-xl shadow-soft border border-border/50;
+        @apply bg-card rounded-2xl shadow-soft border border-border/50;
     }
 
     /* Glass effect */
@@ -62,19 +60,23 @@
         @apply bg-white/80 backdrop-blur-md;
     }
 
-    /* Gradient text */
+    /* Gradient text — lavender to warm */
     .gradient-text {
-        @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-600;
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-accent to-warm;
     }
 
     /* Status badge base */
     .status-badge {
         @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
     }
+
+    /* Serif heading utility */
+    .heading-serif {
+        font-family: var(--font-playfair), Georgia, serif;
+    }
 }
 
 @layer utilities {
-    /* Hide scrollbar but allow scrolling */
     .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
@@ -84,7 +86,6 @@
         display: none;
     }
 
-    /* Custom scrollbar */
     .scrollbar-thin {
         scrollbar-width: thin;
         scrollbar-color: hsl(var(--border)) transparent;
@@ -103,7 +104,6 @@
         border-radius: 3px;
     }
 
-    /* Animated gradient background */
     .animate-gradient {
         background-size: 200% 200%;
         animation: gradient 8s ease infinite;

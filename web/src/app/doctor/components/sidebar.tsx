@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
 import {
     Home,
     Users,
@@ -41,20 +40,22 @@ export function DoctorSidebar() {
     return (
         <>
             {/* Mobile header */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center px-4">
+            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-border z-40 flex items-center px-4">
                 <button
                     onClick={() => setMobileOpen(true)}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                    className="p-2 hover:bg-neutral-100 rounded-xl transition-colors"
                 >
-                    <Menu className="w-6 h-6" />
+                    <Menu className="w-6 h-6 text-foreground" />
                 </button>
-                <h1 className="ml-3 text-lg font-semibold text-primary">onlyou</h1>
+                <span className="ml-3 text-lg font-serif font-bold text-foreground tracking-tight">
+                    onlyou
+                </span>
             </div>
 
             {/* Mobile sidebar backdrop */}
             {mobileOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 bg-black/50 z-40"
+                    className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
                     onClick={() => setMobileOpen(false)}
                 />
             )}
@@ -62,29 +63,31 @@ export function DoctorSidebar() {
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed top-0 left-0 h-full w-64 bg-card border-r border-border z-50 transition-transform duration-300',
+                    'fixed top-0 left-0 h-full w-64 bg-white border-r border-border z-50 transition-transform duration-300 flex flex-col',
                     'lg:translate-x-0',
                     mobileOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
                 {/* Logo */}
                 <div className="h-16 flex items-center justify-between px-6 border-b border-border">
-                    <Link href="/doctor" className="flex items-center gap-2">
-                        <span className="text-xl font-bold text-primary">onlyou</span>
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                    <Link href="/doctor" className="flex items-center gap-2.5">
+                        <span className="text-xl font-serif font-bold text-foreground tracking-tight">
+                            onlyou
+                        </span>
+                        <span className="text-[10px] uppercase tracking-widest text-accent font-semibold px-2 py-0.5 bg-accent/10 rounded-full">
                             Doctor
                         </span>
                     </Link>
                     <button
                         onClick={() => setMobileOpen(false)}
-                        className="lg:hidden p-1 hover:bg-muted rounded-lg transition-colors"
+                        className="lg:hidden p-1 hover:bg-neutral-100 rounded-lg transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 space-y-1">
+                <nav className="flex-1 p-4 space-y-1">
                     {navItems.map((item) => {
                         const isActive =
                             pathname === item.href ||
@@ -96,31 +99,24 @@ export function DoctorSidebar() {
                                 href={item.href}
                                 onClick={() => setMobileOpen(false)}
                                 className={cn(
-                                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                                    'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                                     isActive
-                                        ? 'bg-primary text-primary-foreground shadow-soft'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                        ? 'bg-foreground text-white'
+                                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-foreground'
                                 )}
                             >
                                 <item.icon className="w-5 h-5" />
                                 {item.label}
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeNav"
-                                        className="absolute inset-0 bg-primary rounded-xl -z-10"
-                                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                                    />
-                                )}
                             </Link>
                         );
                     })}
                 </nav>
 
                 {/* User section */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+                <div className="p-4 border-t border-border">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-semibold text-primary">
+                        <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                            <span className="text-sm font-semibold text-accent">
                                 {user?.name?.[0]?.toUpperCase() || 'D'}
                             </span>
                         </div>
@@ -128,7 +124,7 @@ export function DoctorSidebar() {
                             <p className="text-sm font-medium text-foreground truncate">
                                 {user?.name || 'Doctor'}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-xs text-neutral-400 truncate">
                                 {user?.email || user?.phone}
                             </p>
                         </div>
@@ -136,7 +132,7 @@ export function DoctorSidebar() {
 
                     <div className="flex gap-2">
                         <Link href="/doctor/settings" className="flex-1">
-                            <Button variant="ghost" size="sm" className="w-full justify-start">
+                            <Button variant="ghost" size="sm" className="w-full justify-start text-neutral-500 hover:text-foreground">
                                 <Settings className="w-4 h-4 mr-2" />
                                 Settings
                             </Button>

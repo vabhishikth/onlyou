@@ -90,7 +90,7 @@ export default function DoctorQueuePage() {
             >
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+                        <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
                             Case Queue
                         </h1>
                         <p className="text-muted-foreground mt-1">

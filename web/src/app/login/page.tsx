@@ -256,7 +256,7 @@ function LoginForm() {
                                 className={
                                     countdown > 0
                                         ? 'text-muted-foreground'
-                                        : 'text-primary hover:text-primary-600 font-medium transition-colors'
+                                        : 'text-accent hover:text-accent-600 font-medium transition-colors'
                                 }
                             >
                                 {countdown > 0

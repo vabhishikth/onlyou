@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { PWAProvider } from '@/components/pwa-provider';
@@ -9,6 +9,13 @@ const plusJakarta = Plus_Jakarta_Sans({
     display: 'swap',
     variable: '--font-plus-jakarta',
     weight: ['400', '500', '600', '700'],
+});
+
+const playfair = Playfair_Display({
+    subsets: ['latin'],
+    display: 'swap',
+    variable: '--font-playfair',
+    weight: ['600', '700', '900'],
 });
 
 export const metadata: Metadata = {
@@ -42,7 +49,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className={plusJakarta.variable}>
+        <html lang="en" className={`${plusJakarta.variable} ${playfair.variable}`}>
             <body className="min-h-screen font-sans">
                 <Providers>
                     <PWAProvider>{children}</PWAProvider>

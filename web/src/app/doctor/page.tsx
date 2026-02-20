@@ -20,15 +20,15 @@ export default function DoctorDashboard() {
             label: 'New Cases',
             value: queueStats?.new ?? 0,
             icon: Users,
-            color: 'text-warning',
-            bgColor: 'bg-warning/10',
+            color: 'text-warm',
+            bgColor: 'bg-warm/10',
         },
         {
             label: 'In Review',
             value: queueStats?.inReview ?? 0,
             icon: Clock,
-            color: 'text-primary',
-            bgColor: 'bg-primary/10',
+            color: 'text-accent',
+            bgColor: 'bg-accent/10',
         },
         {
             label: 'Completed',
@@ -56,8 +56,8 @@ export default function DoctorDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8"
             >
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-                    {greeting}, Dr. {user?.name?.split(' ')[0] || 'Doctor'}
+                <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
+                    {greeting}, {getDoctorDisplayName(user?.name)}
                 </h1>
                 <p className="text-muted-foreground mt-1">
                     Here&apos;s what&apos;s happening with your patients today.
@@ -154,9 +154,9 @@ function QuickAction({
     color: 'primary' | 'accent' | 'secondary';
 }) {
     const colors = {
-        primary: 'border-primary/20 hover:border-primary/40 hover:bg-primary/5',
-        accent: 'border-accent/20 hover:border-accent/40 hover:bg-accent/5',
-        secondary: 'border-secondary/20 hover:border-secondary/40 hover:bg-secondary/5',
+        primary: 'border-border hover:border-foreground/30 hover:bg-neutral-50',
+        accent: 'border-border hover:border-accent/40 hover:bg-accent/5',
+        secondary: 'border-border hover:border-warm/40 hover:bg-warm/5',
     };
 
     return (
@@ -178,4 +178,14 @@ function getGreeting(): string {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+}
+
+function getDoctorDisplayName(name?: string | null): string {
+    if (!name) return 'Doctor';
+    // If name already starts with "Dr.", use as-is (e.g. "Dr. Arjun Mehta" → "Dr. Arjun")
+    if (name.startsWith('Dr.') || name.startsWith('Dr ')) {
+        const parts = name.replace(/^Dr\.?\s*/, '').split(' ');
+        return `Dr. ${parts[0]}`;
+    }
+    return `Dr. ${name.split(' ')[0]}`;
 }

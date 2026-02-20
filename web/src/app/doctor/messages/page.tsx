@@ -13,7 +13,7 @@ export default function MessagesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8"
             >
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+                <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
                     Messages
                 </h1>
                 <p className="text-muted-foreground mt-1">
