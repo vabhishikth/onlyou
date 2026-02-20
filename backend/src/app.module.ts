@@ -17,6 +17,9 @@ import { CollectPortalModule } from './collect-portal/collect-portal.module';
 import { PharmacyPortalModule } from './pharmacy-portal/pharmacy-portal.module';
 import { ConsultationModule } from './consultation/consultation.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { TrackingModule } from './tracking/tracking.module';
+import { OrderModule } from './order/order.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
     imports: [
@@ -46,6 +49,9 @@ import { MessagingModule } from './messaging/messaging.module';
         PharmacyPortalModule,
         ConsultationModule,
         MessagingModule,
+        TrackingModule,
+        OrderModule,
+        WalletModule,
     ],
 })
 export class AppModule { }
