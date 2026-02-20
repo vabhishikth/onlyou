@@ -43,6 +43,7 @@ export default function PrescribePage() {
     const [selectedTemplate, setSelectedTemplate] = useState<PrescriptionTemplate | null>(null);
     const [customMedications, setCustomMedications] = useState<Medication[]>([]);
     const [instructions, setInstructions] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     // Fetch case data
     const { data: caseData, loading: caseLoading } = useQuery<CaseDetailResponse>(CASE_DETAIL, {
@@ -81,7 +82,13 @@ export default function PrescribePage() {
             onCompleted: (data) => {
                 if (data?.createPrescription?.success) {
                     router.push(`/doctor/case/${consultationId}?tab=prescription`);
+                } else {
+                    setError(data?.createPrescription?.message || 'Failed to create prescription');
                 }
+            },
+            onError: (err) => {
+                console.error('Create prescription error:', err);
+                setError(err.message || 'Network error — please try again');
             },
         }
     );
@@ -113,18 +120,23 @@ export default function PrescribePage() {
 
     const handleSubmit = async () => {
         if (!selectedTemplate) return;
+        setError(null);
 
-        await createPrescription({
-            variables: {
-                input: {
-                    consultationId,
-                    template: selectedTemplate,
-                    customMedications:
-                        selectedTemplate === 'CUSTOM' ? customMedications : undefined,
-                    instructions: instructions || undefined,
+        try {
+            await createPrescription({
+                variables: {
+                    input: {
+                        consultationId,
+                        template: selectedTemplate,
+                        customMedications:
+                            selectedTemplate === 'CUSTOM' ? customMedications : undefined,
+                        instructions: instructions || undefined,
+                    },
                 },
-            },
-        });
+            });
+        } catch (err) {
+            // Handled by onError callback
+        }
     };
 
     if (caseLoading || suggestionLoading) {
@@ -461,6 +473,26 @@ export default function PrescribePage() {
                     />
                 </motion.div>
             </main>
+
+            {/* Error banner */}
+            {error && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="max-w-4xl mx-auto px-4 lg:px-8"
+                >
+                    <div className="p-4 rounded-xl bg-error/10 border border-error/30 text-error text-sm flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="font-medium">Prescription failed</p>
+                            <p className="mt-1">{error}</p>
+                        </div>
+                        <button onClick={() => setError(null)} className="ml-auto shrink-0 hover:opacity-70">
+                            <XCircle className="w-4 h-4" />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Bottom action bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">

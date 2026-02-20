@@ -109,6 +109,15 @@ export const CASE_DETAIL = gql`
                 validUntil
                 issuedAt
             }
+            labOrders {
+                id
+                testPanel
+                panelName
+                status
+                orderedAt
+                resultFileUrl
+                criticalValues
+            }
         }
     }
 `;
@@ -241,6 +250,16 @@ export interface CaseQuestionnaire {
     template: Record<string, unknown>;
 }
 
+export interface CaseLabOrder {
+    id: string;
+    testPanel: string[];
+    panelName: string | null;
+    status: string;
+    orderedAt: string;
+    resultFileUrl: string | null;
+    criticalValues: boolean;
+}
+
 export interface CaseDetail {
     consultation: CaseConsultation;
     patient: CasePatient;
@@ -249,6 +268,7 @@ export interface CaseDetail {
     photos: CasePhoto[];
     messages: CaseMessage[];
     prescription: CasePrescription | null;
+    labOrders: CaseLabOrder[];
 }
 
 export interface CaseDetailResponse {
@@ -261,41 +281,41 @@ export const DASHBOARD_STATUS_CONFIG: Record<
     { label: string; color: string; bgColor: string }
 > = {
     NEW: { label: 'New', color: 'text-success', bgColor: 'bg-success/10' },
-    IN_REVIEW: { label: 'In Review', color: 'text-warning', bgColor: 'bg-warning/10' },
+    IN_REVIEW: { label: 'In Review', color: 'text-warm', bgColor: 'bg-warm/10' },
     AWAITING_RESPONSE: { label: 'Awaiting Response', color: 'text-accent', bgColor: 'bg-accent/10' },
-    LAB_RESULTS_READY: { label: 'Lab Results', color: 'text-purple-600', bgColor: 'bg-purple-100' },
-    FOLLOW_UP: { label: 'Follow-Up', color: 'text-info', bgColor: 'bg-info/10' },
+    LAB_RESULTS_READY: { label: 'Lab Results', color: 'text-accent-600', bgColor: 'bg-accent/10' },
+    FOLLOW_UP: { label: 'Follow-Up', color: 'text-warm', bgColor: 'bg-warm-light' },
     COMPLETED: { label: 'Completed', color: 'text-muted-foreground', bgColor: 'bg-muted' },
     REFERRED: { label: 'Referred', color: 'text-error', bgColor: 'bg-error/10' },
 };
 
-// Helper: Vertical config
+// Helper: Vertical config — uses treatment tint colors from Clinical Luxe design
 export const VERTICAL_CONFIG: Record<
     HealthVertical,
     { label: string; color: string; bgColor: string; icon: string }
 > = {
     HAIR_LOSS: {
         label: 'Hair Loss',
-        color: 'text-primary',
-        bgColor: 'bg-primary/10',
+        color: 'text-vertical-hair-loss-icon',
+        bgColor: 'bg-vertical-hair-loss',
         icon: '💇',
     },
     SEXUAL_HEALTH: {
         label: 'Sexual Health',
-        color: 'text-rose-600',
-        bgColor: 'bg-rose-100',
+        color: 'text-vertical-sexual-health-icon',
+        bgColor: 'bg-vertical-sexual-health',
         icon: '❤️',
     },
     PCOS: {
         label: 'PCOS',
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-100',
+        color: 'text-vertical-pcos-icon',
+        bgColor: 'bg-vertical-pcos',
         icon: '🩺',
     },
     WEIGHT_MANAGEMENT: {
         label: 'Weight',
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-100',
+        color: 'text-vertical-weight-icon',
+        bgColor: 'bg-vertical-weight',
         icon: '⚖️',
     },
 };

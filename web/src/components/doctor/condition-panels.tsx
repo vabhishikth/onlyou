@@ -436,7 +436,7 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ consultationId, status }: QuickActionsProps) {
-    const isPending = status === 'DOCTOR_REVIEWING';
+    const isReviewing = status === 'DOCTOR_REVIEWING';
 
     const actions = [
         {
@@ -445,7 +445,7 @@ export function QuickActions({ consultationId, status }: QuickActionsProps) {
             icon: <Stethoscope className="w-4 h-4" />,
             href: `/doctor/case/${consultationId}/prescribe`,
             primary: true,
-            show: isPending,
+            show: isReviewing,
         },
         {
             id: 'blood-work',
@@ -453,7 +453,7 @@ export function QuickActions({ consultationId, status }: QuickActionsProps) {
             icon: <Activity className="w-4 h-4" />,
             href: `/doctor/case/${consultationId}/blood-work`,
             primary: false,
-            show: isPending,
+            show: isReviewing,
         },
     ];
 

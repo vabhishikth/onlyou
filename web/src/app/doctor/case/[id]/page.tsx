@@ -22,6 +22,8 @@ import {
     ChevronUp,
     Clock,
     Flag,
+    FlaskConical,
+    Activity,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import Link from 'next/link';
@@ -29,6 +31,7 @@ import { useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui';
+import { useAuth } from '@/hooks/use-auth';
 import {
     CASE_DETAIL,
     CaseDetailResponse,
@@ -77,6 +80,7 @@ type TabType = 'overview' | 'questionnaire' | 'photos' | 'messages' | 'prescript
 export default function CaseDetailPage() {
     const params = useParams();
     const consultationId = params.id as string;
+    const { user: currentUser } = useAuth();
 
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [messageInput, setMessageInput] = useState('');
@@ -98,6 +102,15 @@ export default function CaseDetailPage() {
             refetch();
         },
     });
+
+    const handleStartReview = async () => {
+        await updateStatus({
+            variables: {
+                consultationId,
+                status: 'DOCTOR_REVIEWING',
+            },
+        });
+    };
 
     const handleNeedsInfo = async () => {
         await updateStatus({
@@ -161,7 +174,7 @@ export default function CaseDetailPage() {
         );
     }
 
-    const { consultation, patient, questionnaire, aiAssessment, photos, messages, prescription } =
+    const { consultation, patient, questionnaire, aiAssessment, photos, messages, prescription, labOrders } =
         data.caseDetail;
 
     const verticalConfig = VERTICAL_CONFIG[consultation.vertical as HealthVertical];
@@ -226,6 +239,14 @@ export default function CaseDetailPage() {
                         </div>
 
                         {/* Action buttons */}
+                        {consultation.status === 'AI_REVIEWED' && (
+                            <div className="hidden lg:flex items-center gap-2">
+                                <Button onClick={handleStartReview} disabled={updating}>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Start Review
+                                </Button>
+                            </div>
+                        )}
                         {consultation.status === 'DOCTOR_REVIEWING' && (
                             <div className="hidden lg:flex items-center gap-2">
                                 <Button
@@ -299,6 +320,9 @@ export default function CaseDetailPage() {
                             aiAssessment={aiAssessment}
                             questionnaire={questionnaire}
                             consultationId={consultationId}
+                            labOrders={labOrders}
+                            prescription={prescription}
+                            messageCount={messages.length}
                         />
                     )}
                     {activeTab === 'questionnaire' && (
@@ -313,6 +337,7 @@ export default function CaseDetailPage() {
                             setMessageInput={setMessageInput}
                             onSend={handleSendMessage}
                             sending={sending}
+                            currentUserId={currentUser?.id}
                         />
                     )}
                     {activeTab === 'prescription' && (
@@ -326,6 +351,14 @@ export default function CaseDetailPage() {
             </main>
 
             {/* Mobile action bar */}
+            {consultation.status === 'AI_REVIEWED' && (
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
+                    <Button className="w-full" onClick={handleStartReview} disabled={updating}>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Start Review
+                    </Button>
+                </div>
+            )}
             {consultation.status === 'DOCTOR_REVIEWING' && (
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
                     <div className="flex gap-2">
@@ -417,12 +450,18 @@ function OverviewTab({
     aiAssessment,
     questionnaire,
     consultationId,
+    labOrders,
+    prescription,
+    messageCount,
 }: {
     patient: CaseDetailResponse['caseDetail']['patient'];
     consultation: CaseDetailResponse['caseDetail']['consultation'];
     aiAssessment: CaseDetailResponse['caseDetail']['aiAssessment'];
     questionnaire: CaseDetailResponse['caseDetail']['questionnaire'];
     consultationId: string;
+    labOrders: CaseDetailResponse['caseDetail']['labOrders'];
+    prescription: CaseDetailResponse['caseDetail']['prescription'];
+    messageCount: number;
 }) {
     const [aiExpanded, setAiExpanded] = useState(true);
 
@@ -565,6 +604,67 @@ function OverviewTab({
                     vertical={consultation.vertical as HealthVertical}
                     status={consultation.status}
                 />
+            </div>
+
+            {/* Case Progress */}
+            <div className="lg:col-span-3">
+                <div className="card-premium p-6">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        Case Progress
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Blood Work */}
+                        <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                            <FlaskConical className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-medium text-foreground">Blood Work</p>
+                                {labOrders.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">No orders yet</p>
+                                ) : (
+                                    labOrders.map((lo) => (
+                                        <div key={lo.id} className="mt-1">
+                                            <p className="text-xs text-foreground">{lo.panelName || 'Custom Panel'}</p>
+                                            <span className={cn(
+                                                'inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium',
+                                                lo.status === 'ORDERED' && 'bg-warm/10 text-warm',
+                                                lo.status === 'RESULTS_UPLOADED' && 'bg-success/10 text-success',
+                                                lo.status === 'DOCTOR_REVIEWED' && 'bg-primary/10 text-primary',
+                                                !['ORDERED', 'RESULTS_UPLOADED', 'DOCTOR_REVIEWED'].includes(lo.status) && 'bg-accent/10 text-accent',
+                                            )}>
+                                                {lo.status.replace(/_/g, ' ')}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Prescription */}
+                        <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                            <Pill className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-medium text-foreground">Prescription</p>
+                                {prescription ? (
+                                    <p className="text-xs text-success">Prescribed</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Not prescribed</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                            <MessageSquare className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-sm font-medium text-foreground">Messages</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {messageCount === 0 ? 'No messages' : `${messageCount} message${messageCount !== 1 ? 's' : ''}`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Status timeline */}
@@ -770,12 +870,14 @@ function MessagesTab({
     setMessageInput,
     onSend,
     sending,
+    currentUserId,
 }: {
     messages: CaseDetailResponse['caseDetail']['messages'];
     messageInput: string;
     setMessageInput: (value: string) => void;
     onSend: () => void;
     sending: boolean;
+    currentUserId?: string;
 }) {
     return (
         <motion.div
@@ -792,12 +894,14 @@ function MessagesTab({
                         No messages yet. Start the conversation.
                     </p>
                 ) : (
-                    messages.map((message) => (
+                    messages.map((message) => {
+                        const isOwnMessage = currentUserId ? message.senderId === currentUserId : false;
+                        return (
                         <div
                             key={message.id}
                             className={cn(
                                 'max-w-[80%] p-4 rounded-xl',
-                                message.senderId === 'doctor'
+                                isOwnMessage
                                     ? 'ml-auto bg-primary text-primary-foreground'
                                     : 'bg-muted text-foreground'
                             )}
@@ -806,7 +910,7 @@ function MessagesTab({
                             <p
                                 className={cn(
                                     'text-xs mt-2',
-                                    message.senderId === 'doctor'
+                                    isOwnMessage
                                         ? 'text-primary-foreground/70'
                                         : 'text-muted-foreground'
                                 )}
@@ -816,7 +920,8 @@ function MessagesTab({
                                 })}
                             </p>
                         </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
