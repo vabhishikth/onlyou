@@ -15,6 +15,8 @@ import { AdminModule } from './admin/admin.module';
 import { LabPortalModule } from './lab-portal/lab-portal.module';
 import { CollectPortalModule } from './collect-portal/collect-portal.module';
 import { PharmacyPortalModule } from './pharmacy-portal/pharmacy-portal.module';
+import { ConsultationModule } from './consultation/consultation.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
     imports: [
@@ -42,6 +44,8 @@ import { PharmacyPortalModule } from './pharmacy-portal/pharmacy-portal.module';
         LabPortalModule,
         CollectPortalModule,
         PharmacyPortalModule,
+        ConsultationModule,
+        MessagingModule,
     ],
 })
 export class AppModule { }
