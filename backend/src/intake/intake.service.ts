@@ -1,11 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { HealthVertical, ConsultationStatus } from '@prisma/client';
 import { VerticalInfo, SubmitIntakeInput, SaveDraftInput } from './dto/intake.dto';
 
+// Spec: Phase 10 — Production Readiness (cache questionnaire templates)
+
 @Injectable()
 export class IntakeService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cache: CacheService,
+    ) { }
 
     /**
      * Get all available treatment verticals with metadata
@@ -55,20 +61,24 @@ export class IntakeService {
      * Get questionnaire template for a specific vertical
      */
     async getQuestionnaireTemplate(vertical: HealthVertical, version?: number) {
-        const template = await this.prisma.questionnaireTemplate.findFirst({
-            where: {
-                vertical,
-                isActive: true,
-                ...(version && { version }),
-            },
-            orderBy: { version: 'desc' },
+        const cacheKey = `questionnaire:${vertical}${version ? `:v${version}` : ''}`;
+
+        return this.cache.getOrSet(cacheKey, 3600, async () => {
+            const template = await this.prisma.questionnaireTemplate.findFirst({
+                where: {
+                    vertical,
+                    isActive: true,
+                    ...(version && { version }),
+                },
+                orderBy: { version: 'desc' },
+            });
+
+            if (!template) {
+                throw new NotFoundException(`No questionnaire template found for ${vertical}`);
+            }
+
+            return template;
         });
-
-        if (!template) {
-            throw new NotFoundException(`No questionnaire template found for ${vertical}`);
-        }
-
-        return template;
     }
 
     /**

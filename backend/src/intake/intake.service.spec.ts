@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { IntakeService } from './intake.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { HealthVertical, ConsultationStatus } from '@prisma/client';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
@@ -51,6 +52,14 @@ describe('IntakeService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IntakeService,
+        {
+          provide: CacheService,
+          useValue: {
+            getOrSet: jest.fn().mockImplementation((_key: string, _ttl: number, factory: () => Promise<unknown>) => factory()),
+            invalidate: jest.fn(),
+            invalidatePattern: jest.fn(),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {
