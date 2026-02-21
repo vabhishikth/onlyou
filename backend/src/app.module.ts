@@ -23,6 +23,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { PaymentModule } from './payment/payment.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { AIModule } from './ai/ai.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
     imports: [
@@ -58,6 +59,7 @@ import { AIModule } from './ai/ai.module';
         PaymentModule,
         SubscriptionModule,
         AIModule,
+        NotificationModule,
     ],
 })
 export class AppModule { }
