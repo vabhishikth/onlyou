@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 9 — Doctor Dashboard List Pages
-## Current Task: PR 22 - Web Doctor List Pages
+## Current Phase: Phase 10 — Production Readiness
+## Current Task: PRs 23-25 Complete
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -49,93 +49,101 @@
 - [x] PR 21: Backend Doctor List Queries (TDD) — 24 tests
 - [x] PR 22: Web Doctor List Pages (TDD) — 33 tests
 
+### Phase 10 — Production Readiness (PRs 23-25):
+- [x] PR 23, Task 1: Redis Service Module — 8 tests (TDD)
+- [x] PR 23, Task 2: Environment Validation — 5 tests (TDD)
+- [x] PR 23, Task 3: Health Check Endpoints — 10 tests (TDD)
+- [x] PR 24, Task 1: Redis-based Rate Limit Guard — 8 tests (TDD)
+- [x] PR 24, Task 2: Security Hardening (Helmet + CORS + Depth Limit) — 3 tests
+- [x] PR 25, Task 1: Cache Service — 7 tests (TDD)
+- [x] PR 25, Task 2: Sentry Error Tracking — 11 tests (TDD)
+- [x] PR 25, Task 3: Cache questionnaire templates in Redis (1h TTL)
+
 ## Test Counts:
-- Backend: 2,054 tests (45 test suites)
+- Backend: 2,106 tests (53 test suites)
 - Mobile: 431 tests (29 test suites)
 - Web: 96 tests (11 test suites)
-- **Total: 2,581 tests**
+- **Total: 2,633 tests**
 
 ---
 
-## PR 21 — Backend Doctor List Queries (COMPLETE)
+## Phase 10 Summary
 
-### 3 new backend queries:
-1. **`doctorPrescriptions`** — 7 tests
-   - Service: `getDoctorPrescriptions(doctorId, filters?)` joins through consultation
-   - Filters: vertical, search by patient name
-   - DTOs: `DoctorPrescriptionItem`, `DoctorPrescriptionsFilterInput`
-   - Files: prescription.service.ts, prescription.dto.ts, prescription.resolver.ts
+### PR 23 — Redis Module + Health Checks + Env Validation (23 new tests)
 
-2. **`doctorLabOrders`** — 8 tests
-   - Service: `getDoctorLabOrders(doctorId, filters?)` queries by doctorId
-   - Filters: status, vertical, search by patient name
-   - DTOs: `DoctorLabOrderItem`, `DoctorLabOrdersFilterInput`
-   - Files: lab-order.service.ts, lab-order.dto.ts, lab-order.resolver.ts
+**Task 1: Redis Service Module (8 tests)**
+- `backend/src/redis/redis.service.ts` — ioredis wrapper with fail-open pattern, lazyConnect
+- `backend/src/redis/redis.module.ts` — @Global() module
+- `backend/src/redis/redis.service.spec.ts` — 8 tests
+- Methods: get, set (with optional TTL), del, incr, expire, keys, ping
 
-3. **`doctorConversations`** — 9 tests
-   - Service: `getDoctorConversations(doctorId)` aggregates message data
-   - Returns: unread count, last message, total messages per conversation
-   - DTOs: `ConversationSummaryType`
-   - Files: messaging.service.ts, messaging.dto.ts, messaging.resolver.ts
+**Task 2: Environment Validation (5 tests)**
+- `backend/src/config/env.validation.ts` — Validates DATABASE_URL, JWT secrets (required), REDIS_URL/NODE_ENV/PORT/SENTRY_DSN (optional with defaults)
+- `backend/src/config/env.validation.spec.ts` — 5 tests
+- Wired into ConfigModule.forRoot({ validate })
 
-### 3 commits:
-1. `feat(prescription): add doctorPrescriptions list query — 7 tests`
-2. `feat(lab-order): add doctorLabOrders list query — 8 tests`
-3. `feat(messaging): add doctorConversations list query — 9 tests`
+**Task 3: Health Check Endpoints (10 tests)**
+- `backend/src/health/health.controller.ts` — REST: /health, /health/live, /health/ready
+- `backend/src/health/indicators/prisma.health.ts` — DB health via SELECT 1
+- `backend/src/health/indicators/redis.health.ts` — Redis health via ping
+- `backend/src/health/health.controller.spec.ts` — 10 tests
+- Dependency: @nestjs/terminus
 
----
+### PR 24 — Rate Limiting + Security Hardening (11 new tests)
 
-## PR 22 — Web Doctor List Pages (COMPLETE)
+**Task 1: Redis-based Rate Limit Guard (8 tests)**
+- `backend/src/common/guards/rate-limit.guard.ts` — Sliding window counter per IP
+- `backend/src/common/decorators/rate-limit.decorator.ts` — @RateLimit(limit, windowSeconds)
+- `backend/src/common/guards/rate-limit.guard.spec.ts` — 8 tests
+- Default 100 req/min, fail-open when Redis down
 
-### 4 pages replaced (stubs → full implementations):
+**Task 2: Security Hardening (3 tests)**
+- `backend/src/main.ts` — Helmet middleware, production CORS (6 onlyou.life subdomains), SentryInterceptor
+- `backend/src/app.module.ts` — GraphQL depth limit (max 7), formatGraphQLError
+- `backend/src/auth/auth.resolver.ts` — @RateLimit(5, 60) on requestOtp, @RateLimit(10, 60) on verifyOtp
+- `backend/src/common/plugins/depth-limit.spec.ts` — 3 tests
+- Dependencies: helmet, graphql-depth-limit
 
-1. **`/doctor/templates`** — 7 tests
-   - Uses existing `AVAILABLE_TEMPLATES` query (one per vertical tab)
-   - 4 vertical tabs, expandable template cards with medication details
-   - Files: templates/page.tsx, templates/__tests__/page.spec.tsx
+### PR 25 — Error Tracking + Caching (18 new tests)
 
-2. **`/doctor/prescriptions`** — 8 tests
-   - Uses new `DOCTOR_PRESCRIPTIONS` query
-   - Search, vertical filter tabs, prescription cards with patient name/meds/date/PDF icon
-   - Files: prescriptions/page.tsx, prescriptions/__tests__/page.spec.tsx, graphql/prescription.ts
+**Task 1: Cache Service (7 tests)**
+- `backend/src/common/cache/cache.service.ts` — Cache-aside: getOrSet, invalidate, invalidatePattern
+- `backend/src/common/cache/cache.module.ts` — @Global() module
+- `backend/src/common/cache/cache.service.spec.ts` — 7 tests
 
-3. **`/doctor/lab-orders`** — 9 tests
-   - Uses new `DOCTOR_LAB_ORDERS` query
-   - Search, status filter chips, lab order cards with critical values indicator
-   - Results Ready orders highlighted with ring
-   - Files: lab-orders/page.tsx, lab-orders/__tests__/page.spec.tsx, graphql/lab-order.ts
+**Task 2: Sentry Error Tracking (11 tests)**
+- `backend/src/common/sentry/sentry.interceptor.ts` — Captures exceptions, strips sensitive fields
+- `backend/src/common/sentry/graphql-error-formatter.ts` — Strips stack traces in prod, generic messages for internal errors
+- `backend/src/common/sentry/sentry.module.ts` — Initializes from SENTRY_DSN, no-ops when not set
+- `backend/src/common/sentry/sentry.interceptor.spec.ts` — 6 tests
+- `backend/src/common/sentry/graphql-error-formatter.spec.ts` — 5 tests
+- Dependency: @sentry/nestjs
 
-4. **`/doctor/messages`** — 9 tests
-   - Uses new `DOCTOR_CONVERSATIONS` query
-   - Search, All/Unread toggle, conversation cards with unread badge/time ago
-   - Files: messages/page.tsx, messages/__tests__/page.spec.tsx, graphql/messaging.ts (new)
+**Task 3: Cache Questionnaire Templates**
+- `backend/src/intake/intake.service.ts` — Wrapped getQuestionnaireTemplate with CacheService.getOrSet (key: questionnaire:{vertical}, TTL: 3600s)
+- Prescription templates are in-memory constants — no caching needed
 
-### 2 commits:
-1. `feat(web): implement templates reference page — 7 tests`
-2. `feat(web): implement prescriptions, lab orders, messages list pages — 26 tests`
+### New Dependencies Added:
+- @nestjs/terminus
+- helmet + @types/helmet
+- graphql-depth-limit
+- @sentry/nestjs
 
----
-
-## Doctor Dashboard Status: 100% COMPLETE
-All pages now fully implemented:
-- [x] Dashboard home with stats
-- [x] Case queue with filtering
-- [x] Case detail with 5 tabs (overview, questionnaire, photos, messages, prescription)
-- [x] Prescription builder with templates + contraindication checks
-- [x] Blood work ordering
-- [x] Prescriptions list page
-- [x] Lab orders list page
-- [x] Messages/conversations list page
-- [x] Templates reference page
+### Key Architectural Decisions:
+- **OTP migration deferred** — existing tests access (service as any).otpStore internals; separate PR needed
+- **Redis fail-open** — all Redis ops wrapped in try/catch, app works without Redis
+- **lazyConnect** — prevents connection spam when Redis unavailable in dev
+- **Cache-aside pattern** — CacheService wraps Redis with JSON serialization
 
 ---
 
 ## Next Up:
-1. Phase 10: Production readiness (rate limiting, caching, monitoring)
-2. E2E testing across flows
-3. Mobile integration verification
+1. E2E testing across flows
+2. Mobile integration verification
+3. Deployment pipeline setup
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
+- Redis connection warning logged once on startup if Redis not available (by design)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
