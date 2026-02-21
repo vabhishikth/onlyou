@@ -214,6 +214,53 @@ export class CheckContraindicationsResponse {
   alternativeTemplate?: PrescriptionTemplate | undefined;
 }
 
+// Doctor prescriptions list item
+// Spec: master spec Section 5.4 — Doctor prescription list
+@ObjectType()
+export class DoctorPrescriptionItem {
+  @Field(() => String)
+  id: string;
+
+  @Field(() => String)
+  consultationId: string;
+
+  @Field(() => String, { nullable: true })
+  patientName?: string;
+
+  @Field(() => HealthVertical)
+  vertical: HealthVertical;
+
+  @Field(() => String, { nullable: true })
+  pdfUrl?: string;
+
+  @Field(() => GraphQLJSON)
+  medications: unknown;
+
+  @Field(() => String, { nullable: true })
+  instructions?: string;
+
+  @Field(() => Date)
+  validUntil: Date;
+
+  @Field(() => Date)
+  issuedAt: Date;
+
+  @Field(() => Date)
+  createdAt: Date;
+}
+
+// Filter input for doctor prescriptions list
+@InputType()
+export class DoctorPrescriptionsFilterInput {
+  @Field(() => HealthVertical, { nullable: true })
+  @IsOptional()
+  vertical?: HealthVertical;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  search?: string;
+}
+
 // Spec: master spec Section 5.4 — Regenerate prescription PDF
 @ObjectType()
 export class RegeneratePdfResponse {

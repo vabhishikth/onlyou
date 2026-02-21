@@ -81,6 +81,7 @@ describe('PrescriptionService', () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
     },
     order: {
@@ -2349,6 +2350,143 @@ describe('PrescriptionService', () => {
         tryingDuration: '2+ years',
       });
       expect(suggestion).toBe('REFER_FERTILITY_SPECIALIST');
+    });
+  });
+
+  // --- getDoctorPrescriptions ---
+  // Spec: master spec Section 5.4 — Doctor prescription list query
+
+  describe('getDoctorPrescriptions', () => {
+    const mockPrescriptionRows = [
+      {
+        id: 'rx-1',
+        consultationId: 'consult-1',
+        pdfUrl: 'https://s3.example.com/rx-1.pdf',
+        medications: [{ name: 'Finasteride', dosage: '1mg', frequency: 'Once daily' }],
+        instructions: 'Take with food',
+        validUntil: new Date('2026-08-01'),
+        issuedAt: new Date('2026-02-01'),
+        createdAt: new Date('2026-02-01'),
+        consultation: {
+          id: 'consult-1',
+          vertical: HealthVertical.HAIR_LOSS,
+          status: ConsultationStatus.APPROVED,
+          patient: { name: 'Alice Patient', phone: '+919876543210' },
+        },
+      },
+      {
+        id: 'rx-2',
+        consultationId: 'consult-2',
+        pdfUrl: null,
+        medications: [{ name: 'Minoxidil 5%', dosage: '1ml', frequency: 'Twice daily' }],
+        instructions: null,
+        validUntil: new Date('2026-09-01'),
+        issuedAt: new Date('2026-03-01'),
+        createdAt: new Date('2026-03-01'),
+        consultation: {
+          id: 'consult-2',
+          vertical: HealthVertical.HAIR_LOSS,
+          status: ConsultationStatus.APPROVED,
+          patient: { name: 'Bob Patient', phone: '+919876543211' },
+        },
+      },
+    ];
+
+    it('should return all prescriptions for the logged-in doctor', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue(mockPrescriptionRows);
+
+      const result = await service.getDoctorPrescriptions('doctor-1');
+
+      expect(mockPrismaService.prescription.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { consultation: { doctorId: 'doctor-1' } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('rx-1');
+      expect(result[0].patientName).toBe('Alice Patient');
+      expect(result[0].vertical).toBe(HealthVertical.HAIR_LOSS);
+    });
+
+    it('should return empty array when doctor has no prescriptions', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([]);
+
+      const result = await service.getDoctorPrescriptions('doctor-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should filter by vertical when provided', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([mockPrescriptionRows[0]]);
+
+      await service.getDoctorPrescriptions('doctor-1', { vertical: HealthVertical.HAIR_LOSS });
+
+      expect(mockPrismaService.prescription.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            consultation: {
+              doctorId: 'doctor-1',
+              vertical: HealthVertical.HAIR_LOSS,
+            },
+          },
+        }),
+      );
+    });
+
+    it('should filter by patient name search (case-insensitive)', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([mockPrescriptionRows[0]]);
+
+      await service.getDoctorPrescriptions('doctor-1', { search: 'alice' });
+
+      expect(mockPrismaService.prescription.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            consultation: {
+              doctorId: 'doctor-1',
+              patient: { name: { contains: 'alice', mode: 'insensitive' } },
+            },
+          },
+        }),
+      );
+    });
+
+    it('should include medication data and pdfUrl in results', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([mockPrescriptionRows[0]]);
+
+      const result = await service.getDoctorPrescriptions('doctor-1');
+
+      expect(result[0].pdfUrl).toBe('https://s3.example.com/rx-1.pdf');
+      expect(result[0].medications).toEqual([
+        { name: 'Finasteride', dosage: '1mg', frequency: 'Once daily' },
+      ]);
+    });
+
+    it('should order results by most recent first', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue(mockPrescriptionRows);
+
+      await service.getDoctorPrescriptions('doctor-1');
+
+      expect(mockPrismaService.prescription.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+    });
+
+    it('should map consultation and patient fields correctly', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([mockPrescriptionRows[1]]);
+
+      const result = await service.getDoctorPrescriptions('doctor-1');
+
+      expect(result[0]).toEqual(expect.objectContaining({
+        id: 'rx-2',
+        consultationId: 'consult-2',
+        patientName: 'Bob Patient',
+        vertical: HealthVertical.HAIR_LOSS,
+        pdfUrl: undefined,
+        instructions: undefined,
+      }));
     });
   });
 });

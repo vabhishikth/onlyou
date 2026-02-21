@@ -15,6 +15,8 @@ import {
   TemplateSuggestionType,
   AvailableTemplatesResponse,
   RegeneratePdfResponse,
+  DoctorPrescriptionItem,
+  DoctorPrescriptionsFilterInput,
 } from './dto/prescription.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +30,21 @@ export class PrescriptionResolver {
     private readonly prescriptionService: PrescriptionService,
     private readonly prisma: PrismaService
   ) {}
+
+  /**
+   * Get all prescriptions for the logged-in doctor
+   * Spec: master spec Section 5.4 — Doctor prescription list
+   */
+  @Query(() => [DoctorPrescriptionItem])
+  @UseGuards(JwtAuthGuard)
+  async doctorPrescriptions(
+    @Context() context: any,
+    @Args('filters', { type: () => DoctorPrescriptionsFilterInput, nullable: true })
+    filters?: DoctorPrescriptionsFilterInput,
+  ): Promise<DoctorPrescriptionItem[]> {
+    const doctorId = context.req.user.id;
+    return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined);
+  }
 
   /**
    * Get available templates for a vertical
