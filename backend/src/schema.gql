@@ -640,6 +640,43 @@ type DiagnosticCentresResponse {
   total: Int!
 }
 
+type DoctorLabOrderItem {
+  consultationId: String!
+  criticalValues: Boolean!
+  id: String!
+  orderedAt: DateTime!
+  panelName: String
+  patientName: String
+  resultFileUrl: String
+  status: LabOrderStatus!
+  testPanel: [String!]!
+  vertical: HealthVertical!
+}
+
+input DoctorLabOrdersFilterInput {
+  search: String
+  status: LabOrderStatus
+  vertical: HealthVertical
+}
+
+type DoctorPrescriptionItem {
+  consultationId: String!
+  createdAt: DateTime!
+  id: String!
+  instructions: String
+  issuedAt: DateTime!
+  medications: JSON!
+  patientName: String
+  pdfUrl: String
+  validUntil: DateTime!
+  vertical: HealthVertical!
+}
+
+input DoctorPrescriptionsFilterInput {
+  search: String
+  vertical: HealthVertical
+}
+
 """User gender"""
 enum Gender {
   FEMALE
@@ -1386,6 +1423,8 @@ type Query {
   consultationMessages(consultationId: String!): [MessageType!]!
   deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
+  doctorLabOrders(filters: DoctorLabOrdersFilterInput): [DoctorLabOrderItem!]!
+  doctorPrescriptions(filters: DoctorPrescriptionsFilterInput): [DoctorPrescriptionItem!]!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
   getAssessment(consultationId: String!): AIPreAssessmentType
   labCompletedSamples: [LabSampleSummary!]!
