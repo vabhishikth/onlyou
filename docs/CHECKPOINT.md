@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 11 — Mobile Missing Screens + Web Portal Test Coverage
-## Current Task: PR 26 Complete — Mobile Missing Sub-Screens
+## Current Phase: Phase 11 — Mobile Missing Screens + Web Portal Test Coverage (COMPLETE)
+## Current Task: All PRs 26-29 Complete
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -64,15 +64,15 @@
 - [x] PR 26, Task 2: /profile/lab-results screen — 7 mobile tests (TDD)
 - [x] PR 26, Task 3: /profile/health screen — 6 mobile tests (TDD)
 - [x] PR 26, Task 4: /order/[id] detail screen — 9 mobile tests (TDD)
-- [ ] PR 27: Web admin dashboard tests (6 pages)
-- [ ] PR 28: Web partner portal tests (lab + pharmacy + collect)
-- [ ] PR 29: Mobile sub-screen test coverage
+- [x] PR 27: Web admin dashboard tests (6 pages) — 44 tests
+- [x] PR 28: Web partner portal tests (lab + pharmacy + collect) — 41 tests
+- [x] PR 29: Mobile sub-screen test coverage (6 screens) — 40 tests
 
 ## Test Counts:
 - Backend: 2,108 tests (53 test suites)
-- Mobile: 461 tests (33 test suites)
-- Web: 96 tests (11 test suites)
-- **Total: 2,665 tests**
+- Mobile: 501 tests (39 test suites)
+- Web: 181 tests (26 test suites)
+- **Total: 2,790 tests**
 
 ---
 
@@ -175,10 +175,24 @@
 
 ---
 
+## Phase 11 Complete Summary — PRs 26-29 (155 new tests)
+
+**PR 27: Web Admin Dashboard Tests (44 tests)**
+- 6 admin pages: dashboard, escalations, lab-orders, deliveries, partners, patients
+- Pattern: MockedProvider + addTypename={false} + framer-motion mock
+
+**PR 28: Web Partner Portal Tests (41 tests)**
+- Lab portal (19): incoming samples, processing, upload, profile
+- Pharmacy portal (16): new orders, preparing, ready, profile
+- Collect portal (6): summary, assignments, empty state
+- Fixed status config label clashes (badge vs header)
+
+**PR 29: Mobile Sub-Screen Tests (40 tests)**
+- Chat detail, edit profile, wallet, notifications, subscriptions, lab booking
+- Pattern: useQuery/useMutation mocks
+
 ## Next Up:
-1. PR 27: Web admin dashboard tests (6 pages, ~42 tests)
-2. PR 28: Web partner portal tests (lab + pharmacy + collect, ~36 tests)
-3. PR 29: Mobile sub-screen test coverage (~25 tests)
+- Phase 12+ planning (see BUILD-PLAN.md)
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
