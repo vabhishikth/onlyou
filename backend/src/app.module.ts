@@ -26,6 +26,8 @@ import { PaymentModule } from './payment/payment.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { AIModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
+import { RedisModule } from './redis/redis.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
     imports: [
@@ -64,6 +66,8 @@ import { NotificationModule } from './notification/notification.module';
         SubscriptionModule,
         AIModule,
         NotificationModule,
+        RedisModule,
+        HealthModule,
     ],
 })
 export class AppModule { }
