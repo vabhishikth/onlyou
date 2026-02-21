@@ -19,7 +19,7 @@ export class SubscriptionPlanType {
   name: string;
 
   @Field(() => String, { nullable: true })
-  description?: string;
+  description: string | null;
 
   @Field(() => Int)
   priceInPaise: number;
@@ -55,10 +55,10 @@ export class SubscriptionType {
   currentPeriodEnd: Date;
 
   @Field(() => Date, { nullable: true })
-  cancelledAt?: Date;
+  cancelledAt: Date | null;
 
   @Field(() => Date, { nullable: true })
-  activeUntil?: Date;
+  activeUntil: Date | null;
 
   @Field(() => SubscriptionPlanType, { nullable: true })
   plan?: SubscriptionPlanType;

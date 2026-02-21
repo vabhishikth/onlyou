@@ -318,6 +318,11 @@ input CancelOrderInput {
   reason: String!
 }
 
+input CancelSubscriptionInput {
+  reason: String
+  subscriptionId: String!
+}
+
 type CaseAIAssessmentType {
   flags: [String!]!
   rawResponse: JSON
@@ -503,6 +508,15 @@ input CreateOrderInput {
   deliveryPincode: String!
   medicationCost: Int!
   prescriptionId: String!
+}
+
+input CreatePaymentOrderInput {
+  amountPaise: Int!
+  currency: String
+  intakeResponseId: String
+  planId: String
+  purpose: String!
+  vertical: String!
 }
 
 input CreatePharmacyInput {
@@ -851,6 +865,7 @@ type Mutation {
   bulkAssignPhlebotomist(input: BulkAssignPhlebotomistInput!): BulkAssignmentResponse!
   cancelLabOrder(input: CancelLabInput!): TrackingMutationResponse!
   cancelOrder(input: CancelOrderInput!): OrderMutationResponse!
+  cancelSubscription(input: CancelSubscriptionInput!): SubscriptionMutationResponse!
   closeLabOrder(labOrderId: String!): ReviewLabResultsResponse!
   collectDeliverToLab(input: DeliverToLabInput!): TodayAssignment!
   collectMarkCollected(input: MarkCollectedInput!): TodayAssignment!
@@ -862,6 +877,7 @@ type Mutation {
   createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
   createLabOrder(input: CreateLabOrderInput!): CreateLabOrderResponse!
   createOrder(input: CreateOrderInput!): OrderMutationResponse!
+  createPaymentOrder(input: CreatePaymentOrderInput!): PaymentOrderResponse!
   createPharmacy(input: CreatePharmacyInput!): PharmacyDetails!
   createPhlebotomist(input: CreatePhlebotomistInput!): PhlebotomistDetails!
   createPrescription(input: CreatePrescriptionInput!): CreatePrescriptionResponse!
@@ -879,6 +895,8 @@ type Mutation {
   markMessageAsRead(messageId: String!): MessageType!
   markOutForDelivery(orderId: String!): OrderMutationResponse!
   overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
+  pauseSubscription(subscriptionId: String!): SubscriptionMutationResponse!
+  paymentWebhook(input: WebhookInput!): PaymentMutationResponse!
   pharmacyMarkReady(orderId: String!): PharmacyOrderSummary!
   pharmacyReportStockIssue(input: ReportStockIssueInput!): PharmacyMutationResponse!
   pharmacyStartPreparing(orderId: String!): PharmacyOrderSummary!
@@ -889,6 +907,7 @@ type Mutation {
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
   rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
   rescheduleLabSlot(input: RescheduleLabInput!): TrackingMutationResponse!
+  resumeSubscription(subscriptionId: String!): SubscriptionMutationResponse!
   reviewLabResults(input: ReviewLabResultsInput!): ReviewLabResultsResponse!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
   sendMessage(consultationId: String!, content: String!): MessageType!
@@ -908,6 +927,7 @@ type Mutation {
   updateProfile(input: UpdateProfileInput!): ProfileUpdateResponse!
   upsertHealthProfile(input: UpsertHealthProfileInput!): HealthProfileResponse!
   verifyOtp(input: VerifyOtpInput!): AuthResponse!
+  verifyPayment(input: VerifyPaymentInput!): PaymentMutationResponse!
 }
 
 type NearbyLab {
@@ -1042,6 +1062,32 @@ type PatientProfileType {
   weight: Float
 }
 
+type PaymentMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type PaymentOrderResponse {
+  amountPaise: Int
+  currency: String
+  message: String!
+  paymentId: String
+  razorpayOrderId: String
+  success: Boolean!
+}
+
+type PaymentType {
+  amountPaise: Int!
+  createdAt: DateTime!
+  failureReason: String
+  id: String!
+  method: String
+  razorpayOrderId: String
+  razorpayPaymentId: String
+  status: String!
+  userId: String!
+}
+
 type PharmaciesResponse {
   pharmacies: [PharmacyDetails!]!
   total: Int!
@@ -1173,6 +1219,11 @@ type PresignedUrlResponse {
   uploadUrl: String!
 }
 
+type PricingValidationResponse {
+  expectedPrice: Int
+  valid: Boolean!
+}
+
 type ProfileUpdateResponse {
   message: String!
   success: Boolean!
@@ -1202,6 +1253,7 @@ type Query {
   availableLabs(city: String!): AvailableLabsResponse!
   availablePharmacies(pincode: String!): AvailablePharmaciesResponse!
   availablePhlebotomists(date: DateTime!, pincode: String!): AvailablePhlebotomistsResponse!
+  availablePlans(vertical: String!): [SubscriptionPlanType!]!
   availableTemplates(vertical: HealthVertical!): AvailableTemplatesResponse!
   availableTestPanels(vertical: HealthVertical!): AvailablePanelsResponse!
   availableVerticals: [VerticalInfo!]!
@@ -1225,6 +1277,8 @@ type Query {
   me: UserProfileType
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
   myIntakes: [IntakeResponseType!]!
+  myPayments(status: String): [PaymentType!]!
+  mySubscriptions: [SubscriptionType!]!
   nearbyLabs: [NearbyLab!]!
   order(id: String!): OrderMutationResponse!
   ordersByPatient(patientId: String!): [OrderType!]!
@@ -1245,11 +1299,13 @@ type Query {
   refundsByUser(userId: String!): [RefundType!]!
   slaEscalations: [SLAEscalation!]!
   suggestTemplate(consultationId: String!): TemplateSuggestionType!
+  supportedPaymentMethods: [String!]!
   todayAssignments: [TodayAssignment!]!
   trackingHomeBanner: HomeBannerResponse!
   transactionHistory(userId: String!): [WalletTransactionType!]!
   unassignedCases(filters: QueueFiltersInput): QueueResponse!
   unreadMessageCount(consultationId: String!): Int!
+  validatePricing(amountPaise: Int!, planType: String!, vertical: String!): PricingValidationResponse!
   walletBalance(userId: String!): WalletBalanceType!
 }
 
@@ -1422,6 +1478,34 @@ type SubmitIntakeResponse {
   intakeResponse: IntakeResponseType
   message: String!
   success: Boolean!
+}
+
+type SubscriptionMutationResponse {
+  message: String!
+  success: Boolean!
+}
+
+type SubscriptionPlanType {
+  description: String
+  durationMonths: Int!
+  features: [String!]!
+  id: String!
+  isActive: Boolean!
+  name: String!
+  priceInPaise: Int!
+  vertical: String!
+}
+
+type SubscriptionType {
+  activeUntil: DateTime
+  cancelledAt: DateTime
+  currentPeriodEnd: DateTime!
+  currentPeriodStart: DateTime!
+  id: String!
+  plan: SubscriptionPlanType
+  planId: String!
+  status: String!
+  userId: String!
 }
 
 type TemplateDefinitionType {
@@ -1608,6 +1692,12 @@ input VerifyOtpInput {
   phone: String!
 }
 
+input VerifyPaymentInput {
+  razorpayOrderId: String!
+  razorpayPaymentId: String!
+  razorpaySignature: String!
+}
+
 type VerticalInfo {
   color: String!
   description: String!
@@ -1640,4 +1730,10 @@ type WalletTransactionType {
   referenceType: String
   type: String!
   walletId: String!
+}
+
+input WebhookInput {
+  event: String!
+  payload: JSON!
+  webhookSignature: String!
 }

@@ -70,7 +70,7 @@ export class SubscriptionResolver {
     try {
       await this.subscriptionService.cancelSubscription(
         input.subscriptionId,
-        input.reason,
+        user.id,
       );
       return { success: true, message: 'Subscription cancelled' };
     } catch (error) {
@@ -92,7 +92,7 @@ export class SubscriptionResolver {
     @Args('subscriptionId') subscriptionId: string,
   ): Promise<SubscriptionMutationResponse> {
     try {
-      await this.subscriptionService.pauseSubscription(subscriptionId);
+      await this.subscriptionService.pauseSubscription(subscriptionId, user.id);
       return { success: true, message: 'Subscription paused' };
     } catch (error) {
       return {
@@ -113,7 +113,7 @@ export class SubscriptionResolver {
     @Args('subscriptionId') subscriptionId: string,
   ): Promise<SubscriptionMutationResponse> {
     try {
-      await this.subscriptionService.resumeSubscription(subscriptionId);
+      await this.subscriptionService.resumeSubscription(subscriptionId, user.id);
       return { success: true, message: 'Subscription resumed' };
     } catch (error) {
       return {
