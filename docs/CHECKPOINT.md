@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 8 — Questionnaire Expansion
-## Current Task: PR 17 - Questionnaire Expansion (27/28/32/31 questions)
+## Current Phase: Phase 9 — Notification System
+## Current Task: PR 18 - Notification Resolver + DTOs (TDD)
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -42,65 +42,72 @@
 ### Phase 8 — Questionnaire Expansion:
 - [x] PR 17: Full spec-compliant questionnaires for all 4 verticals (TDD)
 
+### Phase 9 — Notification System:
+- [x] PR 18: Notification Resolver + DTOs (TDD) — 18 tests
+
 ## Test Counts:
-- Backend: 1,996 tests (43 test suites)
+- Backend: 2,014 tests (44 test suites)
 - Mobile: 431 tests (29 test suites)
-- **Total: 2,427 tests**
+- **Total: 2,445 tests**
 
 ---
 
-## Current PR: PR 17 — Questionnaire Expansion
+## Current PR: PR 18 — Notification Resolver + DTOs
 
 ### What was done:
-- Extracted questionnaire data from seed.ts into separate testable files in `backend/prisma/questionnaires/`
-- **CRITICAL FIX**: Changed all question IDs from descriptive format (`duration`, `pattern`, `family_history`) to Q-number format (`Q1`, `Q2`, `Q3`) matching AI service and Prescription service expectations
-- Expanded all 4 verticals to full spec-compliant question sets with skip logic
-- Updated seed patient responses (Rahul Sharma, Amit Patel) to use Q-number IDs
-- Updated jest.config.js to include `prisma/questionnaires/` in test roots
+- Created `notification/dto/notification.dto.ts` with enum registrations + ObjectTypes + InputType
+- Created `notification/notification.resolver.ts` with 4 queries + 3 mutations
+- Created `notification/notification.resolver.spec.ts` with 18 test cases (TDD)
+- Wired NotificationModule into AppModule
+- Regenerated schema.gql with notification types
 
-### Question counts (including sub-questions):
-| Vertical | Old | New | Sub-Qs | Sections |
-|----------|-----|-----|--------|----------|
-| Hair Loss | 14 (descriptive IDs) | 27 (Q1-Q25+Q2b+Q10b) | 2 | 5 |
-| Sexual Health | 9 (descriptive IDs) | 28 (Q1-Q28) | 0 | 6 (includes IIEF-5) |
-| PCOS | 8 (descriptive IDs) | 32 (Q1-Q32) | 0 | 8 |
-| Weight Mgmt | 8 (descriptive IDs) | 31 (Q1-Q30+Q8b) | 1 | 7 |
+### GraphQL API Surface:
+| Operation | Type | Description |
+|-----------|------|-------------|
+| notifications | Query | Paginated history with channel/eventType filters |
+| unreadNotifications | Query | List unread in-app notifications |
+| unreadNotificationCount | Query | Count of unread notifications |
+| notificationPreferences | Query | Get user preference toggles |
+| markNotificationAsRead | Mutation | Mark single notification as read |
+| markAllNotificationsAsRead | Mutation | Bulk mark all as read |
+| updateNotificationPreferences | Mutation | Update push/whatsapp/sms/email/discreet |
+
+### Registered Enums:
+- NotificationChannel (PUSH, WHATSAPP, SMS, EMAIL, IN_APP)
+- NotificationStatus (PENDING, SENT, DELIVERED, READ, FAILED)
+- NotificationEventType (27 event types)
 
 ### Files created:
-- `backend/prisma/questionnaires/hair-loss.ts` — 27 questions, 5 sections, 4 photo requirements
-- `backend/prisma/questionnaires/sexual-health.ts` — 28 questions, 6 sections, IIEF-5 assessment
-- `backend/prisma/questionnaires/pcos.ts` — 32 questions, 8 sections, Rotterdam criteria aligned
-- `backend/prisma/questionnaires/weight-management.ts` — 31 questions, 7 sections, 3 photo requirements
-- `backend/prisma/questionnaires/index.ts` — re-exports all questionnaires
-- `backend/prisma/questionnaires/questionnaires.spec.ts` — 37 validation tests
+- `backend/src/notification/dto/notification.dto.ts`
+- `backend/src/notification/notification.resolver.ts`
+- `backend/src/notification/notification.resolver.spec.ts`
 
 ### Files modified:
-- `backend/prisma/seed.ts` — imports from questionnaires/, updated seed responses to Q-number IDs
-- `backend/jest.config.js` — added prisma/questionnaires to test roots
+- `backend/src/notification/notification.module.ts` — added resolver to providers
+- `backend/src/app.module.ts` — imported NotificationModule
+- `backend/src/schema.gql` — auto-regenerated with notification types
 
-### 37 new tests:
-- Question count validation per vertical
-- Structure validation (id, type, question, required)
-- Q-number ID format validation
-- No duplicate IDs
-- Choice questions have options
-- Skip logic references valid question IDs
-- Section counts per vertical
-- Photo requirement counts
-- Backend-referenced IDs exist (critical for AI/Prescription services)
+### 18 new tests:
+- Paginated notification history (4 tests: defaults, channel filter, eventType filter, empty)
+- Unread notifications query (2 tests: with results, empty)
+- Unread count query (2 tests: with count, zero)
+- Notification preferences query (1 test)
+- Mark notification as read (3 tests: success, not found, not owner)
+- Mark all as read (2 tests: with count, zero)
+- Update preferences (4 tests: single, discreet mode, multiple, empty input)
 
 ---
 
-## PR 17 — COMPLETE
+## PR 18 — COMPLETE
 
-**Spec references:** hair-loss spec Section 3, ED spec Section 3, PCOS spec Section 3, weight-management spec Section 3
+**Spec references:** master spec Section 11 (Notification System)
 
 ---
 
 ## Next Up:
-1. Notification resolver + triggers (master spec Section 11)
-2. Web test coverage
-3. Mobile integration with expanded questionnaires (should work automatically — data-driven)
+1. Web test coverage
+2. Mobile integration with expanded questionnaires (should work automatically — data-driven)
+3. Scheduled notification jobs (SLA reminders: 3-day, 14-day, 48hr, 72hr)
 
 ## Known Issues:
 - None currently

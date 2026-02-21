@@ -801,6 +801,10 @@ type LabTodaySummary {
   incoming: Int!
 }
 
+type MarkAllNotificationsReadResponse {
+  count: Int!
+}
+
 type MarkAllReadResponse {
   count: Int!
 }
@@ -908,8 +912,10 @@ type Mutation {
   labUploadResults(input: UploadResultsInput!): LabSampleSummary!
   logout(refreshToken: String): RequestOtpResponse!
   markAllMessagesAsRead(consultationId: String!): MarkAllReadResponse!
+  markAllNotificationsAsRead: MarkAllNotificationsReadResponse!
   markDeliveryFailed(input: MarkDeliveryFailedInput!): OrderMutationResponse!
   markMessageAsRead(messageId: String!): MessageType!
+  markNotificationAsRead(notificationId: String!): NotificationType!
   markOutForDelivery(orderId: String!): OrderMutationResponse!
   overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
   pauseSubscription(subscriptionId: String!): SubscriptionMutationResponse!
@@ -940,6 +946,7 @@ type Mutation {
   updateConsultationStatus(consultationId: String!, doctorNotes: String, rejectionReason: String, status: String!): ConsultationStatusResponse!
   updateDeliveryStatus(input: MarkDeliveryStatusInput!): DeliveryMutationResponse!
   updateDiagnosticCentre(input: UpdateDiagnosticCentreInput!): DiagnosticCentre!
+  updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferenceType!
   updateOnboarding(input: UpdateOnboardingInput!): OnboardingResponse!
   updatePharmacy(input: UpdatePharmacyInput!): PharmacyDetails!
   updatePharmacyStatus(input: MarkPharmacyStatusInput!): DeliveryMutationResponse!
@@ -956,6 +963,102 @@ type NearbyLab {
   id: String!
   name: String!
   phone: String!
+}
+
+"""Notification delivery channel"""
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  PUSH
+  SMS
+  WHATSAPP
+}
+
+"""Notification event type"""
+enum NotificationEventType {
+  CONSULTATION_ASSIGNED
+  DELIVERY_DELIVERED
+  DELIVERY_FAILED
+  DELIVERY_MONTHLY_REORDER
+  DELIVERY_OUT_FOR_DELIVERY
+  DELIVERY_PHARMACY_ISSUE
+  DELIVERY_PHARMACY_PREPARING
+  DELIVERY_PHARMACY_READY
+  DELIVERY_PRESCRIPTION_CREATED
+  LAB_BOOKING_REMINDER_3DAY
+  LAB_BOOKING_REMINDER_14DAY
+  LAB_COLLECTION_FAILED
+  LAB_COLLECTION_REMINDER
+  LAB_CRITICAL_VALUES
+  LAB_DOCTOR_REVIEWED
+  LAB_OVERDUE_48HR
+  LAB_OVERDUE_72HR
+  LAB_PHLEBOTOMIST_ASSIGNED
+  LAB_RESULTS_READY
+  LAB_RUNNING_LATE
+  LAB_SAMPLE_COLLECTED
+  LAB_SAMPLE_ISSUE
+  LAB_SAMPLE_RECEIVED
+  LAB_SLOT_BOOKED
+  LAB_TESTS_ORDERED
+  MESSAGE_RECEIVED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_EXPIRED
+  SUBSCRIPTION_PAYMENT_FAILED
+  SUBSCRIPTION_RENEWAL_REMINDER
+  WELCOME
+}
+
+type NotificationHistoryResponse {
+  limit: Int!
+  notifications: [NotificationType!]!
+  page: Int!
+  total: Int!
+}
+
+type NotificationPreferenceType {
+  createdAt: DateTime!
+  discreetMode: Boolean!
+  emailEnabled: Boolean!
+  id: String!
+  pushEnabled: Boolean!
+  smsEnabled: Boolean!
+  updatedAt: DateTime!
+  userId: String!
+  whatsappEnabled: Boolean!
+}
+
+"""Notification delivery status"""
+enum NotificationStatus {
+  DELIVERED
+  FAILED
+  PENDING
+  READ
+  SENT
+}
+
+type NotificationType {
+  body: String!
+  channel: NotificationChannel!
+  consultationId: String
+  createdAt: DateTime!
+  data: JSON
+  deliveredAt: DateTime
+  eventType: NotificationEventType!
+  failedAt: DateTime
+  failureReason: String
+  id: String!
+  isDiscreet: Boolean!
+  labOrderId: String
+  orderId: String
+  readAt: DateTime
+  recipientId: String!
+  recipientRole: String!
+  sentAt: DateTime
+  status: NotificationStatus!
+  subscriptionId: String
+  title: String!
+  updatedAt: DateTime!
 }
 
 type OnboardingResponse {
@@ -1301,6 +1404,8 @@ type Query {
   myPayments(status: String): [PaymentType!]!
   mySubscriptions: [SubscriptionType!]!
   nearbyLabs: [NearbyLab!]!
+  notificationPreferences: NotificationPreferenceType!
+  notifications(channel: NotificationChannel, eventType: NotificationEventType, limit: Int! = 20, page: Int! = 1): NotificationHistoryResponse!
   order(id: String!): OrderMutationResponse!
   ordersByPatient(patientId: String!): [OrderType!]!
   ordersDueForReorder: [OrderType!]!
@@ -1326,6 +1431,8 @@ type Query {
   transactionHistory(userId: String!): [WalletTransactionType!]!
   unassignedCases(filters: QueueFiltersInput): QueueResponse!
   unreadMessageCount(consultationId: String!): Int!
+  unreadNotificationCount: Int!
+  unreadNotifications: [NotificationType!]!
   validatePricing(amountPaise: Int!, planType: String!, vertical: String!): PricingValidationResponse!
   walletBalance(userId: String!): WalletBalanceType!
 }
@@ -1633,6 +1740,14 @@ input UpdateDiagnosticCentreInput {
   name: String
   phone: String
   testsOffered: [String!]
+}
+
+input UpdateNotificationPreferencesInput {
+  discreetMode: Boolean
+  emailEnabled: Boolean
+  pushEnabled: Boolean
+  smsEnabled: Boolean
+  whatsappEnabled: Boolean
 }
 
 input UpdateOnboardingInput {
