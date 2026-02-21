@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { SentryInterceptor } from './common/sentry/sentry.interceptor';
 
 // Spec: Phase 10 — Production Readiness (bootstrap with security hardening)
 
@@ -62,6 +63,9 @@ async function bootstrap() {
             : true,
         credentials: true,
     });
+
+    // Global error tracking interceptor
+    app.useGlobalInterceptors(new SentryInterceptor());
 
     // Global validation pipe
     app.useGlobalPipes(

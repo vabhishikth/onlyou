@@ -6,6 +6,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import depthLimit from 'graphql-depth-limit';
+import { formatGraphQLError } from './common/sentry/graphql-error-formatter';
+import { CacheModule } from './common/cache/cache.module';
+import { SentryModule } from './common/sentry/sentry.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -45,6 +48,7 @@ import { HealthModule } from './health/health.module';
             introspection: process.env.NODE_ENV !== 'production',
             context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
             validationRules: [depthLimit(7)],
+            formatError: (error) => formatGraphQLError(error, process.env.NODE_ENV),
         }),
         ScheduleModule.forRoot(),
         PrismaModule,
@@ -69,7 +73,9 @@ import { HealthModule } from './health/health.module';
         AIModule,
         NotificationModule,
         RedisModule,
+        CacheModule,
         HealthModule,
+        SentryModule,
     ],
 })
 export class AppModule { }
