@@ -1,10 +1,11 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { MessagingService } from './messaging.service';
 import {
     MessageType,
     MarkAllReadResponse,
     RequestMoreInfoResponse,
+    ConversationSummaryType,
 } from './dto/messaging.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -17,6 +18,19 @@ export class MessagingResolver {
     constructor(
         private readonly messagingService: MessagingService,
     ) {}
+
+    /**
+     * Get all conversations for the logged-in doctor
+     * Spec: master spec Section 5.5 — Doctor conversations list
+     */
+    @Query(() => [ConversationSummaryType])
+    @UseGuards(JwtAuthGuard)
+    async doctorConversations(
+        @Context() context: any,
+    ): Promise<ConversationSummaryType[]> {
+        const doctorId = context.req.user.id;
+        return this.messagingService.getDoctorConversations(doctorId);
+    }
 
     /**
      * Send a message in a consultation

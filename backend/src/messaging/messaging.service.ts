@@ -308,6 +308,57 @@ export class MessagingService {
   }
 
   /**
+   * Get all conversations (consultations with messages) for a doctor
+   * Spec: master spec Section 5.5 — Doctor conversations list
+   */
+  async getDoctorConversations(doctorId: string): Promise<any[]> {
+    const consultations = await this.prisma.consultation.findMany({
+      where: {
+        doctorId,
+        messages: { some: {} },
+      },
+      include: {
+        patient: { select: { name: true, phone: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      _count: { select: { messages: true } },
+    } as any);
+
+    const results = consultations.map((consultation: any) => {
+      const messages = [...(consultation.messages || [])].sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      const lastMessage = messages[0]; // Most recent after sort
+      const unreadCount = messages.filter(
+        (m: any) => m.senderId !== doctorId && m.readAt === null,
+      ).length;
+
+      return {
+        consultationId: consultation.id,
+        patientName: consultation.patient?.name || undefined,
+        vertical: consultation.vertical,
+        consultationStatus: consultation.status,
+        lastMessageContent: lastMessage?.content || undefined,
+        lastMessageAt: lastMessage?.createdAt || undefined,
+        lastMessageIsFromDoctor: lastMessage?.senderId === doctorId,
+        unreadCount,
+        totalMessages: consultation._count?.messages ?? messages.length,
+      };
+    });
+
+    // Sort by most recent message first
+    results.sort((a: any, b: any) => {
+      const aTime = a.lastMessageAt?.getTime() ?? 0;
+      const bTime = b.lastMessageAt?.getTime() ?? 0;
+      return bTime - aTime;
+    });
+
+    return results;
+  }
+
+  /**
    * Send a canned response
    */
   async sendCannedResponse(

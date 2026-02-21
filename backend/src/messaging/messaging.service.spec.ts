@@ -62,6 +62,7 @@ describe('MessagingService', () => {
     },
     consultation: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
     },
     message: {
@@ -577,6 +578,178 @@ describe('MessagingService', () => {
       await expect(
         service.sendCannedResponse('consultation-1', 'doctor-1', 99)
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getDoctorConversations', () => {
+    // Spec: master spec Section 5.5 — Doctor conversations list
+
+    const now = new Date('2026-02-21T10:00:00Z');
+    const yesterday = new Date('2026-02-20T10:00:00Z');
+
+    const mockConsultationWithMessages = {
+      id: 'consultation-1',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      vertical: HealthVertical.HAIR_LOSS,
+      status: ConsultationStatus.DOCTOR_REVIEWING,
+      patient: { name: 'Test Patient', phone: '+919876543210' },
+      messages: [
+        {
+          id: 'msg-1',
+          senderId: 'patient-1',
+          content: 'Hello doctor',
+          createdAt: yesterday,
+          readAt: now,
+        },
+        {
+          id: 'msg-2',
+          senderId: 'doctor-1',
+          content: 'Hi, how can I help?',
+          createdAt: now,
+          readAt: null,
+        },
+      ],
+      _count: { messages: 2 },
+    };
+
+    const mockConsultationWithUnread = {
+      id: 'consultation-2',
+      patientId: 'patient-2',
+      doctorId: 'doctor-1',
+      vertical: HealthVertical.SEXUAL_HEALTH,
+      status: ConsultationStatus.NEEDS_INFO,
+      patient: { name: 'Another Patient', phone: '+919876543211' },
+      messages: [
+        {
+          id: 'msg-3',
+          senderId: 'patient-2',
+          content: 'I have a question',
+          createdAt: now,
+          readAt: null,
+        },
+      ],
+      _count: { messages: 1 },
+    };
+
+    it('should return conversations with messages for the doctor', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([mockConsultationWithMessages]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].consultationId).toBe('consultation-1');
+      expect(result[0].patientName).toBe('Test Patient');
+      expect(result[0].vertical).toBe(HealthVertical.HAIR_LOSS);
+    });
+
+    it('should return empty array when doctor has no conversations', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should compute correct unread count per conversation', async () => {
+      // consultation-2 has 1 message from patient-2, not read → unread = 1
+      mockPrismaService.consultation.findMany.mockResolvedValue([mockConsultationWithUnread]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      expect(result[0].unreadCount).toBe(1);
+    });
+
+    it('should set lastMessageContent to most recent message', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([mockConsultationWithMessages]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      // Most recent message is msg-2 (createdAt: now)
+      expect(result[0].lastMessageContent).toBe('Hi, how can I help?');
+      expect(result[0].lastMessageAt).toEqual(now);
+    });
+
+    it('should set lastMessageIsFromDoctor flag correctly', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([
+        mockConsultationWithMessages,
+        mockConsultationWithUnread,
+      ]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      // consultation-1: last message is from doctor-1
+      const conv1 = result.find((c: any) => c.consultationId === 'consultation-1');
+      expect(conv1.lastMessageIsFromDoctor).toBe(true);
+
+      // consultation-2: last message is from patient-2
+      const conv2 = result.find((c: any) => c.consultationId === 'consultation-2');
+      expect(conv2.lastMessageIsFromDoctor).toBe(false);
+    });
+
+    it('should order conversations by most recent message first', async () => {
+      // consultation-2 has message at `now`, consultation-1 also at `now` — but let's make it clear
+      const olderConsultation = {
+        ...mockConsultationWithMessages,
+        messages: [
+          {
+            id: 'msg-old',
+            senderId: 'doctor-1',
+            content: 'Old message',
+            createdAt: yesterday,
+            readAt: null,
+          },
+        ],
+        _count: { messages: 1 },
+      };
+
+      mockPrismaService.consultation.findMany.mockResolvedValue([
+        olderConsultation,
+        mockConsultationWithUnread,
+      ]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      // mockConsultationWithUnread has message at `now`, olderConsultation at `yesterday`
+      expect(result[0].consultationId).toBe('consultation-2');
+      expect(result[1].consultationId).toBe('consultation-1');
+    });
+
+    it('should exclude consultations with zero messages', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([mockConsultationWithMessages]);
+
+      await service.getDoctorConversations('doctor-1');
+
+      expect(mockPrismaService.consultation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            doctorId: 'doctor-1',
+            messages: { some: {} },
+          }),
+        })
+      );
+    });
+
+    it('should not return other doctors conversations', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([]);
+
+      await service.getDoctorConversations('doctor-2');
+
+      expect(mockPrismaService.consultation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            doctorId: 'doctor-2',
+          }),
+        })
+      );
+    });
+
+    it('should include total message count', async () => {
+      mockPrismaService.consultation.findMany.mockResolvedValue([mockConsultationWithMessages]);
+
+      const result = await service.getDoctorConversations('doctor-1');
+
+      expect(result[0].totalMessages).toBe(2);
     });
   });
 });
