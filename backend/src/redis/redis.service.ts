@@ -1,0 +1,91 @@
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
+
+// Spec: Phase 10 — Production Readiness (Redis infrastructure)
+
+@Injectable()
+export class RedisService implements OnModuleDestroy {
+    private readonly logger = new Logger(RedisService.name);
+    private readonly client: Redis;
+
+    constructor(private readonly config: ConfigService) {
+        const url = this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+        this.client = new Redis(url, {
+            maxRetriesPerRequest: 3,
+            retryStrategy: (times: number) => Math.min(times * 200, 2000),
+        });
+
+        this.client.on('error', (err: Error) => {
+            this.logger.error(`Redis connection error: ${err.message}`);
+        });
+    }
+
+    async onModuleDestroy(): Promise<void> {
+        await this.client.quit();
+    }
+
+    async get(key: string): Promise<string | null> {
+        try {
+            return await this.client.get(key);
+        } catch (err) {
+            this.logger.error(`Redis GET error for key "${key}": ${(err as Error).message}`);
+            return null;
+        }
+    }
+
+    async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+        try {
+            if (ttlSeconds) {
+                await this.client.set(key, value, 'EX', ttlSeconds);
+            } else {
+                await this.client.set(key, value);
+            }
+        } catch (err) {
+            this.logger.error(`Redis SET error for key "${key}": ${(err as Error).message}`);
+        }
+    }
+
+    async del(key: string): Promise<void> {
+        try {
+            await this.client.del(key);
+        } catch (err) {
+            this.logger.error(`Redis DEL error for key "${key}": ${(err as Error).message}`);
+        }
+    }
+
+    async incr(key: string): Promise<number> {
+        try {
+            return await this.client.incr(key);
+        } catch (err) {
+            this.logger.error(`Redis INCR error for key "${key}": ${(err as Error).message}`);
+            return 0;
+        }
+    }
+
+    async expire(key: string, ttlSeconds: number): Promise<void> {
+        try {
+            await this.client.expire(key, ttlSeconds);
+        } catch (err) {
+            this.logger.error(`Redis EXPIRE error for key "${key}": ${(err as Error).message}`);
+        }
+    }
+
+    async keys(pattern: string): Promise<string[]> {
+        try {
+            return await this.client.keys(pattern);
+        } catch (err) {
+            this.logger.error(`Redis KEYS error for pattern "${pattern}": ${(err as Error).message}`);
+            return [];
+        }
+    }
+
+    async ping(): Promise<boolean> {
+        try {
+            const result = await this.client.ping();
+            return result === 'PONG';
+        } catch {
+            return false;
+        }
+    }
+}
