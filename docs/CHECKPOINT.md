@@ -1,8 +1,8 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 7 — Prescription PDF Generation
-## Current Task: PR 16 - Prescription PDF Generation
-## Status: COMPLETE (Both tasks done)
+## Current Phase: Phase 8 — Questionnaire Expansion
+## Current Task: PR 17 - Questionnaire Expansion (27/28/32/31 questions)
+## Status: COMPLETE
 
 ## Completed Work:
 
@@ -39,45 +39,68 @@
 - [x] PR 16, Task 1: PDF generation + S3 upload (TDD)
 - [x] PR 16, Task 2: PDF regeneration endpoint (TDD)
 
+### Phase 8 — Questionnaire Expansion:
+- [x] PR 17: Full spec-compliant questionnaires for all 4 verticals (TDD)
+
 ## Test Counts:
-- Backend: 1,959 tests (42 test suites)
+- Backend: 1,996 tests (43 test suites)
 - Mobile: 431 tests (29 test suites)
-- **Total: 2,390 tests**
+- **Total: 2,427 tests**
 
 ---
 
-## Current PR: PR 16 — Prescription PDF Generation
+## Current PR: PR 17 — Questionnaire Expansion
 
-### Task 1: feat(prescription): add PDF generation and S3 upload (TDD) — COMPLETE
-- Installed pdfkit + @types/pdfkit
-- Added uploadBuffer() to UploadService for server-side S3 uploads (3 tests)
-- Added generatePdf() using PDFKit: A4 prescription document with header, doctor/patient info, medications, instructions, signature, footer
-- Added uploadPdfToS3() delegating to UploadService
-- Wired PDF generation into createPrescription(): generate → upload → update pdfUrl (non-blocking on failure)
-- Updated PrescriptionModule to import UploadModule
-- 11 new tests (TDD): PDF buffer generation, %PDF header validation, empty/many meds, S3 upload, integration with createPrescription
+### What was done:
+- Extracted questionnaire data from seed.ts into separate testable files in `backend/prisma/questionnaires/`
+- **CRITICAL FIX**: Changed all question IDs from descriptive format (`duration`, `pattern`, `family_history`) to Q-number format (`Q1`, `Q2`, `Q3`) matching AI service and Prescription service expectations
+- Expanded all 4 verticals to full spec-compliant question sets with skip logic
+- Updated seed patient responses (Rahul Sharma, Amit Patel) to use Q-number IDs
+- Updated jest.config.js to include `prisma/questionnaires/` in test roots
 
-### Task 2: feat(prescription): add PDF regeneration endpoint (TDD) — COMPLETE
-- Added RegeneratePdfResponse DTO
-- Added regeneratePdf() service method with auth validation (doctor must be assigned)
-- Added regeneratePrescriptionPdf GraphQL mutation
-- 4 new tests (TDD): success, NotFoundException, ForbiddenException, overwrite
+### Question counts (including sub-questions):
+| Vertical | Old | New | Sub-Qs | Sections |
+|----------|-----|-----|--------|----------|
+| Hair Loss | 14 (descriptive IDs) | 27 (Q1-Q25+Q2b+Q10b) | 2 | 5 |
+| Sexual Health | 9 (descriptive IDs) | 28 (Q1-Q28) | 0 | 6 (includes IIEF-5) |
+| PCOS | 8 (descriptive IDs) | 32 (Q1-Q32) | 0 | 8 |
+| Weight Mgmt | 8 (descriptive IDs) | 31 (Q1-Q30+Q8b) | 1 | 7 |
+
+### Files created:
+- `backend/prisma/questionnaires/hair-loss.ts` — 27 questions, 5 sections, 4 photo requirements
+- `backend/prisma/questionnaires/sexual-health.ts` — 28 questions, 6 sections, IIEF-5 assessment
+- `backend/prisma/questionnaires/pcos.ts` — 32 questions, 8 sections, Rotterdam criteria aligned
+- `backend/prisma/questionnaires/weight-management.ts` — 31 questions, 7 sections, 3 photo requirements
+- `backend/prisma/questionnaires/index.ts` — re-exports all questionnaires
+- `backend/prisma/questionnaires/questionnaires.spec.ts` — 37 validation tests
+
+### Files modified:
+- `backend/prisma/seed.ts` — imports from questionnaires/, updated seed responses to Q-number IDs
+- `backend/jest.config.js` — added prisma/questionnaires to test roots
+
+### 37 new tests:
+- Question count validation per vertical
+- Structure validation (id, type, question, required)
+- Q-number ID format validation
+- No duplicate IDs
+- Choice questions have options
+- Skip logic references valid question IDs
+- Section counts per vertical
+- Photo requirement counts
+- Backend-referenced IDs exist (critical for AI/Prescription services)
 
 ---
 
-## PR 16 — COMPLETE
+## PR 17 — COMPLETE
 
-PDF pipeline: createPrescription → generatePdf (PDFKit) → uploadPdfToS3 (S3) → update pdfUrl
-Regenerate: regeneratePrescriptionPdf mutation → same pipeline
-
-**Spec reference:** master spec Section 5.4
+**Spec references:** hair-loss spec Section 3, ED spec Section 3, PCOS spec Section 3, weight-management spec Section 3
 
 ---
 
 ## Next Up:
-1. Questionnaire expansion (25/28/32/30 questions per vertical)
-2. Notification resolver + triggers (master spec Section 11)
-3. Web test coverage
+1. Notification resolver + triggers (master spec Section 11)
+2. Web test coverage
+3. Mobile integration with expanded questionnaires (should work automatically — data-driven)
 
 ## Known Issues:
 - None currently
