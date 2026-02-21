@@ -5,17 +5,20 @@ import { AppModule } from './app.module';
 
 function killPortHolder(port: number | string) {
     try {
-        const output = execSync('netstat -ano', { encoding: 'utf8' });
-        const regex = new RegExp(`\\s+0\\.0\\.0\\.0:${port}\\s+.*LISTENING\\s+(\\d+)`);
-        const match = output.match(regex);
-        if (match) {
-            const pid = match[1];
-            // Don't kill ourselves
-            if (Number(pid) !== process.pid) {
-                console.log(`[bootstrap] Port ${port} held by PID ${pid} — killing it`);
-                execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
-                // Brief pause for OS to release the port
-                execSync('ping -n 2 127.0.0.1 > NUL', { stdio: 'ignore' });
+        const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
+            encoding: 'utf8',
+        });
+        // Match any line with our port in LISTENING state — extract PID (last number on line)
+        const lines = output.trim().split('\n');
+        for (const line of lines) {
+            const pidMatch = line.match(/LISTENING\s+(\d+)/);
+            if (pidMatch) {
+                const pid = Number(pidMatch[1]);
+                if (pid !== process.pid) {
+                    console.log(`[bootstrap] Port ${port} held by PID ${pid} — killing it`);
+                    execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+                    execSync('ping -n 2 127.0.0.1 > NUL', { stdio: 'ignore' });
+                }
             }
         }
     } catch {
