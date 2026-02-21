@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 10 — Production Readiness
-## Current Task: PRs 23-25 Complete
+## Current Phase: Phase 11 — Mobile Missing Screens + Web Portal Test Coverage
+## Current Task: PR 26 Complete — Mobile Missing Sub-Screens
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -59,11 +59,49 @@
 - [x] PR 25, Task 2: Sentry Error Tracking — 11 tests (TDD)
 - [x] PR 25, Task 3: Cache questionnaire templates in Redis (1h TTL)
 
+### Phase 11 — Mobile Missing Screens + Web Portal Tests:
+- [x] PR 26, Task 1: /profile/prescriptions screen — 8 mobile tests + 2 backend tests (TDD)
+- [x] PR 26, Task 2: /profile/lab-results screen — 7 mobile tests (TDD)
+- [x] PR 26, Task 3: /profile/health screen — 6 mobile tests (TDD)
+- [x] PR 26, Task 4: /order/[id] detail screen — 9 mobile tests (TDD)
+- [ ] PR 27: Web admin dashboard tests (6 pages)
+- [ ] PR 28: Web partner portal tests (lab + pharmacy + collect)
+- [ ] PR 29: Mobile sub-screen test coverage
+
 ## Test Counts:
-- Backend: 2,106 tests (53 test suites)
-- Mobile: 431 tests (29 test suites)
+- Backend: 2,108 tests (53 test suites)
+- Mobile: 461 tests (33 test suites)
 - Web: 96 tests (11 test suites)
-- **Total: 2,633 tests**
+- **Total: 2,665 tests**
+
+---
+
+## Phase 11 PR 26 Summary — Mobile Missing Sub-Screens (30 new tests, 4 new screens)
+
+**Task 1: /profile/prescriptions screen (10 tests)**
+- `mobile/app/profile/prescriptions.tsx` — SafeAreaView, vertical badge, medication count, download PDF
+- `mobile/app/profile/__tests__/prescriptions.test.tsx` — 8 tests
+- `mobile/src/graphql/profile.ts` — GET_MY_PRESCRIPTIONS query
+- `backend/src/prescription/prescription.service.ts` — getPatientPrescriptions method
+- `backend/src/prescription/prescription.resolver.ts` — myPrescriptions query
+- `backend/src/prescription/dto/prescription.dto.ts` — PatientPrescriptionItem type
+- `backend/src/prescription/prescription.service.spec.ts` — 2 tests
+
+**Task 2: /profile/lab-results screen (7 tests)**
+- `mobile/app/profile/lab-results.tsx` — status badges (10 states), panel name, test count
+- `mobile/app/profile/__tests__/lab-results.test.tsx` — 7 tests
+- `mobile/src/graphql/profile.ts` — GET_MY_LAB_ORDERS query
+- `backend/src/lab-order/lab-order.resolver.ts` — myLabOrders query
+
+**Task 3: /profile/health screen (6 tests)**
+- `mobile/app/profile/health.tsx` — read-only health info, missing-profile CTA
+- `mobile/app/profile/__tests__/health.test.tsx` — 6 tests
+
+**Task 4: /order/[id] detail screen (9 tests)**
+- `mobile/app/order/[id].tsx` — delivery stepper, OTP display, cost breakdown
+- `mobile/app/order/__tests__/[id].test.tsx` — 9 tests
+- `mobile/app/order/_layout.tsx` — Slot layout
+- `mobile/src/graphql/orders.ts` — GET_ORDER_DETAIL query, OrderDetail type
 
 ---
 
@@ -138,9 +176,9 @@
 ---
 
 ## Next Up:
-1. E2E testing across flows
-2. Mobile integration verification
-3. Deployment pipeline setup
+1. PR 27: Web admin dashboard tests (6 pages, ~42 tests)
+2. PR 28: Web partner portal tests (lab + pharmacy + collect, ~36 tests)
+3. PR 29: Mobile sub-screen test coverage (~25 tests)
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
