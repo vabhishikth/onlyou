@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 9 — Notification System + Web Tests
-## Current Task: PR 20 - Notification Scheduler Service
+## Current Phase: Phase 9 — Doctor Dashboard List Pages
+## Current Task: PR 22 - Web Doctor List Pages
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -42,77 +42,98 @@
 ### Phase 8 — Questionnaire Expansion:
 - [x] PR 17: Full spec-compliant questionnaires for all 4 verticals (TDD)
 
-### Phase 9 — Notification System:
+### Phase 9 — Notification System + Dashboard Completion:
 - [x] PR 18: Notification Resolver + DTOs (TDD) — 18 tests
-- [x] PR 20: Notification Scheduler Service (TDD) — 16 tests
-
-### Web Test Infrastructure:
 - [x] PR 19: Web Test Infrastructure + Core Tests — 63 tests
+- [x] PR 20: Notification Scheduler Service (TDD) — 16 tests
+- [x] PR 21: Backend Doctor List Queries (TDD) — 24 tests
+- [x] PR 22: Web Doctor List Pages (TDD) — 33 tests
 
 ## Test Counts:
-- Backend: 2,030 tests (45 test suites)
+- Backend: 2,054 tests (45 test suites)
 - Mobile: 431 tests (29 test suites)
-- Web: 63 tests (7 test suites)
-- **Total: 2,524 tests**
+- Web: 96 tests (11 test suites)
+- **Total: 2,581 tests**
 
 ---
 
-## Current PR: PR 20 — Notification Scheduler Service
+## PR 21 — Backend Doctor List Queries (COMPLETE)
 
-### What was done:
-- Installed `@nestjs/schedule` dependency
-- Created `NotificationSchedulerService` with 5 cron jobs
-- Added `ScheduleModule.forRoot()` to AppModule
-- Added scheduler to NotificationModule providers
-- Imported LabOrderModule into NotificationModule for SlaEscalationService access
+### 3 new backend queries:
+1. **`doctorPrescriptions`** — 7 tests
+   - Service: `getDoctorPrescriptions(doctorId, filters?)` joins through consultation
+   - Filters: vertical, search by patient name
+   - DTOs: `DoctorPrescriptionItem`, `DoctorPrescriptionsFilterInput`
+   - Files: prescription.service.ts, prescription.dto.ts, prescription.resolver.ts
 
-### Cron Jobs:
-| Schedule | Method | Description |
-|----------|--------|-------------|
-| Every day 9am | `checkBookingReminders()` | ORDERED lab orders 3+ days → send 3-day reminder |
-| Every day 9am | `checkBookingExpiry()` | ORDERED lab orders 14+ days → final reminder + expire |
-| Every 2hr | `checkLabOverdue()` | SAMPLE_RECEIVED 48hr/72hr → notify patient + escalate |
-| Every 30min | `checkCollectionReminders()` | Upcoming appointments → send collection reminder |
-| Every day midnight | `checkMonthlyReorders()` | Active subscriptions nearing period end → reorder prompt |
+2. **`doctorLabOrders`** — 8 tests
+   - Service: `getDoctorLabOrders(doctorId, filters?)` queries by doctorId
+   - Filters: status, vertical, search by patient name
+   - DTOs: `DoctorLabOrderItem`, `DoctorLabOrdersFilterInput`
+   - Files: lab-order.service.ts, lab-order.dto.ts, lab-order.resolver.ts
 
-### Error Handling:
-- Each job processes items independently (one failure doesn't stop batch)
-- Failed notifications are logged, successful ones are tracked via `markReminderSent`
-- All jobs use try/catch per-item with Logger for error reporting
+3. **`doctorConversations`** — 9 tests
+   - Service: `getDoctorConversations(doctorId)` aggregates message data
+   - Returns: unread count, last message, total messages per conversation
+   - DTOs: `ConversationSummaryType`
+   - Files: messaging.service.ts, messaging.dto.ts, messaging.resolver.ts
 
-### 16 new tests:
-- Booking reminders: find overdue (1), skip empty (1), mark sent (1), error resilience (1)
-- Booking expiry: 14-day reminders (1), expire stale (1), filter threshold (1)
-- Lab overdue: 48hr (1), 72hr (1), differentiate tiers (1)
-- Collection reminders: upcoming (1), skip empty (1)
-- Monthly reorders: notify (1), skip no orders (1), skip empty (1)
-- Service definition (1)
+### 3 commits:
+1. `feat(prescription): add doctorPrescriptions list query — 7 tests`
+2. `feat(lab-order): add doctorLabOrders list query — 8 tests`
+3. `feat(messaging): add doctorConversations list query — 9 tests`
+
+---
+
+## PR 22 — Web Doctor List Pages (COMPLETE)
+
+### 4 pages replaced (stubs → full implementations):
+
+1. **`/doctor/templates`** — 7 tests
+   - Uses existing `AVAILABLE_TEMPLATES` query (one per vertical tab)
+   - 4 vertical tabs, expandable template cards with medication details
+   - Files: templates/page.tsx, templates/__tests__/page.spec.tsx
+
+2. **`/doctor/prescriptions`** — 8 tests
+   - Uses new `DOCTOR_PRESCRIPTIONS` query
+   - Search, vertical filter tabs, prescription cards with patient name/meds/date/PDF icon
+   - Files: prescriptions/page.tsx, prescriptions/__tests__/page.spec.tsx, graphql/prescription.ts
+
+3. **`/doctor/lab-orders`** — 9 tests
+   - Uses new `DOCTOR_LAB_ORDERS` query
+   - Search, status filter chips, lab order cards with critical values indicator
+   - Results Ready orders highlighted with ring
+   - Files: lab-orders/page.tsx, lab-orders/__tests__/page.spec.tsx, graphql/lab-order.ts
+
+4. **`/doctor/messages`** — 9 tests
+   - Uses new `DOCTOR_CONVERSATIONS` query
+   - Search, All/Unread toggle, conversation cards with unread badge/time ago
+   - Files: messages/page.tsx, messages/__tests__/page.spec.tsx, graphql/messaging.ts (new)
 
 ### 2 commits:
-1. `test(notification): add scheduler service tests — 16 tests (RED)`
-2. `feat(notification): add scheduled SLA notification jobs (GREEN)`
-
-### Files created:
-- `backend/src/notification/notification-scheduler.service.ts`
-- `backend/src/notification/notification-scheduler.service.spec.ts`
-
-### Files modified:
-- `backend/src/notification/notification.module.ts` — added scheduler + LabOrderModule import
-- `backend/src/app.module.ts` — added ScheduleModule.forRoot()
-- `backend/package.json` — added @nestjs/schedule
+1. `feat(web): implement templates reference page — 7 tests`
+2. `feat(web): implement prescriptions, lab orders, messages list pages — 26 tests`
 
 ---
 
-## PR 20 — COMPLETE
-
-**Spec references:** master spec Section 7.4 (SLA Escalation), Section 11 (Notifications)
+## Doctor Dashboard Status: 100% COMPLETE
+All pages now fully implemented:
+- [x] Dashboard home with stats
+- [x] Case queue with filtering
+- [x] Case detail with 5 tabs (overview, questionnaire, photos, messages, prescription)
+- [x] Prescription builder with templates + contraindication checks
+- [x] Blood work ordering
+- [x] Prescriptions list page
+- [x] Lab orders list page
+- [x] Messages/conversations list page
+- [x] Templates reference page
 
 ---
 
 ## Next Up:
-1. Mobile integration verification (NO changes needed — data-driven architecture confirmed)
-2. Phase 10: Production readiness (rate limiting, caching, monitoring)
-3. E2E testing across flows
+1. Phase 10: Production readiness (rate limiting, caching, monitoring)
+2. E2E testing across flows
+3. Mobile integration verification
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
