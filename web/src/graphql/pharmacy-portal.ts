@@ -183,8 +183,8 @@ export const PHARMACY_STATUS_CONFIG: Record<
     string,
     { label: string; color: string; bgColor: string }
 > = {
-    SENT_TO_PHARMACY: { label: 'New', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-    PHARMACY_PREPARING: { label: 'Preparing', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    SENT_TO_PHARMACY: { label: 'Incoming', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+    PHARMACY_PREPARING: { label: 'In Progress', color: 'text-blue-600', bgColor: 'bg-blue-100' },
     PHARMACY_READY: { label: 'Ready', color: 'text-green-600', bgColor: 'bg-green-100' },
     PICKUP_ARRANGED: { label: 'Pickup Arranged', color: 'text-purple-600', bgColor: 'bg-purple-100' },
     PHARMACY_ISSUE: { label: 'Issue', color: 'text-red-600', bgColor: 'bg-red-100' },

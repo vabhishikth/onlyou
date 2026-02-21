@@ -97,11 +97,13 @@ export default function CollectPage() {
     const assignments = assignmentsData?.todayAssignments || [];
     const labs = labsData?.nearbyLabs || [];
 
-    const pendingAssignments = assignments.filter((a) => a.status === 'PHLEBOTOMIST_ASSIGNED');
-    const collectedAssignments = assignments.filter((a) => a.status === 'SAMPLE_COLLECTED');
-    const completedAssignments = assignments.filter(
-        (a) => a.status === 'DELIVERED_TO_LAB' || a.status === 'COLLECTION_FAILED'
-    );
+    const PENDING_STATUSES = new Set(['PHLEBOTOMIST_ASSIGNED', 'PENDING']);
+    const COLLECTED_STATUSES = new Set(['SAMPLE_COLLECTED', 'COLLECTED']);
+    const COMPLETED_STATUSES = new Set(['DELIVERED_TO_LAB', 'COLLECTION_FAILED']);
+
+    const pendingAssignments = assignments.filter((a) => PENDING_STATUSES.has(a.status));
+    const collectedAssignments = assignments.filter((a) => COLLECTED_STATUSES.has(a.status));
+    const completedAssignments = assignments.filter((a) => COMPLETED_STATUSES.has(a.status));
 
     const handleMarkCollected = () => {
         if (!selectedAssignment) return;

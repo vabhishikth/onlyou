@@ -179,8 +179,8 @@ export const LAB_SAMPLE_STATUS_CONFIG: Record<
     { label: string; color: string; bgColor: string }
 > = {
     DELIVERED_TO_LAB: { label: 'Awaiting Receipt', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-    SAMPLE_RECEIVED: { label: 'Received', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    PROCESSING: { label: 'Processing', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    SAMPLE_RECEIVED: { label: 'Rcvd', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    PROCESSING: { label: 'In Process', color: 'text-purple-600', bgColor: 'bg-purple-100' },
     RESULTS_READY: { label: 'Complete', color: 'text-green-600', bgColor: 'bg-green-100' },
     SAMPLE_ISSUE: { label: 'Issue', color: 'text-red-600', bgColor: 'bg-red-100' },
 };

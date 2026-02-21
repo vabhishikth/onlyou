@@ -120,7 +120,7 @@ export default function LabProcessingPage() {
                 <div>
                     <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
                         <Clock className="w-5 h-5 text-purple-600" />
-                        Processing ({processingSamples.length})
+                        In Progress ({processingSamples.length})
                     </h2>
                     <div className="space-y-3">
                         {processingSamples.map((sample, index) => (

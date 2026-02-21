@@ -167,7 +167,9 @@ export const COLLECT_STATUS_CONFIG: Record<
     { label: string; color: string; bgColor: string; icon: string }
 > = {
     PHLEBOTOMIST_ASSIGNED: { label: 'Upcoming', color: 'text-blue-600', bgColor: 'bg-blue-100', icon: '🔵' },
+    PENDING: { label: 'Upcoming', color: 'text-blue-600', bgColor: 'bg-blue-100', icon: '🔵' },
     SAMPLE_COLLECTED: { label: 'Collected', color: 'text-green-600', bgColor: 'bg-green-100', icon: '✅' },
+    COLLECTED: { label: 'Collected', color: 'text-green-600', bgColor: 'bg-green-100', icon: '✅' },
     DELIVERED_TO_LAB: { label: 'Delivered', color: 'text-purple-600', bgColor: 'bg-purple-100', icon: '🏥' },
     COLLECTION_FAILED: { label: 'Failed', color: 'text-red-600', bgColor: 'bg-red-100', icon: '❌' },
 };
