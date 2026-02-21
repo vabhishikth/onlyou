@@ -6,8 +6,16 @@ module.exports = {
         '^.+\\.tsx?$': [
             'ts-jest',
             {
-                tsconfig: 'tsconfig.json',
-                jsx: 'react-jsx',
+                tsconfig: {
+                    jsx: 'react-jsx',
+                    module: 'commonjs',
+                    moduleResolution: 'node',
+                    esModuleInterop: true,
+                    baseUrl: './',
+                    paths: {
+                        '@/*': ['src/*'],
+                    },
+                },
             },
         ],
     },
@@ -17,5 +25,6 @@ module.exports = {
         '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
         '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
     },
+    setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
     testMatch: ['**/__tests__/**/*.spec.{ts,tsx}', '**/*.spec.{ts,tsx}'],
 };
