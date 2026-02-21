@@ -81,6 +81,25 @@ export const CREATE_PRESCRIPTION = gql`
     }
 `;
 
+// Get all prescriptions for the logged-in doctor
+// Spec: master spec Section 5.4 — Doctor prescription list
+export const DOCTOR_PRESCRIPTIONS = gql`
+    query DoctorPrescriptions($filters: DoctorPrescriptionsFilterInput) {
+        doctorPrescriptions(filters: $filters) {
+            id
+            consultationId
+            patientName
+            vertical
+            pdfUrl
+            medications
+            instructions
+            validUntil
+            issuedAt
+            createdAt
+        }
+    }
+`;
+
 // Get prescription by consultation
 export const PRESCRIPTION_BY_CONSULTATION = gql`
     query PrescriptionByConsultation($consultationId: String!) {
@@ -154,6 +173,23 @@ export interface CheckContraindicationsResponse {
         result: ContraindicationResult;
         alternativeTemplate?: PrescriptionTemplate;
     };
+}
+
+export interface DoctorPrescriptionItem {
+    id: string;
+    consultationId: string;
+    patientName?: string;
+    vertical: string;
+    pdfUrl?: string;
+    medications: unknown;
+    instructions?: string;
+    validUntil: string;
+    issuedAt: string;
+    createdAt: string;
+}
+
+export interface DoctorPrescriptionsResponse {
+    doctorPrescriptions: DoctorPrescriptionItem[];
 }
 
 export interface PrescriptionData {

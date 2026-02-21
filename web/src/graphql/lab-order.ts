@@ -17,6 +17,25 @@ export const AVAILABLE_TEST_PANELS = gql`
     }
 `;
 
+// Get all lab orders for the logged-in doctor
+// Spec: master spec Section 7 — Doctor lab orders list
+export const DOCTOR_LAB_ORDERS = gql`
+    query DoctorLabOrders($filters: DoctorLabOrdersFilterInput) {
+        doctorLabOrders(filters: $filters) {
+            id
+            consultationId
+            patientName
+            vertical
+            testPanel
+            panelName
+            status
+            criticalValues
+            orderedAt
+            resultFileUrl
+        }
+    }
+`;
+
 // Get lab orders for a consultation
 export const LAB_ORDERS_BY_CONSULTATION = gql`
     query LabOrdersByConsultation($consultationId: String!) {
@@ -135,6 +154,23 @@ export interface LabOrder {
     closedAt?: string;
     patientName?: string;
     patientPhone?: string;
+}
+
+export interface DoctorLabOrderItem {
+    id: string;
+    consultationId: string;
+    patientName?: string;
+    vertical: string;
+    testPanel: string[];
+    panelName?: string;
+    status: LabOrderStatus;
+    criticalValues: boolean;
+    orderedAt: string;
+    resultFileUrl?: string;
+}
+
+export interface DoctorLabOrdersResponse {
+    doctorLabOrders: DoctorLabOrderItem[];
 }
 
 export interface LabOrdersByConsultationResponse {
