@@ -148,6 +148,33 @@ export class UploadService {
     }
 
     /**
+     * Upload a buffer directly to S3
+     * Used for server-generated files (PDFs, reports)
+     * Spec: master spec Section 5.4 — PDF generated and stored
+     */
+    async uploadBuffer(
+        key: string,
+        buffer: Buffer,
+        contentType: string,
+    ): Promise<string> {
+        try {
+            const command = new PutObjectCommand({
+                Bucket: this.bucket,
+                Key: key,
+                Body: buffer,
+                ContentType: contentType,
+            });
+            await this.s3Client.send(command);
+            const fileUrl = `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+            this.logger.log(`Uploaded file to S3: ${key}`);
+            return fileUrl;
+        } catch (error) {
+            this.logger.error(`Failed to upload to S3: ${(error as Error).message}`);
+            throw new Error('Failed to upload file to S3');
+        }
+    }
+
+    /**
      * Test S3 connectivity by uploading a small test file
      */
     async testS3Upload(): Promise<{ success: boolean; message: string }> {

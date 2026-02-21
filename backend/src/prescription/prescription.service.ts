@@ -1,6 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadService } from '../upload/upload.service';
 import { ConsultationStatus, UserRole } from '@prisma/client';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PDFDocument = require('pdfkit');
 
 // Spec: hair-loss spec Section 6 (Prescription Templates)
 // Spec: hair-loss spec Section 5 (Finasteride Contraindication Matrix)
@@ -203,7 +206,12 @@ export interface PrescriptionPdfData {
 
 @Injectable()
 export class PrescriptionService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PrescriptionService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   /**
    * Check finasteride contraindications from questionnaire responses
@@ -347,9 +355,7 @@ export class PrescriptionService {
 
   /**
    * Calculate patient age from DOB
-   * @todo Use when implementing age-based prescription logic
    */
-  // @ts-expect-error Utility method reserved for future use
   private _calculateAge(dateOfBirth: Date | null): number {
     if (!dateOfBirth) return 0;
     const today = new Date();
@@ -439,6 +445,43 @@ export class PrescriptionService {
       },
     });
 
+    // Generate and upload PDF
+    // Spec: master spec Section 5.4 — PDF generated and stored
+    try {
+      const pdfData = this.generatePrescriptionPdfData({
+        id: prescription.id,
+        doctorName: doctor.name || 'Doctor',
+        doctorRegistrationNo: doctor.doctorProfile?.registrationNo || '',
+        doctorQualifications: doctor.doctorProfile?.qualifications || [],
+        patientName: consultation.patient.name || 'Patient',
+        patientAge: this._calculateAge(profile?.dateOfBirth || null),
+        patientGender: profile?.gender || 'Not specified',
+        patientAddress: [
+          profile?.addressLine1,
+          profile?.addressLine2,
+          profile?.city,
+          profile?.state,
+          profile?.pincode,
+        ].filter(Boolean).join(', ') || 'Address not provided',
+        medications,
+        instructions: input.instructions || '',
+        issuedAt,
+        validUntil,
+      });
+
+      const pdfBuffer = await this.generatePdf(pdfData);
+      const pdfUrl = await this.uploadPdfToS3(pdfBuffer, prescription.id);
+
+      // Update prescription with pdfUrl
+      await this.prisma.prescription.update({
+        where: { id: prescription.id },
+        data: { pdfUrl },
+      });
+    } catch (error) {
+      // PDF failure must NOT block prescription creation — can be regenerated later
+      this.logger.error(`Failed to generate/upload prescription PDF for ${prescription.id}: ${(error as Error).message}`);
+    }
+
     // Generate unique order number (format: ORD-XXXXXX)
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
@@ -503,6 +546,183 @@ export class PrescriptionService {
       ...data,
       digitalSignature: `Digitally signed by ${data.doctorName} (${data.doctorRegistrationNo})`,
     };
+  }
+
+  /**
+   * Generate a PDF document from prescription data
+   * Spec: master spec Section 5.4 — PDF generated and stored
+   * Returns a Buffer containing the PDF bytes
+   */
+  async generatePdf(data: PrescriptionPdfData): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // --- HEADER ---
+      doc.fontSize(18).font('Helvetica-Bold').text('ONLYOU HEALTH', { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text('Digital Healthcare Platform', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      // Rx symbol
+      doc.fontSize(24).font('Helvetica-Bold').text('Rx', 50, doc.y);
+      doc.moveDown(0.5);
+
+      // --- DOCTOR INFO ---
+      doc.fontSize(11).font('Helvetica-Bold').text(data.doctorName);
+      doc.fontSize(9).font('Helvetica')
+        .text(`Registration No: ${data.doctorRegistrationNo}`);
+      if (data.doctorQualifications.length > 0) {
+        doc.text(`Qualifications: ${data.doctorQualifications.join(', ')}`);
+      }
+      doc.moveDown(0.5);
+
+      // --- PATIENT INFO ---
+      doc.fontSize(10).font('Helvetica-Bold').text('Patient Details:');
+      doc.font('Helvetica')
+        .text(`Name: ${data.patientName}`)
+        .text(`Age: ${data.patientAge} | Gender: ${data.patientGender}`);
+      if (data.patientAddress) {
+        doc.text(`Address: ${data.patientAddress}`);
+      }
+      doc.moveDown(0.3);
+
+      // --- DATES ---
+      doc.text(`Date: ${data.issuedAt.toLocaleDateString('en-IN')}`)
+        .text(`Valid Until: ${data.validUntil.toLocaleDateString('en-IN')}`);
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      // --- MEDICATIONS ---
+      doc.fontSize(11).font('Helvetica-Bold').text('Medications:');
+      doc.moveDown(0.3);
+
+      if (data.medications.length === 0) {
+        doc.fontSize(10).font('Helvetica').text('No medications prescribed.');
+      } else {
+        data.medications.forEach((med, index) => {
+          doc.fontSize(10).font('Helvetica-Bold')
+            .text(`${index + 1}. ${med.name} — ${med.dosage}`);
+          doc.font('Helvetica')
+            .text(`   Frequency: ${med.frequency}`);
+          if (med.duration) {
+            doc.text(`   Duration: ${med.duration}`);
+          }
+          if (med.instructions) {
+            doc.text(`   Instructions: ${med.instructions}`);
+          }
+          doc.moveDown(0.3);
+        });
+      }
+
+      // --- INSTRUCTIONS ---
+      if (data.instructions) {
+        doc.moveDown(0.3);
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica-Bold').text('Instructions:');
+        doc.font('Helvetica').text(data.instructions);
+      }
+
+      // --- SIGNATURE ---
+      doc.moveDown(1.5);
+      doc.fontSize(10).font('Helvetica-Bold')
+        .text(data.digitalSignature || `Digitally signed by ${data.doctorName}`, {
+          align: 'right',
+        });
+
+      // --- FOOTER ---
+      doc.moveDown(2);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.3);
+      doc.fontSize(8).font('Helvetica')
+        .text('This is a digitally generated prescription from Onlyou Health.', {
+          align: 'center',
+        })
+        .text(`Prescription ID: ${data.id}`, { align: 'center' });
+
+      doc.end();
+    });
+  }
+
+  /**
+   * Upload prescription PDF buffer to S3
+   * Spec: master spec Section 5.4 — PDF generated and stored
+   * @returns S3 URL of the uploaded PDF
+   */
+  async uploadPdfToS3(buffer: Buffer, prescriptionId: string): Promise<string> {
+    const key = `prescriptions/${prescriptionId}/prescription.pdf`;
+    return this.uploadService.uploadBuffer(key, buffer, 'application/pdf');
+  }
+
+  /**
+   * Regenerate PDF for an existing prescription
+   * Spec: master spec Section 5.4 — Doctor/admin can regenerate if needed
+   */
+  async regeneratePdf(
+    prescriptionId: string,
+    requestorId: string,
+  ): Promise<{ pdfUrl: string }> {
+    const prescription = await this.prisma.prescription.findUnique({
+      where: { id: prescriptionId },
+      include: {
+        consultation: {
+          include: {
+            patient: { include: { patientProfile: true } },
+            doctor: { include: { doctorProfile: true } },
+          },
+        },
+      },
+    });
+
+    if (!prescription) {
+      throw new NotFoundException('Prescription not found');
+    }
+
+    if (prescription.consultation.doctorId !== requestorId) {
+      throw new ForbiddenException('Not authorized to regenerate this prescription PDF');
+    }
+
+    const doctor = prescription.consultation.doctor;
+    const patient = prescription.consultation.patient;
+    const profile = patient.patientProfile;
+
+    const pdfData = this.generatePrescriptionPdfData({
+      id: prescription.id,
+      doctorName: prescription.doctorName || doctor?.name || 'Doctor',
+      doctorRegistrationNo: prescription.doctorRegistrationNo || doctor?.doctorProfile?.registrationNo || '',
+      doctorQualifications: doctor?.doctorProfile?.qualifications || [],
+      patientName: prescription.patientName || patient.name || 'Patient',
+      patientAge: this._calculateAge(profile?.dateOfBirth || null),
+      patientGender: profile?.gender || 'Not specified',
+      patientAddress: [
+        profile?.addressLine1,
+        profile?.addressLine2,
+        profile?.city,
+        profile?.state,
+        profile?.pincode,
+      ].filter(Boolean).join(', ') || 'Address not provided',
+      medications: prescription.medications as unknown as Medication[],
+      instructions: prescription.instructions || '',
+      issuedAt: prescription.issuedAt,
+      validUntil: prescription.validUntil,
+    });
+
+    const pdfBuffer = await this.generatePdf(pdfData);
+    const pdfUrl = await this.uploadPdfToS3(pdfBuffer, prescription.id);
+
+    await this.prisma.prescription.update({
+      where: { id: prescription.id },
+      data: { pdfUrl },
+    });
+
+    return { pdfUrl };
   }
 
   /**

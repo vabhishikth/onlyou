@@ -14,6 +14,7 @@ import {
   CheckContraindicationsResponse,
   TemplateSuggestionType,
   AvailableTemplatesResponse,
+  RegeneratePdfResponse,
 } from './dto/prescription.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -308,5 +309,32 @@ export class PrescriptionResolver {
       patientPhone: prescription.patientPhone ?? undefined,
       createdAt: prescription.createdAt,
     };
+  }
+
+  /**
+   * Regenerate prescription PDF
+   * Spec: master spec Section 5.4 — Doctor/admin regenerates PDF
+   */
+  @Mutation(() => RegeneratePdfResponse)
+  @UseGuards(JwtAuthGuard)
+  async regeneratePrescriptionPdf(
+    @Context() context: any,
+    @Args('prescriptionId') prescriptionId: string,
+  ): Promise<RegeneratePdfResponse> {
+    const userId = context.req.user.id;
+    try {
+      const result = await this.prescriptionService.regeneratePdf(prescriptionId, userId);
+      return {
+        success: true,
+        message: 'PDF regenerated successfully',
+        pdfUrl: result.pdfUrl,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to regenerate PDF';
+      return {
+        success: false,
+        message,
+      };
+    }
   }
 }

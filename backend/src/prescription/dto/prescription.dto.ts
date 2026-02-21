@@ -213,3 +213,16 @@ export class CheckContraindicationsResponse {
   @Field(() => PrescriptionTemplate, { nullable: true })
   alternativeTemplate?: PrescriptionTemplate | undefined;
 }
+
+// Spec: master spec Section 5.4 — Regenerate prescription PDF
+@ObjectType()
+export class RegeneratePdfResponse {
+  @Field(() => Boolean)
+  success: boolean;
+
+  @Field(() => String)
+  message: string;
+
+  @Field(() => String, { nullable: true })
+  pdfUrl?: string | undefined;
+}

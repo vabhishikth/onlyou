@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 6 — AI Pre-Assessment
-## Current Task: PR 15 - AI Pre-Assessment (Claude API)
+## Current Phase: Phase 7 — Prescription PDF Generation
+## Current Task: PR 16 - Prescription PDF Generation
 ## Status: COMPLETE (Both tasks done)
 
 ## Completed Work:
@@ -35,48 +35,49 @@
 - [x] PR 15, Task 1: Claude API integration in AIService (TDD)
 - [x] PR 15, Task 2: AI Resolver + DTOs + intake trigger (TDD)
 
+### Phase 7 — Prescription PDF Generation:
+- [x] PR 16, Task 1: PDF generation + S3 upload (TDD)
+- [x] PR 16, Task 2: PDF regeneration endpoint (TDD)
+
 ## Test Counts:
-- Backend: 1,944 tests (42 test suites)
+- Backend: 1,959 tests (42 test suites)
 - Mobile: 431 tests (29 test suites)
-- **Total: 2,375 tests**
+- **Total: 2,390 tests**
 
 ---
 
-## Current PR: PR 15 — AI Pre-Assessment (Claude API)
+## Current PR: PR 16 — Prescription PDF Generation
 
-### Task 1: feat(ai): add Claude API integration for pre-assessment (TDD) — COMPLETE
-- Installed @anthropic-ai/sdk, configured ANTHROPIC_API_KEY + CLAUDE_MODEL env vars
-- Added callClaudeAPI() method using Anthropic SDK
-- Added buildPromptForVertical() to route to correct vertical prompt builder (4 verticals)
-- Added runAssessment() orchestrator: get consultation → build prompt → call Claude → parse
-- Made parseAIResponse() vertical-aware (validates ED/Weight/PCOS/HairLoss classifications)
-- 17 new tests (TDD): prompt routing, vertical-aware parsing, Claude API mock, runAssessment
-- Fixed subscription resolver test assertions to match corrected service signatures
+### Task 1: feat(prescription): add PDF generation and S3 upload (TDD) — COMPLETE
+- Installed pdfkit + @types/pdfkit
+- Added uploadBuffer() to UploadService for server-side S3 uploads (3 tests)
+- Added generatePdf() using PDFKit: A4 prescription document with header, doctor/patient info, medications, instructions, signature, footer
+- Added uploadPdfToS3() delegating to UploadService
+- Wired PDF generation into createPrescription(): generate → upload → update pdfUrl (non-blocking on failure)
+- Updated PrescriptionModule to import UploadModule
+- 11 new tests (TDD): PDF buffer generation, %PDF header validation, empty/many meds, S3 upload, integration with createPrescription
 
-### Task 2: feat(ai): add AI resolver + trigger assessment after intake (TDD) — COMPLETE
-- Created ai/dto/ai.dto.ts: AIPreAssessmentType, AIAssessmentResultType, RunAssessmentInput
-- Created ai/ai.resolver.ts: getAssessment query, runAssessment mutation, retryAssessment mutation
-- Added AIModule to app.module.ts
-- Updated ai.module.ts: added AIResolver, ConsultationModule import
-- Wired fire-and-forget AI trigger in intake.resolver.ts submitIntake mutation
-- Updated intake.module.ts: added AIModule, ConsultationModule imports
-- 8 new resolver tests (TDD): getAssessment, runAssessment, retryAssessment
+### Task 2: feat(prescription): add PDF regeneration endpoint (TDD) — COMPLETE
+- Added RegeneratePdfResponse DTO
+- Added regeneratePdf() service method with auth validation (doctor must be assigned)
+- Added regeneratePrescriptionPdf GraphQL mutation
+- 4 new tests (TDD): success, NotFoundException, ForbiddenException, overwrite
 
 ---
 
-## PR 15 — COMPLETE
+## PR 16 — COMPLETE
 
-AI pre-assessment pipeline: submitIntake → fire-and-forget → Claude API → parse → store → AI_REVIEWED
+PDF pipeline: createPrescription → generatePdf (PDFKit) → uploadPdfToS3 (S3) → update pdfUrl
+Regenerate: regeneratePrescriptionPdf mutation → same pipeline
 
-**Spec reference:** master spec Section 6
+**Spec reference:** master spec Section 5.4
 
 ---
 
 ## Next Up:
-1. Prescription PDF generation (master spec Section 5.4)
-2. Questionnaire expansion (25/28/32/30 questions per vertical)
-3. Notification resolver + triggers (master spec Section 11)
-4. Web test coverage
+1. Questionnaire expansion (25/28/32/30 questions per vertical)
+2. Notification resolver + triggers (master spec Section 11)
+3. Web test coverage
 
 ## Known Issues:
 - None currently

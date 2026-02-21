@@ -184,6 +184,47 @@ describe('UploadService', () => {
     });
   });
 
+  // Spec: master spec Section 5.4 — PDF generated and stored (uploadBuffer for server-side uploads)
+  describe('uploadBuffer', () => {
+    it('should upload a buffer to S3 and return the file URL', async () => {
+      const buffer = Buffer.from('test pdf content');
+      const result = await service.uploadBuffer(
+        'prescriptions/rx-123/prescription.pdf',
+        buffer,
+        'application/pdf',
+      );
+
+      expect(result).toContain('onlyou-uploads.s3.ap-south-1.amazonaws.com');
+      expect(result).toContain('prescriptions/rx-123/prescription.pdf');
+    });
+
+    it('should call S3Client.send with PutObjectCommand containing correct params', async () => {
+      const { PutObjectCommand } = require('@aws-sdk/client-s3');
+      const buffer = Buffer.from('test content');
+
+      await service.uploadBuffer('test-key', buffer, 'application/pdf');
+
+      expect(PutObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Bucket: 'onlyou-uploads',
+          Key: 'test-key',
+          Body: buffer,
+          ContentType: 'application/pdf',
+        }),
+      );
+    });
+
+    it('should throw on S3 upload failure', async () => {
+      const mockSend = jest.fn().mockRejectedValue(new Error('S3 error'));
+      (service as any).s3Client = { send: mockSend };
+
+      const buffer = Buffer.from('test');
+      await expect(
+        service.uploadBuffer('key', buffer, 'application/pdf'),
+      ).rejects.toThrow('Failed to upload file to S3');
+    });
+  });
+
   describe('testS3Upload', () => {
     it('should return success when S3 upload works', async () => {
       const result = await service.testS3Upload();

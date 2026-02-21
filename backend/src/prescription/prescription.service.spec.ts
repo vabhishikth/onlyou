@@ -5,9 +5,11 @@ import {
   HAIR_LOSS_TEMPLATES,
   CreatePrescriptionInput,
   ContraindicationCheckResult,
+  PrescriptionPdfData,
 } from './prescription.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { UploadService } from '../upload/upload.service';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { HealthVertical, ConsultationStatus, UserRole, OrderStatus } from '@prisma/client';
 
 // Spec: hair-loss spec Section 6 (Prescription Templates)
@@ -79,6 +81,7 @@ describe('PrescriptionService', () => {
       create: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
     order: {
       create: jest.fn(),
@@ -86,11 +89,18 @@ describe('PrescriptionService', () => {
     $transaction: jest.fn((callback) => callback(mockPrismaService)),
   };
 
+  const mockUploadService = {
+    uploadBuffer: jest.fn().mockResolvedValue(
+      'https://onlyou-uploads.s3.ap-south-1.amazonaws.com/prescriptions/prescription-1/prescription.pdf',
+    ),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrescriptionService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: UploadService, useValue: mockUploadService },
       ],
     }).compile();
 
@@ -671,6 +681,35 @@ describe('PrescriptionService', () => {
   describe('PDF Generation', () => {
     // Spec: master spec Section 5.4 — PDF generated and stored
 
+    const samplePdfData: PrescriptionPdfData = {
+      id: 'prescription-1',
+      doctorName: 'Dr. Rahul Sharma',
+      doctorRegistrationNo: 'MCI-12345',
+      doctorQualifications: ['MBBS', 'MD Dermatology'],
+      patientName: 'Amit Kumar',
+      patientAge: 36,
+      patientGender: 'Male',
+      patientAddress: '123 MG Road, Mumbai, Maharashtra 400001',
+      medications: [
+        {
+          name: 'Finasteride',
+          dosage: '1mg',
+          frequency: 'Once daily',
+          instructions: 'Take with or without food',
+        },
+        {
+          name: 'Minoxidil 5%',
+          dosage: '1ml',
+          frequency: 'Twice daily',
+          instructions: 'Apply to dry scalp',
+        },
+      ],
+      instructions: 'Continue for 6 months. Follow up after 3 months.',
+      issuedAt: new Date('2026-02-21'),
+      validUntil: new Date('2026-08-21'),
+      digitalSignature: 'Digitally signed by Dr. Rahul Sharma (MCI-12345)',
+    };
+
     it('should generate PDF URL for prescription', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
@@ -678,6 +717,19 @@ describe('PrescriptionService', () => {
         id: 'prescription-1',
         consultationId: 'consultation-1',
         pdfUrl: null,
+        medications: HAIR_LOSS_TEMPLATES[PrescriptionTemplate.STANDARD].medications,
+        instructions: '',
+        issuedAt: new Date(),
+        validUntil: new Date(),
+        doctorName: 'Dr. Test Doctor',
+        doctorRegistrationNo: 'MCI-12345',
+        patientName: 'Test Patient',
+        patientPhone: '+919876543210',
+        createdAt: new Date(),
+      });
+      mockPrismaService.prescription.update.mockResolvedValue({
+        id: 'prescription-1',
+        pdfUrl: 'https://onlyou-uploads.s3.ap-south-1.amazonaws.com/prescriptions/prescription-1/prescription.pdf',
       });
       mockPrismaService.order.create.mockResolvedValue({ id: 'order-1' });
       mockPrismaService.consultation.update.mockResolvedValue(mockConsultation);
@@ -688,8 +740,12 @@ describe('PrescriptionService', () => {
         template: PrescriptionTemplate.STANDARD,
       });
 
-      // PDF generation is async, but the method should return a pending PDF status
       expect(result.prescription).toBeDefined();
+      // Verify prescription.update was called with pdfUrl
+      expect(mockPrismaService.prescription.update).toHaveBeenCalledWith({
+        where: { id: 'prescription-1' },
+        data: { pdfUrl: expect.stringContaining('prescriptions/prescription-1') },
+      });
     });
 
     it('should include all medications in PDF data', async () => {
@@ -730,6 +786,197 @@ describe('PrescriptionService', () => {
       });
 
       expect(pdfData.digitalSignature).toBeDefined();
+    });
+
+    // --- NEW: generatePdf() tests ---
+
+    it('should generate a PDF buffer from prescription data', async () => {
+      const buffer = await service.generatePdf(samplePdfData);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+
+    it('should generate a valid PDF (starts with %PDF header)', async () => {
+      const buffer = await service.generatePdf(samplePdfData);
+      const header = buffer.subarray(0, 5).toString('ascii');
+      expect(header).toBe('%PDF-');
+    });
+
+    it('should generate PDF for prescription with no medications', async () => {
+      const emptyMedsData = { ...samplePdfData, medications: [] };
+      const buffer = await service.generatePdf(emptyMedsData);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+
+    it('should generate PDF for prescription with many medications', async () => {
+      const manyMedsData = {
+        ...samplePdfData,
+        medications: [
+          { name: 'Med 1', dosage: '10mg', frequency: 'Daily' },
+          { name: 'Med 2', dosage: '20mg', frequency: 'Twice daily' },
+          { name: 'Med 3', dosage: '30mg', frequency: 'Thrice daily' },
+          { name: 'Med 4', dosage: '40mg', frequency: 'As needed' },
+          { name: 'Med 5', dosage: '50mg', frequency: 'Weekly' },
+        ],
+      };
+      const buffer = await service.generatePdf(manyMedsData);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+
+    it('should generate PDF with long instructions text', async () => {
+      const longInstructions = {
+        ...samplePdfData,
+        instructions: 'A'.repeat(500),
+      };
+      const buffer = await service.generatePdf(longInstructions);
+      expect(buffer).toBeInstanceOf(Buffer);
+    });
+
+    it('should handle missing optional fields gracefully', async () => {
+      const minimalData: PrescriptionPdfData = {
+        id: 'rx-minimal',
+        doctorName: 'Dr. Test',
+        doctorRegistrationNo: 'REG-001',
+        doctorQualifications: [],
+        patientName: 'Patient',
+        patientAge: 25,
+        patientGender: 'Male',
+        patientAddress: '',
+        medications: [{ name: 'Med', dosage: '5mg', frequency: 'Daily' }],
+        instructions: '',
+        issuedAt: new Date(),
+        validUntil: new Date(),
+      };
+      const buffer = await service.generatePdf(minimalData);
+      expect(buffer).toBeInstanceOf(Buffer);
+    });
+
+    // --- NEW: uploadPdfToS3() tests ---
+
+    it('should upload PDF to S3 with correct key format', async () => {
+      const buffer = Buffer.from('fake pdf content');
+      const pdfUrl = await service.uploadPdfToS3(buffer, 'prescription-1');
+
+      expect(mockUploadService.uploadBuffer).toHaveBeenCalledWith(
+        'prescriptions/prescription-1/prescription.pdf',
+        buffer,
+        'application/pdf',
+      );
+      expect(pdfUrl).toContain('prescriptions/prescription-1');
+    });
+
+    // --- NEW: createPrescription PDF integration tests ---
+
+    it('should still create prescription if PDF generation fails (non-blocking)', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
+      mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
+      mockPrismaService.prescription.create.mockResolvedValue({
+        id: 'prescription-1',
+        consultationId: 'consultation-1',
+        pdfUrl: null,
+        medications: HAIR_LOSS_TEMPLATES[PrescriptionTemplate.STANDARD].medications,
+        instructions: '',
+        issuedAt: new Date(),
+        validUntil: new Date(),
+        doctorName: 'Dr. Test Doctor',
+        doctorRegistrationNo: 'MCI-12345',
+        patientName: 'Test Patient',
+        patientPhone: '+919876543210',
+        createdAt: new Date(),
+      });
+      mockPrismaService.order.create.mockResolvedValue({ id: 'order-1' });
+      mockPrismaService.consultation.update.mockResolvedValue(mockConsultation);
+
+      // Mock uploadService to throw — simulates S3 failure
+      mockUploadService.uploadBuffer.mockRejectedValueOnce(new Error('S3 down'));
+
+      // Should NOT throw — prescription created without PDF
+      const result = await service.createPrescription({
+        consultationId: 'consultation-1',
+        doctorId: 'doctor-1',
+        template: PrescriptionTemplate.STANDARD,
+      });
+
+      expect(result.prescription).toBeDefined();
+      // pdfUrl should NOT have been updated (S3 failed)
+      expect(mockPrismaService.prescription.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Regenerate PDF', () => {
+    // Spec: master spec Section 5.4 — Doctor/admin can regenerate PDF
+
+    const mockPrescriptionWithRelations = {
+      id: 'prescription-1',
+      consultationId: 'consultation-1',
+      medications: HAIR_LOSS_TEMPLATES[PrescriptionTemplate.STANDARD].medications,
+      instructions: 'Take as directed',
+      issuedAt: new Date('2026-02-21'),
+      validUntil: new Date('2026-08-21'),
+      doctorName: 'Dr. Test Doctor',
+      doctorRegistrationNo: 'MCI-12345',
+      patientName: 'Test Patient',
+      patientPhone: '+919876543210',
+      pdfUrl: null,
+      consultation: {
+        doctorId: 'doctor-1',
+        patient: mockPatient,
+        doctor: mockDoctor,
+      },
+    };
+
+    it('should regenerate PDF for an existing prescription', async () => {
+      mockPrismaService.prescription.findUnique.mockResolvedValue(mockPrescriptionWithRelations);
+      mockPrismaService.prescription.update.mockResolvedValue({
+        ...mockPrescriptionWithRelations,
+        pdfUrl: 'https://onlyou-uploads.s3.ap-south-1.amazonaws.com/prescriptions/prescription-1/prescription.pdf',
+      });
+
+      const result = await service.regeneratePdf('prescription-1', 'doctor-1');
+      expect(result.pdfUrl).toBeDefined();
+      expect(result.pdfUrl).toContain('prescriptions/prescription-1');
+    });
+
+    it('should throw NotFoundException if prescription does not exist', async () => {
+      mockPrismaService.prescription.findUnique.mockResolvedValue(null);
+      await expect(
+        service.regeneratePdf('non-existent', 'doctor-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if doctor is not assigned', async () => {
+      mockPrismaService.prescription.findUnique.mockResolvedValue({
+        ...mockPrescriptionWithRelations,
+        consultation: {
+          ...mockPrescriptionWithRelations.consultation,
+          doctorId: 'other-doctor',
+        },
+      });
+      await expect(
+        service.regeneratePdf('prescription-1', 'doctor-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should overwrite previous pdfUrl with new URL', async () => {
+      const prescriptionWithExistingPdf = {
+        ...mockPrescriptionWithRelations,
+        pdfUrl: 'https://old-url.com/old.pdf',
+      };
+      mockPrismaService.prescription.findUnique.mockResolvedValue(prescriptionWithExistingPdf);
+      mockPrismaService.prescription.update.mockResolvedValue({
+        ...prescriptionWithExistingPdf,
+        pdfUrl: 'https://new-url.com/new.pdf',
+      });
+
+      await service.regeneratePdf('prescription-1', 'doctor-1');
+      expect(mockPrismaService.prescription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'prescription-1' },
+          data: { pdfUrl: expect.any(String) },
+        }),
+      );
     });
   });
 

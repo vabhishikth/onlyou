@@ -920,6 +920,7 @@ type Mutation {
   rateDelivery(input: RateDeliveryInput!): OrderMutationResponse!
   refreshToken(input: RefreshTokenInput!): AuthResponse!
   regenerateDeliveryOtp(orderId: String!): GenerateDeliveryOtpResponse!
+  regeneratePrescriptionPdf(prescriptionId: String!): RegeneratePdfResponse!
   requestMoreInfo(consultationId: String!, message: String!): RequestMoreInfoResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
   rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
@@ -1387,6 +1388,12 @@ type RefundType {
   status: String!
   trigger: String!
   userId: String!
+}
+
+type RegeneratePdfResponse {
+  message: String!
+  pdfUrl: String
+  success: Boolean!
 }
 
 input ReportLateInput {
