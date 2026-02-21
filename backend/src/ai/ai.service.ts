@@ -1,6 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HealthVertical } from '@prisma/client';
+import Anthropic from '@anthropic-ai/sdk';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: hair-loss spec Section 5, master spec Section 6
 
@@ -196,11 +198,11 @@ export interface ContraindicationResult {
 
 @Injectable()
 export class AIService {
-  // Note: These will be used when Claude API integration is implemented
-  // For now, this is a pre-screening rules engine without actual API calls
+  private readonly logger = new Logger(AIService.name);
+
   constructor(
-    // @ts-expect-error ConfigService reserved for future Claude API integration
     private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -516,8 +518,9 @@ Respond ONLY with valid JSON matching this schema:
 
   /**
    * Parse and validate AI response
+   * Spec: master spec Section 6 — Parse JSON response, validate per vertical
    */
-  parseAIResponse(rawResponse: string): AIAssessment {
+  parseAIResponse(rawResponse: string, vertical?: HealthVertical): AIAssessment {
     let parsed: any;
     try {
       parsed = JSON.parse(rawResponse);
@@ -554,12 +557,30 @@ Respond ONLY with valid JSON matching this schema:
       throw new BadRequestException('Missing summary');
     }
 
-    // Validate classification is one of allowed categories
-    if (!HAIR_LOSS_CLASSIFICATIONS.includes(parsed.classification.likely_condition)) {
+    // Validate classification is one of allowed categories for the vertical
+    const validClassifications = this.getValidClassifications(vertical);
+    if (!validClassifications.includes(parsed.classification.likely_condition)) {
       throw new BadRequestException('Invalid classification category');
     }
 
     return parsed as AIAssessment;
+  }
+
+  /**
+   * Get valid classification categories for a vertical
+   */
+  private getValidClassifications(vertical?: HealthVertical): string[] {
+    switch (vertical) {
+      case HealthVertical.SEXUAL_HEALTH:
+        return ED_CLASSIFICATIONS as string[];
+      case HealthVertical.WEIGHT_MANAGEMENT:
+        return WEIGHT_CLASSIFICATIONS as string[];
+      case HealthVertical.PCOS:
+        return PCOS_CLASSIFICATIONS as string[];
+      case HealthVertical.HAIR_LOSS:
+      default:
+        return HAIR_LOSS_CLASSIFICATIONS as string[];
+    }
   }
 
   // ============================================
@@ -1909,5 +1930,112 @@ Respond ONLY with valid JSON matching this schema:
 
     // LOW: Classic or lean PCOS with no red flags
     return 'low';
+  }
+
+  // ============================================
+  // CLAUDE API INTEGRATION
+  // Spec: master spec Section 6 — AI Pre-Assessment Pipeline
+  // ============================================
+
+  /**
+   * Get Anthropic client instance
+   */
+  getAnthropicClient(): Anthropic {
+    return new Anthropic({
+      apiKey: this.config.get('ANTHROPIC_API_KEY'),
+    });
+  }
+
+  /**
+   * Call Claude API with a prompt
+   * Spec: master spec Section 6 — Call Claude API with condition-specific prompt
+   */
+  async callClaudeAPI(prompt: string): Promise<string> {
+    const client = this.getAnthropicClient();
+    const message = await client.messages.create({
+      model: this.config.get('CLAUDE_MODEL') || 'claude-sonnet-4-5-20250929',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const firstBlock = message.content[0];
+    return firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
+  }
+
+  /**
+   * Build prompt for any vertical
+   * Routes to the correct vertical-specific prompt builder
+   */
+  buildPromptForVertical(
+    vertical: HealthVertical,
+    responses: Record<string, any>,
+    photoDescriptions: string[],
+  ): string {
+    switch (vertical) {
+      case HealthVertical.HAIR_LOSS:
+        return this.buildHairLossPrompt(responses, photoDescriptions);
+      case HealthVertical.SEXUAL_HEALTH:
+        return this.buildEDPrompt(responses, null);
+      case HealthVertical.WEIGHT_MANAGEMENT:
+        return this.buildWeightPrompt(responses);
+      case HealthVertical.PCOS:
+        return this.buildPCOSPrompt(responses);
+      default:
+        return this.buildHairLossPrompt(responses, photoDescriptions);
+    }
+  }
+
+  /**
+   * Orchestrate full AI assessment for a consultation
+   * Spec: master spec Section 6 — Pipeline: package data → call Claude → parse → return
+   */
+  async runAssessment(consultationId: string): Promise<AIAssessment | null> {
+    try {
+      // 1. Get consultation with intake response
+      const consultation = await this.prisma.consultation.findUnique({
+        where: { id: consultationId },
+        include: { intakeResponse: true },
+      });
+
+      if (!consultation) {
+        this.logger.warn(`Consultation ${consultationId} not found`);
+        return null;
+      }
+
+      // Skip if already assessed
+      if (consultation.status !== 'PENDING_ASSESSMENT') {
+        this.logger.warn(`Consultation ${consultationId} already assessed (status: ${consultation.status})`);
+        return null;
+      }
+
+      // 2. Get photos for the patient (hair loss needs them)
+      const photos = await this.prisma.patientPhoto.findMany({
+        where: { patientProfileId: consultation.intakeResponse.patientProfileId },
+      });
+
+      const photoDescriptions = photos.map(
+        (p: { type: string; url: string }) => `Photo type: ${p.type}, URL: ${p.url}`,
+      );
+
+      // 3. Build prompt
+      const responses = consultation.intakeResponse.responses as Record<string, any>;
+      const prompt = this.buildPromptForVertical(
+        consultation.vertical,
+        responses,
+        photoDescriptions,
+      );
+
+      // 4. Call Claude API
+      const rawResponse = await this.callClaudeAPI(prompt);
+
+      // 5. Parse and validate response
+      const assessment = this.parseAIResponse(rawResponse, consultation.vertical);
+      return assessment;
+    } catch (error) {
+      this.logger.error(
+        `AI assessment failed for consultation ${consultationId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return null;
+    }
   }
 }

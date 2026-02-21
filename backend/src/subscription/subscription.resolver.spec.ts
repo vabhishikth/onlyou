@@ -157,7 +157,7 @@ describe('SubscriptionResolver', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockSubscriptionService.cancelSubscription).toHaveBeenCalledWith('sub-1', 'No longer needed');
+      expect(mockSubscriptionService.cancelSubscription).toHaveBeenCalledWith('sub-1', 'patient-1');
     });
 
     it('should return error when subscription not found', async () => {
@@ -185,7 +185,7 @@ describe('SubscriptionResolver', () => {
       const result = await resolver.pauseSubscription(mockUser, 'sub-1');
 
       expect(result.success).toBe(true);
-      expect(mockSubscriptionService.pauseSubscription).toHaveBeenCalledWith('sub-1');
+      expect(mockSubscriptionService.pauseSubscription).toHaveBeenCalledWith('sub-1', 'patient-1');
     });
   });
 
@@ -200,7 +200,7 @@ describe('SubscriptionResolver', () => {
       const result = await resolver.resumeSubscription(mockUser, 'sub-1');
 
       expect(result.success).toBe(true);
-      expect(mockSubscriptionService.resumeSubscription).toHaveBeenCalledWith('sub-1');
+      expect(mockSubscriptionService.resumeSubscription).toHaveBeenCalledWith('sub-1', 'patient-1');
     });
 
     it('should return error when resume fails', async () => {

@@ -7,6 +7,7 @@ import {
   HAIR_LOSS_RED_FLAGS,
   FINASTERIDE_CONTRAINDICATION_CHECKS,
 } from './ai.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { HealthVertical } from '@prisma/client';
 
 // Spec: hair-loss spec Section 5 (AI Pre-Assessment), master spec Section 6
@@ -27,6 +28,13 @@ describe('AIService', () => {
               if (key === 'ANTHROPIC_MODEL') return 'claude-3-sonnet-20240229';
               return undefined;
             }),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            consultation: { findUnique: jest.fn() },
+            patientPhoto: { findMany: jest.fn().mockResolvedValue([]) },
           },
         },
       ],
@@ -1897,6 +1905,252 @@ describe('AIService', () => {
       };
       const level = service.calculatePCOSAttentionLevel(assessment);
       expect(level).toBe('low');
+    });
+  });
+
+  // ============================================
+  // CLAUDE API INTEGRATION TESTS (Task 1 — TDD)
+  // Spec: master spec Section 6
+  // ============================================
+
+  describe('buildPromptForVertical', () => {
+    const sampleResponses = { Q1: 25, Q2: 'Male' };
+    const samplePhotos = ['Top of scalp shows thinning'];
+
+    it('should route HAIR_LOSS to buildHairLossPrompt', () => {
+      const prompt = service.buildPromptForVertical(
+        HealthVertical.HAIR_LOSS,
+        sampleResponses,
+        samplePhotos,
+      );
+      expect(prompt).toContain('hair loss telehealth platform');
+      expect(prompt).toContain('Top of scalp shows thinning');
+    });
+
+    it('should route SEXUAL_HEALTH to buildEDPrompt', () => {
+      const prompt = service.buildPromptForVertical(
+        HealthVertical.SEXUAL_HEALTH,
+        sampleResponses,
+        [],
+      );
+      expect(prompt).toContain('erectile dysfunction telehealth platform');
+    });
+
+    it('should route WEIGHT_MANAGEMENT to buildWeightPrompt', () => {
+      const prompt = service.buildPromptForVertical(
+        HealthVertical.WEIGHT_MANAGEMENT,
+        sampleResponses,
+        [],
+      );
+      expect(prompt).toContain('weight management telehealth platform');
+    });
+
+    it('should route PCOS to buildPCOSPrompt', () => {
+      const prompt = service.buildPromptForVertical(
+        HealthVertical.PCOS,
+        sampleResponses,
+        [],
+      );
+      expect(prompt).toContain('PCOS telehealth platform');
+    });
+  });
+
+  describe('parseAIResponse — vertical-aware', () => {
+    const baseAssessment = {
+      classification: { likely_condition: '', confidence: 'high', alternative_considerations: [] },
+      red_flags: [],
+      contraindications: {},
+      risk_factors: [],
+      recommended_protocol: { primary: 'standard', medications: [], additional: [] },
+      doctor_attention_level: 'low',
+      summary: 'Test summary',
+    };
+
+    it('should accept valid hair loss classification', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'androgenetic_alopecia' } };
+      const result = service.parseAIResponse(JSON.stringify(data), HealthVertical.HAIR_LOSS);
+      expect(result.classification.likely_condition).toBe('androgenetic_alopecia');
+    });
+
+    it('should reject ED classification for hair loss vertical', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'vascular_ed' } };
+      expect(() => service.parseAIResponse(JSON.stringify(data), HealthVertical.HAIR_LOSS)).toThrow('Invalid classification category');
+    });
+
+    it('should accept valid ED classification', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'vascular_ed' } };
+      const result = service.parseAIResponse(JSON.stringify(data), HealthVertical.SEXUAL_HEALTH);
+      expect(result.classification.likely_condition).toBe('vascular_ed');
+    });
+
+    it('should accept valid weight classification', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'lifestyle_obesity' } };
+      const result = service.parseAIResponse(JSON.stringify(data), HealthVertical.WEIGHT_MANAGEMENT);
+      expect(result.classification.likely_condition).toBe('lifestyle_obesity');
+    });
+
+    it('should accept valid PCOS classification', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'pcos_classic' } };
+      const result = service.parseAIResponse(JSON.stringify(data), HealthVertical.PCOS);
+      expect(result.classification.likely_condition).toBe('pcos_classic');
+    });
+
+    it('should reject hair loss classification for PCOS vertical', () => {
+      const data = { ...baseAssessment, classification: { ...baseAssessment.classification, likely_condition: 'androgenetic_alopecia' } };
+      expect(() => service.parseAIResponse(JSON.stringify(data), HealthVertical.PCOS)).toThrow('Invalid classification category');
+    });
+  });
+
+  describe('callClaudeAPI', () => {
+    it('should call Anthropic SDK and return text content', async () => {
+      const mockCreate = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: '{"classification": "test"}' }],
+      });
+
+      // Mock the Anthropic constructor
+      jest.spyOn(service as any, 'getAnthropicClient').mockReturnValue({
+        messages: { create: mockCreate },
+      });
+
+      const result = await service.callClaudeAPI('Test prompt');
+      expect(result).toBe('{"classification": "test"}');
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: 'Test prompt' }],
+        }),
+      );
+    });
+
+    it('should throw on API error', async () => {
+      jest.spyOn(service as any, 'getAnthropicClient').mockReturnValue({
+        messages: { create: jest.fn().mockRejectedValue(new Error('API rate limit')) },
+      });
+
+      await expect(service.callClaudeAPI('Test prompt')).rejects.toThrow('API rate limit');
+    });
+
+    it('should return empty string for non-text content', async () => {
+      jest.spyOn(service as any, 'getAnthropicClient').mockReturnValue({
+        messages: { create: jest.fn().mockResolvedValue({ content: [{ type: 'image', source: {} }] }) },
+      });
+
+      const result = await service.callClaudeAPI('Test prompt');
+      expect(result).toBe('');
+    });
+  });
+
+  describe('runAssessment', () => {
+    let mockPrisma: any;
+
+    beforeEach(() => {
+      mockPrisma = {
+        consultation: {
+          findUnique: jest.fn(),
+        },
+        patientPhoto: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      (service as any).prisma = mockPrisma;
+    });
+
+    const mockConsultation = {
+      id: 'consult-1',
+      vertical: HealthVertical.HAIR_LOSS,
+      status: 'PENDING_ASSESSMENT',
+      intakeResponse: {
+        responses: { Q1: 25, Q2: 'Male', Q4: '>2_years', Q5: 'gradual' },
+        patientProfileId: 'profile-1',
+      },
+    };
+
+    const mockAIResponse = JSON.stringify({
+      classification: { likely_condition: 'androgenetic_alopecia', confidence: 'high', alternative_considerations: [] },
+      red_flags: [],
+      contraindications: { finasteride: { safe: true, concerns: [] } },
+      risk_factors: [],
+      recommended_protocol: { primary: 'standard', medications: [{ name: 'Finasteride', dose: '1mg', frequency: 'daily' }], additional: [] },
+      doctor_attention_level: 'low',
+      summary: 'Likely androgenetic alopecia, standard treatment recommended.',
+    });
+
+    it('should run assessment for hair loss consultation', async () => {
+      mockPrisma.consultation.findUnique.mockResolvedValue(mockConsultation);
+      jest.spyOn(service, 'callClaudeAPI').mockResolvedValue(mockAIResponse);
+
+      const result = await service.runAssessment('consult-1');
+      expect(result).not.toBeNull();
+      expect(result!.classification.likely_condition).toBe('androgenetic_alopecia');
+      expect(result!.summary).toContain('androgenetic alopecia');
+    });
+
+    it('should return null if consultation not found', async () => {
+      mockPrisma.consultation.findUnique.mockResolvedValue(null);
+
+      const result = await service.runAssessment('nonexistent');
+      expect(result).toBeNull();
+    });
+
+    it('should return null if consultation already assessed', async () => {
+      mockPrisma.consultation.findUnique.mockResolvedValue({
+        ...mockConsultation,
+        status: 'AI_REVIEWED',
+      });
+
+      const result = await service.runAssessment('consult-1');
+      expect(result).toBeNull();
+    });
+
+    it('should return null on Claude API failure (graceful)', async () => {
+      mockPrisma.consultation.findUnique.mockResolvedValue(mockConsultation);
+      jest.spyOn(service, 'callClaudeAPI').mockRejectedValue(new Error('API down'));
+
+      const result = await service.runAssessment('consult-1');
+      expect(result).toBeNull();
+    });
+
+    it('should run assessment for ED consultation', async () => {
+      const edConsultation = {
+        ...mockConsultation,
+        vertical: HealthVertical.SEXUAL_HEALTH,
+        intakeResponse: { responses: { Q1: 35, Q2: 'Male' }, patientProfileId: 'profile-1' },
+      };
+      const edResponse = JSON.stringify({
+        classification: { likely_condition: 'vascular_ed', confidence: 'medium', alternative_considerations: [] },
+        red_flags: [],
+        contraindications: {},
+        risk_factors: [],
+        recommended_protocol: { primary: 'on_demand_sildenafil', medications: [], additional: [] },
+        doctor_attention_level: 'low',
+        summary: 'Likely vascular ED.',
+      });
+
+      mockPrisma.consultation.findUnique.mockResolvedValue(edConsultation);
+      jest.spyOn(service, 'callClaudeAPI').mockResolvedValue(edResponse);
+
+      const result = await service.runAssessment('consult-1');
+      expect(result).not.toBeNull();
+      expect(result!.classification.likely_condition).toBe('vascular_ed');
+    });
+
+    it('should include photo descriptions for hair loss', async () => {
+      mockPrisma.consultation.findUnique.mockResolvedValue(mockConsultation);
+      mockPrisma.patientPhoto.findMany.mockResolvedValue([
+        { type: 'scalp_top', url: 'https://s3.example.com/top.jpg' },
+        { type: 'scalp_front', url: 'https://s3.example.com/front.jpg' },
+      ]);
+      jest.spyOn(service, 'callClaudeAPI').mockResolvedValue(mockAIResponse);
+      const buildSpy = jest.spyOn(service, 'buildHairLossPrompt');
+
+      await service.runAssessment('consult-1');
+      expect(buildSpy).toHaveBeenCalledWith(
+        mockConsultation.intakeResponse.responses,
+        expect.arrayContaining([
+          expect.stringContaining('scalp_top'),
+          expect.stringContaining('scalp_front'),
+        ]),
+      );
     });
   });
 });
