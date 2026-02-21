@@ -1,8 +1,8 @@
-# CHECKPOINT — Last Updated: 2026-02-20
+# CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 5 — Payment Integration
-## Current Task: PR 14 - Payment Integration (Razorpay)
-## Status: COMPLETE (All 4 tasks done)
+## Current Phase: Phase 6 — AI Pre-Assessment
+## Current Task: PR 15 - AI Pre-Assessment (Claude API)
+## Status: COMPLETE (Both tasks done)
 
 ## Completed Work:
 
@@ -29,59 +29,54 @@
 - [x] PR 13: Patient Tracking Screens (4 commits)
 
 ### Phase 5 — Payment Integration:
-- [x] PR 14, Task 1: Payment + Subscription GraphQL Resolvers (TDD)
+- [x] PR 14: Payment Integration (Razorpay) — 4 tasks, all complete
+
+### Phase 6 — AI Pre-Assessment:
+- [x] PR 15, Task 1: Claude API integration in AIService (TDD)
+- [x] PR 15, Task 2: AI Resolver + DTOs + intake trigger (TDD)
 
 ## Test Counts:
-- Backend: 1,917 tests (41 test suites)
+- Backend: 1,944 tests (42 test suites)
 - Mobile: 431 tests (29 test suites)
-- **Total: 2,348 tests**
+- **Total: 2,375 tests**
 
 ---
 
-## Current PR: PR 14 — Payment Integration (Razorpay)
+## Current PR: PR 15 — AI Pre-Assessment (Claude API)
 
-### Task 1: feat(payment): add payment + subscription GraphQL resolvers (TDD) — COMPLETE
-- 16 payment resolver tests (TDD): createPaymentOrder, verifyPayment, paymentWebhook, myPayments, supportedPaymentMethods, validatePricing
-- 9 subscription resolver tests (TDD): availablePlans, mySubscriptions, cancelSubscription, pauseSubscription, resumeSubscription
-- Payment DTOs: CreatePaymentOrderInput, VerifyPaymentInput, WebhookInput, PaymentType, PaymentOrderResponse, PaymentMutationResponse, PricingValidationResponse
-- Subscription DTOs: SubscriptionPlanType, SubscriptionType, SubscriptionMutationResponse, CancelSubscriptionInput
-- Updated payment.module.ts, subscription.module.ts (added resolvers)
-- Updated app.module.ts (added PaymentModule, SubscriptionModule)
+### Task 1: feat(ai): add Claude API integration for pre-assessment (TDD) — COMPLETE
+- Installed @anthropic-ai/sdk, configured ANTHROPIC_API_KEY + CLAUDE_MODEL env vars
+- Added callClaudeAPI() method using Anthropic SDK
+- Added buildPromptForVertical() to route to correct vertical prompt builder (4 verticals)
+- Added runAssessment() orchestrator: get consultation → build prompt → call Claude → parse
+- Made parseAIResponse() vertical-aware (validates ED/Weight/PCOS/HairLoss classifications)
+- 17 new tests (TDD): prompt routing, vertical-aware parsing, Claude API mock, runAssessment
+- Fixed subscription resolver test assertions to match corrected service signatures
 
-### Task 2: feat(payment): seed subscription plans + mobile payment GraphQL — COMPLETE
-- Added 12 SubscriptionPlan records to seed.ts (4 verticals × 3 durations)
-- Added @@unique([vertical, durationMonths]) to SubscriptionPlan in schema.prisma
-- Created mobile/src/graphql/payment.ts: types, queries (GET_AVAILABLE_PLANS, GET_MY_PAYMENTS), mutations (CREATE_PAYMENT_ORDER, VERIFY_PAYMENT), helpers (formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent)
-- 19 helper tests: formatAmount, calculateSavings, getPlanDurationLabel, getMonthlyEquivalent, GraphQL exports
-### Task 3: feat(mobile): add plan selection screen in intake flow — COMPLETE
-- Created mobile/app/intake/[vertical]/plan-selection.tsx (~300 lines)
-  - Fetches plans via GET_AVAILABLE_PLANS query
-  - 3 plan cards with radio selection, price, savings badge, features on select
-  - "Continue to Payment" CTA routes to payment screen with params
-  - Loading state, error state, Clinical Luxe theme
-- Modified mobile/app/intake/[vertical]/review.tsx
-  - Removed submitIntake mutation call from handleSubmit
-  - Changed routing: pushes to plan-selection instead of calling submitIntake + complete
-  - Passes params: vertical, responses, photos
-- 18 plan-selection tests: loading, error, plan display, prices, savings badges, selection, navigation
-
-### Task 4: feat(mobile): add Razorpay payment screen in intake flow — COMPLETE
-- Created mobile/app/intake/[vertical]/payment.tsx (~280 lines)
-  - Order summary card, secure payment notice, Razorpay SDK integration
-  - Full flow: createPaymentOrder → Razorpay checkout → verifyPayment → submitIntake → complete
-  - Error handling: order creation failure, Razorpay cancellation (code 2), payment failure, verification failure
-  - Processing steps with loading indicators
-- 15 payment tests: rendering, full payment flow, error handling, navigation
+### Task 2: feat(ai): add AI resolver + trigger assessment after intake (TDD) — COMPLETE
+- Created ai/dto/ai.dto.ts: AIPreAssessmentType, AIAssessmentResultType, RunAssessmentInput
+- Created ai/ai.resolver.ts: getAssessment query, runAssessment mutation, retryAssessment mutation
+- Added AIModule to app.module.ts
+- Updated ai.module.ts: added AIResolver, ConsultationModule import
+- Wired fire-and-forget AI trigger in intake.resolver.ts submitIntake mutation
+- Updated intake.module.ts: added AIModule, ConsultationModule imports
+- 8 new resolver tests (TDD): getAssessment, runAssessment, retryAssessment
 
 ---
 
-## PR 14 — COMPLETE
+## PR 15 — COMPLETE
 
-New intake flow: Review → Plan Selection → Payment (Razorpay) → Complete
+AI pre-assessment pipeline: submitIntake → fire-and-forget → Claude API → parse → store → AI_REVIEWED
 
-**Spec reference:** master spec Section 3.6, Section 12
+**Spec reference:** master spec Section 6
 
 ---
+
+## Next Up:
+1. Prescription PDF generation (master spec Section 5.4)
+2. Questionnaire expansion (25/28/32/30 questions per vertical)
+3. Notification resolver + triggers (master spec Section 11)
+4. Web test coverage
 
 ## Known Issues:
 - None currently

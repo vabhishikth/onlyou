@@ -1,6 +1,8 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, Logger } from '@nestjs/common';
 import { IntakeService } from './intake.service';
+import { AIService } from '../ai/ai.service';
+import { ConsultationService } from '../consultation/consultation.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { HealthVertical, User } from '@prisma/client';
@@ -17,7 +19,13 @@ import {
 
 @Resolver()
 export class IntakeResolver {
-    constructor(private readonly intakeService: IntakeService) { }
+    private readonly logger = new Logger(IntakeResolver.name);
+
+    constructor(
+        private readonly intakeService: IntakeService,
+        private readonly aiService: AIService,
+        private readonly consultationService: ConsultationService,
+    ) { }
 
     /**
      * Get all available treatment verticals
@@ -83,6 +91,7 @@ export class IntakeResolver {
 
     /**
      * Submit intake and create consultation
+     * Spec: master spec Section 6 — Fire-and-forget AI assessment after submission
      */
     @Mutation(() => SubmitIntakeResponse)
     @UseGuards(JwtAuthGuard)
@@ -91,6 +100,28 @@ export class IntakeResolver {
         @Args('input') input: SubmitIntakeInput,
     ): Promise<SubmitIntakeResponse> {
         const result = await this.intakeService.submitIntake(user.id, input);
+
+        // Fire-and-forget AI assessment (non-blocking)
+        // Spec: Section 6 — Pipeline: submit → call Claude → parse → store → assign
+        if (result.consultation) {
+            this.aiService.runAssessment(result.consultation.id)
+                .then(assessment => {
+                    if (assessment) {
+                        return this.consultationService.storeAIAssessment(
+                            result.consultation!.id,
+                            assessment,
+                        );
+                    }
+                    this.logger.warn(`AI assessment returned null for consultation ${result.consultation!.id}`);
+                    return undefined;
+                })
+                .catch(err => {
+                    this.logger.error(
+                        `AI assessment failed for consultation ${result.consultation!.id}: ${err?.message}`,
+                    );
+                });
+        }
+
         return result as SubmitIntakeResponse;
     }
 }

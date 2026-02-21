@@ -22,6 +22,7 @@ import { OrderModule } from './order/order.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PaymentModule } from './payment/payment.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
     imports: [
@@ -56,6 +57,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
         WalletModule,
         PaymentModule,
         SubscriptionModule,
+        AIModule,
     ],
 })
 export class AppModule { }
