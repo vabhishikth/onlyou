@@ -2,6 +2,23 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AIAssessmentResultType {
+  message: String!
+  success: Boolean!
+}
+
+type AIPreAssessmentType {
+  consultationId: String!
+  createdAt: DateTime!
+  flags: [String!]!
+  id: String!
+  modelVersion: String!
+  rawResponse: JSON!
+  recommendedPlan: String
+  riskLevel: String!
+  summary: String!
+}
+
 type ActiveTrackingResponse {
   deliveryOrders: [TrackingDeliveryOrderType!]!
   labOrders: [TrackingLabOrderType!]!
@@ -908,7 +925,9 @@ type Mutation {
   rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
   rescheduleLabSlot(input: RescheduleLabInput!): TrackingMutationResponse!
   resumeSubscription(subscriptionId: String!): SubscriptionMutationResponse!
+  retryAssessment(consultationId: String!): AIAssessmentResultType!
   reviewLabResults(input: ReviewLabResultsInput!): ReviewLabResultsResponse!
+  runAssessment(input: RunAssessmentInput!): AIAssessmentResultType!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
   sendMessage(consultationId: String!, content: String!): MessageType!
   sendToPharmacy(input: SendToPharmacyInput!): OrderMutationResponse!
@@ -1264,6 +1283,7 @@ type Query {
   deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
+  getAssessment(consultationId: String!): AIPreAssessmentType
   labCompletedSamples: [LabSampleSummary!]!
   labInProgressSamples: [LabSampleSummary!]!
   labIncomingSamples: [LabSampleSummary!]!
@@ -1417,6 +1437,10 @@ type ReviewLabResultsResponse {
   labOrder: LabOrderType
   message: String!
   success: Boolean!
+}
+
+input RunAssessmentInput {
+  consultationId: String!
 }
 
 type S3TestResult {
