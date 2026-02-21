@@ -5,6 +5,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
+import depthLimit from 'graphql-depth-limit';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -43,6 +44,7 @@ import { HealthModule } from './health/health.module';
             playground: process.env.NODE_ENV !== 'production',
             introspection: process.env.NODE_ENV !== 'production',
             context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
+            validationRules: [depthLimit(7)],
         }),
         ScheduleModule.forRoot(),
         PrismaModule,

@@ -1,5 +1,6 @@
 import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import { RateLimit } from '../common/decorators/rate-limit.decorator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -22,12 +23,14 @@ export class AuthResolver {
     ) { }
 
     @Mutation(() => RequestOtpResponse)
+    @RateLimit(5, 60)
     async requestOtp(@Args('input') input: RequestOtpInput): Promise<RequestOtpResponse> {
         const result = await this.authService.requestOtp(input.phone);
         return result;
     }
 
     @Mutation(() => AuthResponse)
+    @RateLimit(10, 60)
     async verifyOtp(@Args('input') input: VerifyOtpInput): Promise<AuthResponse> {
         const result = await this.authService.verifyOtpAndLogin(input.phone, input.otp);
         const response: AuthResponse = {

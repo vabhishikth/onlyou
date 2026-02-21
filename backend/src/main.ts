@@ -1,21 +1,31 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { execSync } from 'child_process';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+
+// Spec: Phase 10 — Production Readiness (bootstrap with security hardening)
+
+const PRODUCTION_ORIGINS = [
+    'https://onlyou.life',
+    'https://doctor.onlyou.life',
+    'https://admin.onlyou.life',
+    'https://lab.onlyou.life',
+    'https://collect.onlyou.life',
+    'https://pharmacy.onlyou.life',
+];
 
 function killPortHolder(port: number | string) {
     try {
+        const { execSync } = require('child_process');
         const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
             encoding: 'utf8',
         });
-        // Match any line with our port in LISTENING state — extract PID (last number on line)
         const lines = output.trim().split('\n');
         for (const line of lines) {
             const pidMatch = line.match(/LISTENING\s+(\d+)/);
             if (pidMatch) {
                 const pid = Number(pidMatch[1]);
                 if (pid !== process.pid) {
-                    console.log(`[bootstrap] Port ${port} held by PID ${pid} — killing it`);
                     execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
                     execSync('ping -n 2 127.0.0.1 > NUL', { stdio: 'ignore' });
                 }
@@ -27,16 +37,29 @@ function killPortHolder(port: number | string) {
 }
 
 async function bootstrap() {
+    const logger = new Logger('Bootstrap');
     const port = process.env.PORT || 4000;
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    // Kill any stale process holding the port before listening
-    killPortHolder(port);
+    // Kill any stale process holding the port (development only)
+    if (!isProduction) {
+        killPortHolder(port);
+    }
 
     const app = await NestFactory.create(AppModule);
 
-    // Enable CORS for mobile and web clients
+    // Security headers
+    app.use(helmet({
+        contentSecurityPolicy: isProduction ? undefined : false,
+        crossOriginEmbedderPolicy: false,
+    }));
+
+    // CORS configuration
+    const corsOrigin = process.env.CORS_ORIGIN;
     app.enableCors({
-        origin: true, // Allow all origins in development
+        origin: isProduction
+            ? (corsOrigin ? corsOrigin.split(',') : PRODUCTION_ORIGINS)
+            : true,
         credentials: true,
     });
 
@@ -50,7 +73,7 @@ async function bootstrap() {
 
     await app.listen(port, '0.0.0.0');
 
-    console.log(`Onlyou API running at http://localhost:${port}/graphql`);
+    logger.log(`Onlyou API running at http://localhost:${port}/graphql (${isProduction ? 'production' : 'development'})`);
 }
 
 bootstrap();
