@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
-## Current Phase: Phase 9 — Notification System
-## Current Task: PR 18 - Notification Resolver + DTOs (TDD)
+## Current Phase: Phase 9 — Notification System + Web Tests
+## Current Task: PR 19 - Web Test Infrastructure + Core Tests
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -45,71 +45,53 @@
 ### Phase 9 — Notification System:
 - [x] PR 18: Notification Resolver + DTOs (TDD) — 18 tests
 
+### Web Test Infrastructure:
+- [x] PR 19: Web Test Infrastructure + Core Tests — 63 tests
+
 ## Test Counts:
 - Backend: 2,014 tests (44 test suites)
 - Mobile: 431 tests (29 test suites)
-- **Total: 2,445 tests**
+- Web: 63 tests (7 test suites)
+- **Total: 2,508 tests**
 
 ---
 
-## Current PR: PR 18 — Notification Resolver + DTOs
+## Current PR: PR 19 — Web Test Infrastructure + Core Tests
 
 ### What was done:
-- Created `notification/dto/notification.dto.ts` with enum registrations + ObjectTypes + InputType
-- Created `notification/notification.resolver.ts` with 4 queries + 3 mutations
-- Created `notification/notification.resolver.spec.ts` with 18 test cases (TDD)
-- Wired NotificationModule into AppModule
-- Regenerated schema.gql with notification types
+- Installed Jest + React Testing Library in `web/` package
+- Created `jest.config.js` with ts-jest, module aliases, CSS/image mocks
+- Created `jest.setup.ts` with jest-dom matchers + cleanup between tests
+- Created `__mocks__/` directory with style and file mocks
 
-### GraphQL API Surface:
-| Operation | Type | Description |
-|-----------|------|-------------|
-| notifications | Query | Paginated history with channel/eventType filters |
-| unreadNotifications | Query | List unread in-app notifications |
-| unreadNotificationCount | Query | Count of unread notifications |
-| notificationPreferences | Query | Get user preference toggles |
-| markNotificationAsRead | Mutation | Mark single notification as read |
-| markAllNotificationsAsRead | Mutation | Bulk mark all as read |
-| updateNotificationPreferences | Mutation | Update push/whatsapp/sms/email/discreet |
+### Test files created:
+| File | Tests | Description |
+|------|-------|-------------|
+| `web/src/lib/__tests__/utils.spec.ts` | 26 | cn, formatINR, formatDate, formatRelativeTime, getInitials, maskPhone, constants |
+| `web/src/hooks/__tests__/use-auth.spec.tsx` | 8 | ME query, requestOTP, verifyOTP, logout, loading states (Apollo MockedProvider) |
+| `web/src/components/ui/__tests__/button.spec.tsx` | 5 | Rendering, variants, loading, disabled, onClick |
+| `web/src/components/ui/__tests__/input.spec.tsx` | 4 | Rendering, placeholder, error state, onChange |
+| `web/src/components/ui/__tests__/badge.spec.tsx` | 9 | Badge, ConsultationStatusBadge, LabOrderStatusBadge, VerticalBadge |
+| `web/src/components/ui/__tests__/skeleton.spec.tsx` | 4 | Skeleton, SkeletonCard, SkeletonList |
+| `web/src/components/ui/__tests__/empty-state.spec.tsx` | 7 | EmptyState, SearchEmptyState |
 
-### Registered Enums:
-- NotificationChannel (PUSH, WHATSAPP, SMS, EMAIL, IN_APP)
-- NotificationStatus (PENDING, SENT, DELIVERED, READ, FAILED)
-- NotificationEventType (27 event types)
-
-### Files created:
-- `backend/src/notification/dto/notification.dto.ts`
-- `backend/src/notification/notification.resolver.ts`
-- `backend/src/notification/notification.resolver.spec.ts`
-
-### Files modified:
-- `backend/src/notification/notification.module.ts` — added resolver to providers
-- `backend/src/app.module.ts` — imported NotificationModule
-- `backend/src/schema.gql` — auto-regenerated with notification types
-
-### 18 new tests:
-- Paginated notification history (4 tests: defaults, channel filter, eventType filter, empty)
-- Unread notifications query (2 tests: with results, empty)
-- Unread count query (2 tests: with count, zero)
-- Notification preferences query (1 test)
-- Mark notification as read (3 tests: success, not found, not owner)
-- Mark all as read (2 tests: with count, zero)
-- Update preferences (4 tests: single, discreet mode, multiple, empty input)
+### 4 commits:
+1. `chore(web): add Jest + React Testing Library test infrastructure`
+2. `test(web): add utility function tests — 26 tests`
+3. `test(web): add UI component tests — 29 tests`
+4. `test(web): add useAuth hook tests — 8 tests`
 
 ---
 
-## PR 18 — COMPLETE
-
-**Spec references:** master spec Section 11 (Notification System)
+## PR 19 — COMPLETE
 
 ---
 
 ## Next Up:
-1. Web test coverage
-2. Mobile integration with expanded questionnaires (should work automatically — data-driven)
-3. Scheduled notification jobs (SLA reminders: 3-day, 14-day, 48hr, 72hr)
+1. PR 20: Notification Scheduler Service (TDD) — install @nestjs/schedule, cron jobs for SLA reminders
+2. Mobile integration with expanded questionnaires (NO changes needed — data-driven architecture)
 
 ## Known Issues:
-- None currently
+- Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
