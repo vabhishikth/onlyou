@@ -13,6 +13,7 @@ const mockRedisInstance = {
     ping: jest.fn(),
     quit: jest.fn(),
     on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
 };
 
 jest.mock('ioredis', () => {
