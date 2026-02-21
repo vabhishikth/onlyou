@@ -17,6 +17,7 @@ import {
   RegeneratePdfResponse,
   DoctorPrescriptionItem,
   DoctorPrescriptionsFilterInput,
+  PatientPrescriptionItem,
 } from './dto/prescription.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,6 +45,19 @@ export class PrescriptionResolver {
   ): Promise<DoctorPrescriptionItem[]> {
     const doctorId = context.req.user.id;
     return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined);
+  }
+
+  /**
+   * Get all prescriptions for the logged-in patient
+   * Spec: Phase 11 — Patient-facing prescription list
+   */
+  @Query(() => [PatientPrescriptionItem])
+  @UseGuards(JwtAuthGuard)
+  async myPrescriptions(
+    @Context() context: any,
+  ): Promise<PatientPrescriptionItem[]> {
+    const patientId = context.req.user.id;
+    return this.prescriptionService.getPatientPrescriptions(patientId);
   }
 
   /**

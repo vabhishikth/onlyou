@@ -261,6 +261,39 @@ export class PrescriptionService {
   }
 
   /**
+   * Get all prescriptions for a patient
+   * Spec: Phase 11 — Patient-facing prescription list
+   */
+  async getPatientPrescriptions(patientId: string): Promise<any[]> {
+    const prescriptions = await this.prisma.prescription.findMany({
+      where: { consultation: { patientId } },
+      include: {
+        consultation: {
+          select: {
+            id: true,
+            vertical: true,
+            doctor: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return prescriptions.map((rx) => ({
+      id: rx.id,
+      consultationId: rx.consultationId,
+      vertical: rx.consultation.vertical,
+      doctorName: rx.consultation.doctor?.name || undefined,
+      pdfUrl: rx.pdfUrl || undefined,
+      medications: rx.medications,
+      instructions: rx.instructions || undefined,
+      validUntil: rx.validUntil,
+      issuedAt: rx.issuedAt,
+      createdAt: rx.createdAt,
+    }));
+  }
+
+  /**
    * Check finasteride contraindications from questionnaire responses
    * Spec: hair-loss spec Section 5 — Contraindication Matrix
    */

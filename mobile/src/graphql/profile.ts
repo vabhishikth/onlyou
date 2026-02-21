@@ -58,6 +58,24 @@ export interface Wallet {
     transactions: WalletTransaction[];
 }
 
+// Prescription types
+export interface PatientPrescription {
+    id: string;
+    consultationId: string;
+    vertical: string;
+    doctorName?: string;
+    pdfUrl?: string;
+    medications: unknown;
+    instructions?: string;
+    validUntil: string;
+    issuedAt: string;
+    createdAt: string;
+}
+
+export interface GetMyPrescriptionsResponse {
+    myPrescriptions: PatientPrescription[];
+}
+
 // Notification preferences
 export interface NotificationPreferences {
     pushEnabled: boolean;
@@ -139,6 +157,23 @@ export const GET_WALLET = gql`
                 description
                 createdAt
             }
+        }
+    }
+`;
+
+export const GET_MY_PRESCRIPTIONS = gql`
+    query GetMyPrescriptions {
+        myPrescriptions {
+            id
+            consultationId
+            vertical
+            doctorName
+            pdfUrl
+            medications
+            instructions
+            validUntil
+            issuedAt
+            createdAt
         }
     }
 `;

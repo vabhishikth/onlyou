@@ -2489,4 +2489,52 @@ describe('PrescriptionService', () => {
       }));
     });
   });
+
+  // --- getPatientPrescriptions ---
+  // Spec: Phase 11 — Patient-facing prescription list
+
+  describe('getPatientPrescriptions', () => {
+    const mockPatientPrescriptions = [
+      {
+        id: 'rx-1',
+        consultationId: 'consult-1',
+        pdfUrl: 'https://s3.example.com/rx-1.pdf',
+        medications: [{ name: 'Finasteride', dosage: '1mg', frequency: 'Once daily' }],
+        instructions: 'Take with food',
+        validUntil: new Date('2026-08-01'),
+        issuedAt: new Date('2026-02-01'),
+        createdAt: new Date('2026-02-01'),
+        consultation: {
+          id: 'consult-1',
+          vertical: HealthVertical.HAIR_LOSS,
+          doctor: { name: 'Dr. Test Doctor' },
+        },
+      },
+    ];
+
+    it('should return all prescriptions for the patient', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue(mockPatientPrescriptions);
+
+      const result = await service.getPatientPrescriptions('patient-1');
+
+      expect(mockPrismaService.prescription.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { consultation: { patientId: 'patient-1' } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('rx-1');
+      expect(result[0].vertical).toBe(HealthVertical.HAIR_LOSS);
+      expect(result[0].doctorName).toBe('Dr. Test Doctor');
+    });
+
+    it('should return empty array when patient has no prescriptions', async () => {
+      mockPrismaService.prescription.findMany.mockResolvedValue([]);
+
+      const result = await service.getPatientPrescriptions('patient-1');
+
+      expect(result).toEqual([]);
+    });
+  });
 });

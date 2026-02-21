@@ -42,6 +42,20 @@ export class LabOrderResolver {
     }
 
     /**
+     * Get all lab orders for the logged-in patient
+     * Spec: Phase 11 — Patient-facing lab order list
+     */
+    @Query(() => [LabOrderType])
+    @UseGuards(JwtAuthGuard)
+    async myLabOrders(
+        @Context() context: any,
+    ): Promise<LabOrderType[]> {
+        const patientId = context.req.user.id;
+        const orders = await this.labOrderService.getPatientLabOrders(patientId);
+        return orders.map(this.mapToLabOrderType);
+    }
+
+    /**
      * Get available test panels for a vertical
      */
     @Query(() => AvailablePanelsResponse)

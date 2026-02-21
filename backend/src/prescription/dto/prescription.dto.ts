@@ -261,6 +261,41 @@ export class DoctorPrescriptionsFilterInput {
   search?: string;
 }
 
+// Patient prescriptions list item
+// Spec: Phase 11 — Patient-facing prescription list
+@ObjectType()
+export class PatientPrescriptionItem {
+  @Field(() => String)
+  id: string;
+
+  @Field(() => String)
+  consultationId: string;
+
+  @Field(() => HealthVertical)
+  vertical: HealthVertical;
+
+  @Field(() => String, { nullable: true })
+  doctorName?: string;
+
+  @Field(() => String, { nullable: true })
+  pdfUrl?: string;
+
+  @Field(() => GraphQLJSON)
+  medications: unknown;
+
+  @Field(() => String, { nullable: true })
+  instructions?: string;
+
+  @Field(() => Date)
+  validUntil: Date;
+
+  @Field(() => Date)
+  issuedAt: Date;
+
+  @Field(() => Date)
+  createdAt: Date;
+}
+
 // Spec: master spec Section 5.4 — Regenerate prescription PDF
 @ObjectType()
 export class RegeneratePdfResponse {
