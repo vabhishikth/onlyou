@@ -17,6 +17,5 @@ module.exports = {
         '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
         '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
     },
-    setupFiles: ['<rootDir>/jest.setup.ts'],
     testMatch: ['**/__tests__/**/*.spec.{ts,tsx}', '**/*.spec.{ts,tsx}'],
 };
