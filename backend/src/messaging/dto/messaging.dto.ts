@@ -1,5 +1,5 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
-import { HealthVertical, ConsultationStatus } from '@prisma/client';
+import { HealthVertical } from '@prisma/client';
 
 // Spec: master spec Section 5.5 (Messaging)
 // These DTOs match the frontend mutation shapes in web/src/app/doctor/case/[id]/page.tsx
@@ -61,8 +61,8 @@ export class ConversationSummaryType {
     @Field(() => HealthVertical)
     vertical: HealthVertical;
 
-    @Field(() => ConsultationStatus)
-    consultationStatus: ConsultationStatus;
+    @Field(() => String)
+    consultationStatus: string;
 
     @Field(() => String, { nullable: true })
     lastMessageContent?: string;
