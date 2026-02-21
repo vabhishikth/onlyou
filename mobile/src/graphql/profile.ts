@@ -76,6 +76,24 @@ export interface GetMyPrescriptionsResponse {
     myPrescriptions: PatientPrescription[];
 }
 
+// Lab order types
+export interface PatientLabOrder {
+    id: string;
+    status: string;
+    testPanel: string[];
+    panelName?: string;
+    resultFileUrl?: string;
+    criticalValues?: unknown;
+    orderedAt: string;
+    sampleCollectedAt?: string;
+    resultsUploadedAt?: string;
+    doctorReviewedAt?: string;
+}
+
+export interface GetMyLabOrdersResponse {
+    myLabOrders: PatientLabOrder[];
+}
+
 // Notification preferences
 export interface NotificationPreferences {
     pushEnabled: boolean;
@@ -174,6 +192,23 @@ export const GET_MY_PRESCRIPTIONS = gql`
             validUntil
             issuedAt
             createdAt
+        }
+    }
+`;
+
+export const GET_MY_LAB_ORDERS = gql`
+    query GetMyLabOrders {
+        myLabOrders {
+            id
+            status
+            testPanel
+            panelName
+            resultFileUrl
+            criticalValues
+            orderedAt
+            sampleCollectedAt
+            resultsUploadedAt
+            doctorReviewedAt
         }
     }
 `;
