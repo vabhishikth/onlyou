@@ -37,8 +37,9 @@ export class NotificationSchedulerService {
           labOrderId: order.id,
           reminderType: 'BOOKING_REMINDER_3DAY',
         });
-      } catch (error) {
-        this.logger.error(`Failed to send booking reminder for ${order.id}: ${error.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send booking reminder for ${order.id}: ${message}`);
       }
     }
 
@@ -62,8 +63,9 @@ export class NotificationSchedulerService {
     for (const order of expiringOrders) {
       try {
         await this.notificationService.notifyBookingReminder14Day(order.id);
-      } catch (error) {
-        this.logger.error(`Failed to send 14-day reminder for ${order.id}: ${error.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send 14-day reminder for ${order.id}: ${message}`);
       }
     }
 
@@ -92,8 +94,9 @@ export class NotificationSchedulerService {
         } else {
           await this.notificationService.notifyLabOverdue48hr(order.id);
         }
-      } catch (error) {
-        this.logger.error(`Failed to send lab overdue notification for ${order.id}: ${error.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send lab overdue notification for ${order.id}: ${message}`);
       }
     }
 
@@ -102,41 +105,44 @@ export class NotificationSchedulerService {
 
   /**
    * Every 30 minutes — check for upcoming collection appointments and send reminders
+   * Queries LabOrder by bookedDate (LabSlot has no direct LabOrder relation)
    */
   @Cron('*/30 * * * *')
   async checkCollectionReminders(): Promise<void> {
     this.logger.log('Running collection reminder check...');
 
-    const now = new Date();
-    const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const upcomingSlots = await this.prisma.labSlot.findMany({
+    // Find lab orders with today's booked date that are in SLOT_BOOKED status
+    const upcomingOrders = await this.prisma.labOrder.findMany({
       where: {
-        scheduledDate: {
-          gte: now,
-          lte: thirtyMinutesLater,
+        status: 'SLOT_BOOKED',
+        bookedDate: {
+          gte: today,
+          lt: tomorrow,
         },
       },
-      include: {
-        labOrder: { select: { id: true } },
-      },
+      select: { id: true },
     });
 
-    for (const slot of upcomingSlots) {
+    for (const order of upcomingOrders) {
       try {
-        if (slot.labOrder?.id) {
-          await this.notificationService.notifyCollectionReminder(slot.labOrder.id);
-        }
-      } catch (error) {
-        this.logger.error(`Failed to send collection reminder for slot ${slot.id}: ${error.message}`);
+        await this.notificationService.notifyCollectionReminder(order.id);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send collection reminder for order ${order.id}: ${message}`);
       }
     }
 
-    this.logger.log(`Collection reminder check complete. Processed ${upcomingSlots.length} slots.`);
+    this.logger.log(`Collection reminder check complete. Processed ${upcomingOrders.length} orders.`);
   }
 
   /**
    * Every day at midnight — check for subscriptions nearing period end and prompt reorder
+   * Subscription has no direct Order relation; find latest order per patient
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkMonthlyReorders(): Promise<void> {
@@ -153,23 +159,24 @@ export class NotificationSchedulerService {
           gte: new Date(),
         },
       },
-      include: {
-        orders: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { id: true },
-        },
-      },
+      select: { id: true, userId: true },
     });
 
     for (const sub of subscriptions) {
       try {
-        const latestOrder = sub.orders[0];
+        // Find the patient's most recent delivered order
+        const latestOrder = await this.prisma.order.findFirst({
+          where: { patientId: sub.userId, status: 'DELIVERED' },
+          orderBy: { deliveredAt: 'desc' },
+          select: { id: true },
+        });
+
         if (latestOrder) {
           await this.notificationService.notifyMonthlyReorder(latestOrder.id);
         }
-      } catch (error) {
-        this.logger.error(`Failed to send reorder notification for sub ${sub.id}: ${error.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to send reorder notification for sub ${sub.id}: ${message}`);
       }
     }
 

@@ -43,8 +43,8 @@ describe('NotificationSchedulerService', () => {
             labOrder: {
               findMany: jest.fn().mockResolvedValue([]),
             },
-            labSlot: {
-              findMany: jest.fn().mockResolvedValue([]),
+            order: {
+              findFirst: jest.fn().mockResolvedValue(null),
             },
             subscription: {
               findMany: jest.fn().mockResolvedValue([]),
@@ -217,18 +217,14 @@ describe('NotificationSchedulerService', () => {
   });
 
   // --- checkCollectionReminders ---
+  // LabOrder has bookedDate field; LabSlot has no direct LabOrder relation
 
   describe('checkCollectionReminders', () => {
     it('should find upcoming appointments and send reminders', async () => {
-      const upcomingSlots = [
-        {
-          id: 'slot-1',
-          labOrder: { id: 'lab-8' },
-          scheduledDate: new Date(),
-          startTime: '10:00',
-        },
+      const upcomingOrders = [
+        { id: 'lab-8' },
       ];
-      (prisma.labSlot.findMany as jest.Mock).mockResolvedValue(upcomingSlots);
+      (prisma.labOrder.findMany as jest.Mock).mockResolvedValue(upcomingOrders);
 
       await service.checkCollectionReminders();
 
@@ -236,7 +232,7 @@ describe('NotificationSchedulerService', () => {
     });
 
     it('should skip if no upcoming appointments', async () => {
-      (prisma.labSlot.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.labOrder.findMany as jest.Mock).mockResolvedValue([]);
 
       await service.checkCollectionReminders();
 
@@ -245,6 +241,7 @@ describe('NotificationSchedulerService', () => {
   });
 
   // --- checkMonthlyReorders ---
+  // Subscription has no direct Order relation; find latest order per patient
 
   describe('checkMonthlyReorders', () => {
     it('should find subscriptions nearing period end and notify', async () => {
@@ -254,31 +251,33 @@ describe('NotificationSchedulerService', () => {
       const subs = [
         {
           id: 'sub-1',
+          userId: 'user-1',
           currentPeriodEnd: tomorrow,
           status: 'ACTIVE',
-          orders: [{ id: 'order-1' }],
         },
       ];
       (prisma.subscription.findMany as jest.Mock).mockResolvedValue(subs);
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({ id: 'order-1' });
 
       await service.checkMonthlyReorders();
 
       expect(notificationService.notifyMonthlyReorder).toHaveBeenCalledWith('order-1');
     });
 
-    it('should skip subscriptions with no orders', async () => {
+    it('should skip subscriptions with no delivered orders', async () => {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const subs = [
         {
           id: 'sub-2',
+          userId: 'user-2',
           currentPeriodEnd: tomorrow,
           status: 'ACTIVE',
-          orders: [],
         },
       ];
       (prisma.subscription.findMany as jest.Mock).mockResolvedValue(subs);
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue(null);
 
       await service.checkMonthlyReorders();
 
