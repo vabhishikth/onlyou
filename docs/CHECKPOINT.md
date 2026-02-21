@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-21
 
 ## Current Phase: Phase 9 — Notification System + Web Tests
-## Current Task: PR 19 - Web Test Infrastructure + Core Tests
+## Current Task: PR 20 - Notification Scheduler Service
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -44,52 +44,75 @@
 
 ### Phase 9 — Notification System:
 - [x] PR 18: Notification Resolver + DTOs (TDD) — 18 tests
+- [x] PR 20: Notification Scheduler Service (TDD) — 16 tests
 
 ### Web Test Infrastructure:
 - [x] PR 19: Web Test Infrastructure + Core Tests — 63 tests
 
 ## Test Counts:
-- Backend: 2,014 tests (44 test suites)
+- Backend: 2,030 tests (45 test suites)
 - Mobile: 431 tests (29 test suites)
 - Web: 63 tests (7 test suites)
-- **Total: 2,508 tests**
+- **Total: 2,524 tests**
 
 ---
 
-## Current PR: PR 19 — Web Test Infrastructure + Core Tests
+## Current PR: PR 20 — Notification Scheduler Service
 
 ### What was done:
-- Installed Jest + React Testing Library in `web/` package
-- Created `jest.config.js` with ts-jest, module aliases, CSS/image mocks
-- Created `jest.setup.ts` with jest-dom matchers + cleanup between tests
-- Created `__mocks__/` directory with style and file mocks
+- Installed `@nestjs/schedule` dependency
+- Created `NotificationSchedulerService` with 5 cron jobs
+- Added `ScheduleModule.forRoot()` to AppModule
+- Added scheduler to NotificationModule providers
+- Imported LabOrderModule into NotificationModule for SlaEscalationService access
 
-### Test files created:
-| File | Tests | Description |
-|------|-------|-------------|
-| `web/src/lib/__tests__/utils.spec.ts` | 26 | cn, formatINR, formatDate, formatRelativeTime, getInitials, maskPhone, constants |
-| `web/src/hooks/__tests__/use-auth.spec.tsx` | 8 | ME query, requestOTP, verifyOTP, logout, loading states (Apollo MockedProvider) |
-| `web/src/components/ui/__tests__/button.spec.tsx` | 5 | Rendering, variants, loading, disabled, onClick |
-| `web/src/components/ui/__tests__/input.spec.tsx` | 4 | Rendering, placeholder, error state, onChange |
-| `web/src/components/ui/__tests__/badge.spec.tsx` | 9 | Badge, ConsultationStatusBadge, LabOrderStatusBadge, VerticalBadge |
-| `web/src/components/ui/__tests__/skeleton.spec.tsx` | 4 | Skeleton, SkeletonCard, SkeletonList |
-| `web/src/components/ui/__tests__/empty-state.spec.tsx` | 7 | EmptyState, SearchEmptyState |
+### Cron Jobs:
+| Schedule | Method | Description |
+|----------|--------|-------------|
+| Every day 9am | `checkBookingReminders()` | ORDERED lab orders 3+ days → send 3-day reminder |
+| Every day 9am | `checkBookingExpiry()` | ORDERED lab orders 14+ days → final reminder + expire |
+| Every 2hr | `checkLabOverdue()` | SAMPLE_RECEIVED 48hr/72hr → notify patient + escalate |
+| Every 30min | `checkCollectionReminders()` | Upcoming appointments → send collection reminder |
+| Every day midnight | `checkMonthlyReorders()` | Active subscriptions nearing period end → reorder prompt |
 
-### 4 commits:
-1. `chore(web): add Jest + React Testing Library test infrastructure`
-2. `test(web): add utility function tests — 26 tests`
-3. `test(web): add UI component tests — 29 tests`
-4. `test(web): add useAuth hook tests — 8 tests`
+### Error Handling:
+- Each job processes items independently (one failure doesn't stop batch)
+- Failed notifications are logged, successful ones are tracked via `markReminderSent`
+- All jobs use try/catch per-item with Logger for error reporting
+
+### 16 new tests:
+- Booking reminders: find overdue (1), skip empty (1), mark sent (1), error resilience (1)
+- Booking expiry: 14-day reminders (1), expire stale (1), filter threshold (1)
+- Lab overdue: 48hr (1), 72hr (1), differentiate tiers (1)
+- Collection reminders: upcoming (1), skip empty (1)
+- Monthly reorders: notify (1), skip no orders (1), skip empty (1)
+- Service definition (1)
+
+### 2 commits:
+1. `test(notification): add scheduler service tests — 16 tests (RED)`
+2. `feat(notification): add scheduled SLA notification jobs (GREEN)`
+
+### Files created:
+- `backend/src/notification/notification-scheduler.service.ts`
+- `backend/src/notification/notification-scheduler.service.spec.ts`
+
+### Files modified:
+- `backend/src/notification/notification.module.ts` — added scheduler + LabOrderModule import
+- `backend/src/app.module.ts` — added ScheduleModule.forRoot()
+- `backend/package.json` — added @nestjs/schedule
 
 ---
 
-## PR 19 — COMPLETE
+## PR 20 — COMPLETE
+
+**Spec references:** master spec Section 7.4 (SLA Escalation), Section 11 (Notifications)
 
 ---
 
 ## Next Up:
-1. PR 20: Notification Scheduler Service (TDD) — install @nestjs/schedule, cron jobs for SLA reminders
-2. Mobile integration with expanded questionnaires (NO changes needed — data-driven architecture)
+1. Mobile integration verification (NO changes needed — data-driven architecture confirmed)
+2. Phase 10: Production readiness (rate limiting, caching, monitoring)
+3. E2E testing across flows
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
