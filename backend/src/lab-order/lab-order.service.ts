@@ -134,6 +134,48 @@ export class LabOrderService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Get all lab orders for a doctor
+   * Spec: master spec Section 7 — Doctor lab order list
+   */
+  async getDoctorLabOrders(
+    doctorId: string,
+    filters?: { status?: string; vertical?: string; search?: string },
+  ): Promise<any[]> {
+    const where: any = {
+      doctorId,
+      ...(filters?.status ? { status: filters.status } : {}),
+      ...(filters?.vertical
+        ? { consultation: { vertical: filters.vertical } }
+        : {}),
+      ...(filters?.search
+        ? { patient: { name: { contains: filters.search, mode: 'insensitive' } } }
+        : {}),
+    };
+
+    const orders = await this.prisma.labOrder.findMany({
+      where,
+      include: {
+        patient: { select: { name: true, phone: true } },
+        consultation: { select: { vertical: true } },
+      },
+      orderBy: { orderedAt: 'desc' },
+    });
+
+    return orders.map((order) => ({
+      id: order.id,
+      consultationId: order.consultationId,
+      patientName: order.patient?.name || undefined,
+      vertical: order.consultation?.vertical,
+      testPanel: order.testPanel,
+      panelName: order.panelName || undefined,
+      status: order.status,
+      criticalValues: order.criticalValues || false,
+      orderedAt: order.orderedAt,
+      resultFileUrl: order.resultFileUrl || undefined,
+    }));
+  }
+
+  /**
    * Check if a status transition is valid
    */
   isValidTransition(from: LabOrderStatus, to: LabOrderStatus): boolean {

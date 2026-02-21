@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { LabOrderService, LabOrderStatus } from './lab-order.service';
 import { HealthVertical } from '@prisma/client';
@@ -9,6 +9,8 @@ import {
     AvailablePanelsResponse,
     CreateLabOrderInput,
     CreateLabOrderResponse,
+    DoctorLabOrderItem,
+    DoctorLabOrdersFilterInput,
     LabOrderType,
     ReviewLabResultsInput,
     ReviewLabResultsResponse,
@@ -23,6 +25,21 @@ export class LabOrderResolver {
         private readonly labOrderService: LabOrderService,
         private readonly prisma: PrismaService,
     ) {}
+
+    /**
+     * Get all lab orders for the logged-in doctor
+     * Spec: master spec Section 7 — Doctor lab order list
+     */
+    @Query(() => [DoctorLabOrderItem])
+    @UseGuards(JwtAuthGuard)
+    async doctorLabOrders(
+        @Context() context: any,
+        @Args('filters', { type: () => DoctorLabOrdersFilterInput, nullable: true })
+        filters?: DoctorLabOrdersFilterInput,
+    ): Promise<DoctorLabOrderItem[]> {
+        const doctorId = context.req.user.id;
+        return this.labOrderService.getDoctorLabOrders(doctorId, filters ?? undefined);
+    }
 
     /**
      * Get available test panels for a vertical

@@ -253,3 +253,54 @@ export class ReviewLabResultsResponse {
     @Field(() => LabOrderType, { nullable: true })
     labOrder?: LabOrderType | undefined;
 }
+
+// Doctor lab orders list item
+// Spec: master spec Section 7 — Doctor lab order list
+@ObjectType()
+export class DoctorLabOrderItem {
+    @Field(() => String)
+    id: string;
+
+    @Field(() => String)
+    consultationId: string;
+
+    @Field(() => String, { nullable: true })
+    patientName?: string;
+
+    @Field(() => HealthVertical)
+    vertical: HealthVertical;
+
+    @Field(() => [String])
+    testPanel: string[];
+
+    @Field(() => String, { nullable: true })
+    panelName?: string;
+
+    @Field(() => LabOrderStatus)
+    status: LabOrderStatus;
+
+    @Field(() => Boolean)
+    criticalValues: boolean;
+
+    @Field(() => Date)
+    orderedAt: Date;
+
+    @Field(() => String, { nullable: true })
+    resultFileUrl?: string;
+}
+
+// Filter input for doctor lab orders list
+@InputType()
+export class DoctorLabOrdersFilterInput {
+    @Field(() => LabOrderStatus, { nullable: true })
+    @IsOptional()
+    status?: LabOrderStatus;
+
+    @Field(() => HealthVertical, { nullable: true })
+    @IsOptional()
+    vertical?: HealthVertical;
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    search?: string;
+}

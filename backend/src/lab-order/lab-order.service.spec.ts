@@ -1288,4 +1288,144 @@ describe('LabOrderService', () => {
       );
     });
   });
+
+  // --- getDoctorLabOrders ---
+  // Spec: master spec Section 7 — Doctor lab order list query
+
+  describe('getDoctorLabOrders', () => {
+    const mockLabOrderRows = [
+      {
+        id: 'lo-1',
+        patientId: 'patient-1',
+        consultationId: 'consultation-1',
+        doctorId: 'doctor-1',
+        testPanel: ['TSH', 'CBC', 'Ferritin'],
+        panelName: 'Hair Loss Basic Panel',
+        status: 'ORDERED',
+        criticalValues: false,
+        orderedAt: new Date('2026-02-10'),
+        resultFileUrl: null,
+        patient: { name: 'Alice Patient', phone: '+919876543210' },
+        consultation: { vertical: HealthVertical.HAIR_LOSS },
+      },
+      {
+        id: 'lo-2',
+        patientId: 'patient-2',
+        consultationId: 'consultation-2',
+        doctorId: 'doctor-1',
+        testPanel: ['Fasting_Glucose', 'HbA1c'],
+        panelName: 'ED Basic Panel',
+        status: 'RESULTS_READY',
+        criticalValues: true,
+        orderedAt: new Date('2026-02-15'),
+        resultFileUrl: 'https://s3.example.com/results.pdf',
+        patient: { name: 'Bob Patient', phone: '+919876543211' },
+        consultation: { vertical: HealthVertical.SEXUAL_HEALTH },
+      },
+    ];
+
+    it('should return all lab orders for the logged-in doctor across all statuses', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue(mockLabOrderRows);
+
+      const result = await service.getDoctorLabOrders('doctor-1');
+
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { doctorId: 'doctor-1' },
+          orderBy: { orderedAt: 'desc' },
+        }),
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('lo-1');
+      expect(result[0].patientName).toBe('Alice Patient');
+      expect(result[0].vertical).toBe(HealthVertical.HAIR_LOSS);
+    });
+
+    it('should return empty array when doctor has no lab orders', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([]);
+
+      const result = await service.getDoctorLabOrders('doctor-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should filter by status when provided', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrderRows[0]]);
+
+      await service.getDoctorLabOrders('doctor-1', { status: 'ORDERED' });
+
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { doctorId: 'doctor-1', status: 'ORDERED' },
+        }),
+      );
+    });
+
+    it('should filter by vertical when provided', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrderRows[0]]);
+
+      await service.getDoctorLabOrders('doctor-1', { vertical: HealthVertical.HAIR_LOSS });
+
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            doctorId: 'doctor-1',
+            consultation: { vertical: HealthVertical.HAIR_LOSS },
+          },
+        }),
+      );
+    });
+
+    it('should filter by patient name search', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrderRows[0]]);
+
+      await service.getDoctorLabOrders('doctor-1', { search: 'alice' });
+
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            doctorId: 'doctor-1',
+            patient: { name: { contains: 'alice', mode: 'insensitive' } },
+          },
+        }),
+      );
+    });
+
+    it('should include criticalValues flag in results', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrderRows[1]]);
+
+      const result = await service.getDoctorLabOrders('doctor-1');
+
+      expect(result[0].criticalValues).toBe(true);
+      expect(result[0].resultFileUrl).toBe('https://s3.example.com/results.pdf');
+    });
+
+    it('should order results by most recent first', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue(mockLabOrderRows);
+
+      await service.getDoctorLabOrders('doctor-1');
+
+      expect(mockPrismaService.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { orderedAt: 'desc' },
+        }),
+      );
+    });
+
+    it('should map fields correctly including vertical from consultation', async () => {
+      mockPrismaService.labOrder.findMany.mockResolvedValue([mockLabOrderRows[1]]);
+
+      const result = await service.getDoctorLabOrders('doctor-1');
+
+      expect(result[0]).toEqual(expect.objectContaining({
+        id: 'lo-2',
+        consultationId: 'consultation-2',
+        patientName: 'Bob Patient',
+        vertical: HealthVertical.SEXUAL_HEALTH,
+        panelName: 'ED Basic Panel',
+        status: 'RESULTS_READY',
+        criticalValues: true,
+      }));
+    });
+  });
 });
