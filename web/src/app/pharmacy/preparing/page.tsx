@@ -8,17 +8,22 @@ import {
     CheckCircle,
     Loader2,
     X,
+    ArrowRightLeft,
+    ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     PHARMACY_PREPARING_ORDERS,
     PHARMACY_MARK_READY,
+    PHARMACY_PROPOSE_SUBSTITUTION,
+    PHARMACY_CONFIRM_DISCREET_PACKAGING,
     PharmacyPreparingOrdersResponse,
     PharmacyOrderSummary,
     PHARMACY_STATUS_CONFIG,
 } from '@/graphql/pharmacy-portal';
 
 // Spec: master spec Section 8.1 — Pharmacy Portal
+// Spec: Phase 15 — Substitution proposal + discreet packaging
 // Preparing tab: orders currently being prepared
 
 export default function PharmacyPreparingPage() {
@@ -36,6 +41,14 @@ export default function PharmacyPreparingPage() {
             setSelectedOrder(null);
             refetch();
         },
+    });
+
+    const [proposeSubstitution] = useMutation(PHARMACY_PROPOSE_SUBSTITUTION, {
+        onCompleted: () => refetch(),
+    });
+
+    const [confirmDiscreetPackaging] = useMutation(PHARMACY_CONFIRM_DISCREET_PACKAGING, {
+        onCompleted: () => refetch(),
     });
 
     const orders = data?.pharmacyPreparingOrders || [];
@@ -97,6 +110,16 @@ export default function PharmacyPreparingPage() {
                         <OrderCard
                             order={order}
                             onMarkReady={() => openConfirmDialog(order)}
+                            onProposeSubstitution={(details: any) =>
+                                proposeSubstitution({
+                                    variables: { pharmacyOrderId: order.id, substitutionDetails: details },
+                                })
+                            }
+                            onConfirmDiscreet={() =>
+                                confirmDiscreetPackaging({
+                                    variables: { pharmacyOrderId: order.id },
+                                })
+                            }
                         />
                     </motion.div>
                 ))}
@@ -154,10 +177,19 @@ export default function PharmacyPreparingPage() {
 function OrderCard({
     order,
     onMarkReady,
+    onProposeSubstitution,
+    onConfirmDiscreet,
 }: {
     order: PharmacyOrderSummary;
     onMarkReady: () => void;
+    onProposeSubstitution: (details: any) => void;
+    onConfirmDiscreet: () => void;
 }) {
+    const [showSubForm, setShowSubForm] = useState(false);
+    const [subOriginal, setSubOriginal] = useState('');
+    const [subProposed, setSubProposed] = useState('');
+    const [subReason, setSubReason] = useState('');
+
     return (
         <div className="card-premium p-4 border-l-4 border-blue-500">
             {/* Header */}
@@ -191,6 +223,81 @@ function OrderCard({
                     </div>
                 ))}
             </div>
+
+            {/* Phase 15: Propose substitution */}
+            <div className="flex gap-2 mb-3">
+                <button
+                    data-testid={`propose-sub-${order.id}`}
+                    onClick={() => setShowSubForm(!showSubForm)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    Propose Substitution
+                </button>
+                <label
+                    data-testid={`discreet-packaging-${order.id}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors"
+                >
+                    <input
+                        type="checkbox"
+                        onChange={(e) => { if (e.target.checked) onConfirmDiscreet(); }}
+                        className="w-3.5 h-3.5"
+                    />
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Discreet Packaging
+                </label>
+            </div>
+
+            {/* Substitution form */}
+            {showSubForm && (
+                <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                    <input
+                        data-testid="sub-original-input"
+                        type="text"
+                        placeholder="Original medication..."
+                        value={subOriginal}
+                        onChange={(e) => setSubOriginal(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm mb-2"
+                    />
+                    <input
+                        data-testid="sub-proposed-input"
+                        type="text"
+                        placeholder="Proposed substitution..."
+                        value={subProposed}
+                        onChange={(e) => setSubProposed(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm mb-2"
+                    />
+                    <input
+                        data-testid="sub-reason-input"
+                        type="text"
+                        placeholder="Reason for substitution..."
+                        value={subReason}
+                        onChange={(e) => setSubReason(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm mb-2"
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => {
+                                onProposeSubstitution({
+                                    originalMedication: subOriginal,
+                                    proposedSubstitution: subProposed,
+                                    reason: subReason,
+                                });
+                                setShowSubForm(false);
+                            }}
+                            className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700"
+                        >
+                            Submit Proposal
+                        </button>
+                        <button
+                            onClick={() => setShowSubForm(false)}
+                            className="px-3 py-2 text-sm text-neutral-500 hover:text-foreground"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Action */}
             <button

@@ -135,6 +135,33 @@ export const PHARMACY_REJECT_ORDER = gql`
     }
 `;
 
+// Spec: Phase 15 — Pharmacy propose substitution
+export const PHARMACY_PROPOSE_SUBSTITUTION = gql`
+    mutation PharmacyProposeSubstitution(
+        $pharmacyOrderId: String!
+        $substitutionDetails: JSON!
+    ) {
+        proposeSubstitution(
+            pharmacyOrderId: $pharmacyOrderId
+            substitutionDetails: $substitutionDetails
+        )
+    }
+`;
+
+// Spec: Phase 15 — Confirm discreet packaging (gate for markReadyForPickup)
+export const PHARMACY_CONFIRM_DISCREET_PACKAGING = gql`
+    mutation PharmacyConfirmDiscreetPackaging($pharmacyOrderId: String!) {
+        confirmDiscreetPackaging(pharmacyOrderId: $pharmacyOrderId)
+    }
+`;
+
+// Spec: Phase 15 — Mark ready for pickup (requires discreet packaging confirmed)
+export const PHARMACY_MARK_READY_FOR_PICKUP = gql`
+    mutation PharmacyMarkReadyForPickup($pharmacyOrderId: String!) {
+        markReadyForPickup(pharmacyOrderId: $pharmacyOrderId)
+    }
+`;
+
 // =============================================
 // TYPES
 // =============================================

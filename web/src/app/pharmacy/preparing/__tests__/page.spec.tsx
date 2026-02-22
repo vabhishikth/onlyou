@@ -7,7 +7,11 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MockedProvider, MockedResponse } from '@apollo/client/testing';
 import PreparingPage from '../page';
-import { PHARMACY_PREPARING_ORDERS } from '@/graphql/pharmacy-portal';
+import {
+    PHARMACY_PREPARING_ORDERS,
+    PHARMACY_PROPOSE_SUBSTITUTION,
+    PHARMACY_CONFIRM_DISCREET_PACKAGING,
+} from '@/graphql/pharmacy-portal';
 
 jest.mock('framer-motion', () => ({
     motion: {
@@ -81,5 +85,41 @@ describe('Pharmacy Preparing Page', () => {
         await waitFor(() => {
             expect(screen.getByText(/Ready for Pickup/)).toBeDefined();
         });
+    });
+
+    // Phase 15: Substitution proposal
+    it('should show propose substitution button on order cards', async () => {
+        renderWithProvider([ordersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Finasteride')).toBeDefined();
+        });
+
+        expect(screen.getByTestId('propose-sub-po-1')).toBeDefined();
+    });
+
+    it('should show substitution form when button clicked', async () => {
+        const { fireEvent: fe } = require('@testing-library/react');
+        renderWithProvider([ordersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Finasteride')).toBeDefined();
+        });
+
+        fe.click(screen.getByTestId('propose-sub-po-1'));
+        expect(screen.getByTestId('sub-original-input')).toBeDefined();
+        expect(screen.getByTestId('sub-proposed-input')).toBeDefined();
+        expect(screen.getByTestId('sub-reason-input')).toBeDefined();
+    });
+
+    // Phase 15: Discreet packaging checkbox
+    it('should show discreet packaging confirmation checkbox', async () => {
+        renderWithProvider([ordersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Finasteride')).toBeDefined();
+        });
+
+        expect(screen.getByTestId('discreet-packaging-po-1')).toBeDefined();
     });
 });
