@@ -140,10 +140,7 @@ export class SlotBookingService {
       throw new BadRequestException('This booking has already been cancelled or completed');
     }
 
-    // Check 2-hour rule (log as late cancellation but still allow)
-    const hoursUntilSlot =
-      (bookedSlot.startTime.getTime() - Date.now()) / (1000 * 60 * 60);
-    const isLateCancellation = hoursUntilSlot < 2;
+    // 2-hour rule check deferred to future analytics
 
     return this.prisma.$transaction(async (tx) => {
       // Update BookedSlot

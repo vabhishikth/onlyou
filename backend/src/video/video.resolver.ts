@@ -3,7 +3,6 @@ import { UseGuards } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,11 +14,7 @@ import { VideoSchedulerService } from './video-scheduler.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoSessionStatus } from '@prisma/client';
 import {
-  BookVideoSlotInput,
-  RescheduleVideoBookingInput,
   SetAvailabilitySlotInput,
-  CompleteVideoSessionInput,
-  MarkAwaitingLabsInput,
 } from './dto/video.input';
 import {
   AvailableSlotsResponse,
@@ -38,8 +33,6 @@ import {
 
 @Resolver()
 export class VideoResolver {
-  private readonly logger = new Logger(VideoResolver.name);
-
   constructor(
     private readonly availabilityService: AvailabilityService,
     private readonly slotBookingService: SlotBookingService,
@@ -142,7 +135,7 @@ export class VideoResolver {
     const roomId = session.reconnectRoomId || session.roomId;
     const role = user.role === 'DOCTOR' ? 'doctor' : 'patient';
 
-    const token = await this.hmsService.generateToken(roomId, user.id, role);
+    const token = await this.hmsService.generateToken(roomId!, user.id, role);
 
     return { roomId, token };
   }
@@ -260,7 +253,7 @@ export class VideoResolver {
       data: {
         status: VideoSessionStatus.COMPLETED,
         notes,
-        callType: callType || 'VIDEO',
+        callType: (callType || 'VIDEO') as any,
         actualEndTime: new Date(),
       },
     });

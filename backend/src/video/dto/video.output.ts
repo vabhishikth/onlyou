@@ -5,7 +5,7 @@ import {
   DayOfWeek,
   CallType,
 } from '@prisma/client';
-import { GraphQLJSON } from 'graphql-type-json';
+// graphql-type-json available if needed for JSON fields
 
 // Spec: Phase 14 — Chunk 0
 // GraphQL output types for video consultation endpoints

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -6,8 +6,6 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class VideoNotificationService {
-  private readonly logger = new Logger(VideoNotificationService.name);
-
   constructor(
     private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,

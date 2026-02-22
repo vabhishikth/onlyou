@@ -21,8 +21,6 @@ export interface DisconnectResult {
 export class HmsService {
   private readonly logger = new Logger(HmsService.name);
   private readonly accessKey: string;
-  private readonly appSecret: string;
-  private readonly templateId: string;
   private readonly webhookSecret: string;
   private readonly isMockMode: boolean;
 
@@ -31,8 +29,6 @@ export class HmsService {
     private readonly configService: ConfigService,
   ) {
     this.accessKey = this.configService.get<string>('HMS_ACCESS_KEY') || '';
-    this.appSecret = this.configService.get<string>('HMS_APP_SECRET') || '';
-    this.templateId = this.configService.get<string>('HMS_TEMPLATE_ID') || '';
     this.webhookSecret = this.configService.get<string>('HMS_WEBHOOK_SECRET') || '';
     this.isMockMode = !this.accessKey;
   }
@@ -42,7 +38,8 @@ export class HmsService {
    * In mock mode: returns deterministic mock room ID
    */
   async createRoom(videoSessionId: string): Promise<{ roomId: string }> {
-    const session = await this.prisma.videoSession.findUnique({
+    // Validate session exists (used for future real API context)
+    await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
 

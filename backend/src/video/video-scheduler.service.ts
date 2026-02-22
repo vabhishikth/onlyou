@@ -166,7 +166,7 @@ export class VideoSchedulerService {
    * Transition consultation to AWAITING_LABS
    * Called when doctor requests labs before prescribing
    */
-  async onAwaitingLabs(consultationId: string, labNotes: string): Promise<void> {
+  async onAwaitingLabs(consultationId: string, _labNotes: string): Promise<void> {
     await this.prisma.consultation.update({
       where: { id: consultationId },
       data: { status: ConsultationStatus.AWAITING_LABS },
