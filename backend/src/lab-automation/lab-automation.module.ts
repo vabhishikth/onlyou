@@ -8,6 +8,7 @@ import { SlotAssignmentService } from './slot-assignment.service';
 import { CollectionTrackingService } from './collection-tracking.service';
 import { LabProcessingService } from './lab-processing.service';
 import { BiomarkerDashboardService } from './biomarker-dashboard.service';
+import { LabAutomationResolver } from './lab-automation.resolver';
 
 // Spec: Phase 16 — Lab Automation Module
 
@@ -21,6 +22,7 @@ import { BiomarkerDashboardService } from './biomarker-dashboard.service';
     CollectionTrackingService,
     LabProcessingService,
     BiomarkerDashboardService,
+    LabAutomationResolver,
   ],
   exports: [
     LabOnboardingService,
