@@ -2,6 +2,22 @@ import { gql } from '@apollo/client';
 
 // Spec: Phase 13 — Doctor video consultation management endpoints
 
+// Get doctor's video sessions (today's and upcoming)
+export const DOCTOR_VIDEO_SESSIONS = gql`
+    query DoctorVideoSessions {
+        doctorVideoSessions {
+            id
+            consultationId
+            patientName
+            patientId
+            status
+            scheduledStartTime
+            scheduledEndTime
+            recordingConsentGiven
+        }
+    }
+`;
+
 // Get doctor's recurring availability slots
 export const MY_AVAILABILITY = gql`
     query MyAvailability {
@@ -65,6 +81,21 @@ export const MARK_AWAITING_LABS = gql`
 
 // Types
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface DoctorVideoSession {
+    id: string;
+    consultationId: string;
+    patientName: string;
+    patientId: string;
+    status: string;
+    scheduledStartTime: string;
+    scheduledEndTime: string;
+    recordingConsentGiven: boolean;
+}
+
+export interface DoctorVideoSessionsResponse {
+    doctorVideoSessions: DoctorVideoSession[];
+}
 
 export interface AvailabilitySlot {
     id: string;
