@@ -237,6 +237,11 @@ model User {
   suspendedPharmacies   Pharmacy[]              @relation("PharmacySuspendedBy")
   autoRefillConfigs     AutoRefillConfig[]      @relation("PatientAutoRefills")
 
+  // Phase 16: Lab automation relations
+  onboardedPartnerLabs  PartnerLab[]            @relation("PartnerLabOnboardedBy")
+  activatedPartnerLabs  PartnerLab[]            @relation("PartnerLabActivatedBy")
+  suspendedPartnerLabs  PartnerLab[]            @relation("PartnerLabSuspendedBy")
+
   @@index([phone])
   @@index([role])
 }
@@ -1544,4 +1549,203 @@ model AutoRefillConfig {
   @@index([patientId])
   @@index([prescriptionId])
   @@index([nextRefillDate])
+}
+
+// ============================================
+// LAB AUTOMATION (Phase 16)
+// Spec: Phase 16 — Lab/Phlebotomist Auto-Assignment + Automation
+// New models alongside old (PartnerDiagnosticCentre, Phlebotomist, LabOrder)
+// ============================================
+
+// Spec: Phase 16 Chunk 1 — Partner Lab Status
+enum PartnerLabStatus {
+  PENDING_VERIFICATION
+  DOCUMENTS_SUBMITTED
+  UNDER_REVIEW
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+// Spec: Phase 16 Chunk 1 — Lab Technician Role
+enum LabTechRole {
+  LAB_TECHNICIAN
+  LAB_SUPERVISOR
+  LAB_ADMIN
+}
+
+// Spec: Phase 16 Chunk 1 — Phlebotomist Onboarding Status
+enum PhlebotomistOnboardingStatus {
+  PHLEB_PENDING_VERIFICATION
+  PHLEB_TRAINING
+  PHLEB_ACTIVE
+  PHLEB_SUSPENDED
+  PHLEB_DEACTIVATED
+}
+
+// Spec: Phase 16 Chunk 1 — Background Verification Status
+enum BackgroundVerificationStatus {
+  BG_PENDING
+  BG_IN_PROGRESS
+  BG_VERIFIED
+  BG_FAILED
+}
+
+// Spec: Phase 16 Chunk 1 — Partner Lab (alongside old PartnerDiagnosticCentre)
+model PartnerLab {
+  id                        String           @id @default(cuid())
+  name                      String
+  city                      String
+  address                   String
+  pincode                   String
+  contactPhone              String
+  contactEmail              String?
+  status                    PartnerLabStatus @default(PENDING_VERIFICATION)
+
+  // Lab capabilities
+  acceptsWalkIn             Boolean          @default(true)
+  testsAvailable            String[]         // e.g., ["CBC", "TSH", "lipid_panel"]
+  resultsSlaHours           Int              @default(48)
+  canProcessCriticalSamples Boolean          @default(true)
+
+  // NABL accreditation (India's lab accreditation body)
+  nablAccredited            Boolean          @default(false)
+  nablCertificateNumber     String?
+  nablCertificateExpiry     DateTime?
+  nablCertificateDocumentUrl String?
+
+  // State clinical establishment license
+  labLicenseNumber          String           @unique
+  labLicenseExpiry          DateTime
+  labLicenseDocumentUrl     String?
+
+  // Business details
+  gstNumber                 String?
+  ownerName                 String
+  ownerPhone                String
+
+  // Agreement
+  agreementSignedAt         DateTime?
+  agreementDocumentUrl      String?
+
+  // Operating hours (IST)
+  sampleReceivingHoursStart String?          // "08:00"
+  sampleReceivingHoursEnd   String?          // "18:00"
+
+  // Admin tracking
+  onboardedById             String?
+  activatedById             String?
+  activatedAt               DateTime?
+  suspensionReason          String?
+  suspendedById             String?
+  suspendedAt               DateTime?
+  deactivationReason        String?
+  performanceRating         Float?
+  notes                     String?
+
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  // Relations
+  onboardedBy               User?            @relation("PartnerLabOnboardedBy", fields: [onboardedById], references: [id])
+  activatedBy               User?            @relation("PartnerLabActivatedBy", fields: [activatedById], references: [id])
+  suspendedBy               User?            @relation("PartnerLabSuspendedBy", fields: [suspendedById], references: [id])
+  technicians               LabTechnician[]
+  labPhlebotomists          LabPhlebotomist[]
+
+  @@index([city])
+  @@index([status])
+  @@index([pincode])
+}
+
+// Spec: Phase 16 Chunk 1 — Lab Technician (staff at partner labs)
+model LabTechnician {
+  id                        String       @id @default(cuid())
+  labId                     String
+  name                      String
+  email                     String
+  phone                     String
+  role                      LabTechRole  @default(LAB_TECHNICIAN)
+
+  // Qualifications
+  qualificationDetails      String?      // DMLT, BMLT, etc.
+
+  // Permissions
+  isActive                  Boolean      @default(true)
+  canReceiveSamples         Boolean      @default(false)
+  canUploadResults          Boolean      @default(false)
+  canFlagCriticals          Boolean      @default(true)
+
+  // Tracking
+  lastLoginAt               DateTime?
+  invitedById               String?
+  invitedAt                 DateTime     @default(now())
+  activatedAt               DateTime?
+
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  // Relations
+  lab                       PartnerLab   @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@index([labId])
+  @@index([email])
+}
+
+// Spec: Phase 16 Chunk 1 — Lab Phlebotomist (alongside old Phlebotomist)
+model LabPhlebotomist {
+  id                              String                      @id @default(cuid())
+  name                            String
+  phone                           String
+  email                           String?
+  status                          PhlebotomistOnboardingStatus @default(PHLEB_PENDING_VERIFICATION)
+  isActive                        Boolean                     @default(true)
+
+  // Coverage
+  serviceableAreas                String[]                    // pincodes
+  city                            String
+  maxDailyCapacity                Int                         @default(10)
+
+  // Lab assignment
+  assignedLabId                   String
+
+  // Certification
+  certificationNumber             String?
+  certificationExpiry             DateTime?
+  certificationDocumentUrl        String?
+
+  // Training
+  trainingCompletedAt             DateTime?
+  trainingDocumentUrl             String?
+
+  // Background verification
+  backgroundVerificationStatus    BackgroundVerificationStatus @default(BG_PENDING)
+  backgroundVerificationCompletedAt DateTime?
+
+  // Equipment
+  equipmentChecklist              Json?                       // { coolerBox, tubeKit, barcodeScanner, gloves, sharpsContainer }
+  equipmentVerifiedAt             DateTime?
+  equipmentVerifiedById           String?
+
+  // Quality metrics
+  sampleQualityRate               Float?                      // successful / total
+
+  // Admin tracking
+  onboardedById                   String?
+  activatedById                   String?
+  activatedAt                     DateTime?
+  suspensionReason                String?
+  suspendedById                   String?
+  notes                           String?
+
+  createdAt                       DateTime                    @default(now())
+  updatedAt                       DateTime                    @updatedAt
+
+  // Relations
+  assignedLab                     PartnerLab                  @relation(fields: [assignedLabId], references: [id])
+
+  @@index([city])
+  @@index([status])
+  @@index([assignedLabId])
+  @@index([phone])
 }
