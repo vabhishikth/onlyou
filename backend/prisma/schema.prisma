@@ -137,6 +137,33 @@ enum PharmacyStaffRole {
   PHARMACY_ADMIN
 }
 
+// Spec: Phase 15 — Pharmacy Order Status
+enum PharmacyOrderStatus {
+  PENDING_ASSIGNMENT
+  ASSIGNED
+  PHARMACY_ACCEPTED
+  PHARMACY_REJECTED
+  PREPARING
+  STOCK_ISSUE
+  AWAITING_SUBSTITUTION_APPROVAL
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERY_ATTEMPTED
+  DELIVERED
+  DELIVERY_FAILED
+  CANCELLED
+}
+
+// Spec: Phase 15 — Delivery Tracking Status
+enum DeliveryTrackingStatus {
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED
+  DELIVERED
+  FAILED_ATTEMPT
+  RETURNED
+}
+
 // Spec: master spec Section 7.3 — Lab Order Status Enum
 // Main flow: ORDERED → SLOT_BOOKED → PHLEBOTOMIST_ASSIGNED → SAMPLE_COLLECTED →
 //            DELIVERED_TO_LAB → SAMPLE_RECEIVED → PROCESSING → RESULTS_READY →
@@ -523,6 +550,7 @@ model Prescription {
 
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   orders       Order[]
+  pharmacyOrders PharmacyOrder[] // Phase 15
 
   @@index([consultationId])
 }
@@ -1298,6 +1326,8 @@ model Pharmacy {
   activatedBy                 User?          @relation("PharmacyActivatedBy", fields: [activatedById], references: [id])
   suspendedBy                 User?          @relation("PharmacySuspendedBy", fields: [suspendedById], references: [id])
   staff                       PharmacyStaff[]
+  pharmacyOrders              PharmacyOrder[]
+  inventory                   PharmacyInventory[]
 
   @@index([city])
   @@index([status])
@@ -1339,4 +1369,136 @@ model PharmacyStaff {
 
   @@index([pharmacyId])
   @@index([userId])
+}
+
+// Spec: Phase 15 Chunk 2 — Pharmacy Order (prescription -> pharmacy fulfillment -> delivery)
+model PharmacyOrder {
+  id                          String              @id @default(cuid())
+  orderNumber                 String              @unique // Format: PO-XXXXXX
+  prescriptionId              String
+  pharmacyId                  String?             // null until assigned
+  patientId                   String
+  consultationId              String
+  status                      PharmacyOrderStatus @default(PENDING_ASSIGNMENT)
+
+  // Assignment
+  assignedAt                  DateTime?
+  assignedBy                  String?             // "AUTO" or admin userId
+
+  // Acceptance
+  acceptedAt                  DateTime?
+  acceptedByStaffId           String?
+
+  // Preparation
+  preparingAt                 DateTime?
+  readyForPickupAt            DateTime?
+
+  // Delivery
+  dispatchedAt                DateTime?
+  deliveredAt                 DateTime?
+  deliveryAddress             String
+  deliveryPincode             String
+  deliveryCity                String
+  deliveryOtp                 String?             // 4-digit OTP for delivery confirmation
+  deliveryAttempts            Int                 @default(0)
+  deliveryAttemptedAt         DateTime?
+
+  // Cold chain & packaging
+  requiresColdChain           Boolean             @default(false)
+  isDiscreetPackagingConfirmed Boolean            @default(false)
+  discreetPackagingConfirmedById String?
+
+  // Rejection
+  rejectionReason             String?
+  rejectedByStaffId           String?
+
+  // Stock issues & substitution
+  stockIssueAt                DateTime?
+  stockIssueDetails           String?
+  substitutionDetails         Json?               // {originalMedication, proposedSubstitution, reason}
+  substitutionProposedByStaffId String?
+  substitutionApprovedBy      String?             // doctor userId
+
+  // SLA tracking
+  slaBreaches                 Json?               // [{timestamp, slaType, details}]
+
+  // Failure/cancellation
+  deliveryFailedAt            DateTime?
+  deliveryFailedReason        String?
+  cancelledAt                 DateTime?
+  cancellationReason          String?
+
+  // Refill
+  isAutoRefill                Boolean             @default(false)
+  refillNumber                Int?
+  parentPharmacyOrderId       String?
+
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+
+  // Relations
+  prescription                Prescription        @relation(fields: [prescriptionId], references: [id])
+  pharmacy                    Pharmacy?           @relation(fields: [pharmacyId], references: [id])
+  deliveryTracking            DeliveryTracking[]
+
+  @@index([pharmacyId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([consultationId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Spec: Phase 15 Chunk 2 — Delivery Tracking per attempt
+model DeliveryTracking {
+  id                          String                @id @default(cuid())
+  pharmacyOrderId             String
+  status                      DeliveryTrackingStatus @default(PICKED_UP)
+  statusUpdatedAt             DateTime              @default(now())
+
+  // Delivery person
+  deliveryPersonName          String?
+  deliveryPersonPhone         String?
+
+  // Timing
+  estimatedDeliveryTime       DateTime?
+  actualDeliveryTime          DateTime?
+
+  // Outcome
+  failureReason               String?
+  otpVerified                 Boolean               @default(false)
+  notes                       String?
+
+  // Attempt tracking
+  attemptNumber               Int                   @default(1)
+
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+
+  pharmacyOrder               PharmacyOrder         @relation(fields: [pharmacyOrderId], references: [id])
+
+  @@index([pharmacyOrderId])
+  @@index([status])
+}
+
+// Spec: Phase 15 Chunk 2 — Pharmacy Inventory (manual stock reporting for MVP)
+model PharmacyInventory {
+  id                          String   @id @default(cuid())
+  pharmacyId                  String
+  medicationName              String
+  genericName                 String?
+  isInStock                   Boolean  @default(true)
+  quantity                    Int?     // optional — not all pharmacies report quantity
+  requiresColdChain           Boolean  @default(false)
+  lastUpdatedById             String?  // PharmacyStaff userId
+  lastUpdatedAt               DateTime @default(now())
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  pharmacy                    Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+
+  @@unique([pharmacyId, medicationName])
+  @@index([pharmacyId])
+  @@index([medicationName])
 }
