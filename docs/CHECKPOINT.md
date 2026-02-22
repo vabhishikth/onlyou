@@ -1,173 +1,92 @@
 # CHECKPOINT — Last Updated: 2026-02-22
 
-## Current Phase: Phase 12 — Doctor Onboarding + Auto-Assignment Engine (COMPLETE)
-## Current Task: All 8 Commits Complete
+## Current Phase: Phase 13 — Video Consultation Integration (COMPLETE)
+## Current Task: All 8 Chunks Complete
 ## Status: COMPLETE
 
 ## Completed Work:
 
-### Mobile Redesign (PRs 1-7) — ALL COMPLETE
-- [x] PR 1: Design System Foundation — 5 tests
-- [x] PR 2: Splash + Welcome Restyle — 8 tests
-- [x] PR 3: Onboarding Flow (4 screens) — 47 tests
-- [x] PR 4: Home Dashboard Restyle — 54 tests
-- [x] PR 5: Treatment + Questionnaire + Photo Restyle — 77 tests
-- [x] PR 6: Remaining Screens (Activity, Messages, Orders, Profile) — 91 tests
-- [x] PR 7: Phone screen restyle + complete theme migration — 21 tests
-- [x] Cleanup: Explicit GraphQL field types, Expo Router layouts, Prisma type fixes
+### Phases 1-12 — ALL COMPLETE (see git log)
 
-### Backend Phases 1-11 — ALL COMPLETE
-
-### Doctor Dashboard (Phase 3):
-- [x] PR 8: Consultation + Messaging Resolvers — 18 tests (TDD)
-- [x] PR 9: Web fixes + seed data
-- [x] PR 10: Doctor Dashboard Polish (4 commits)
-
-### Phase 4 — Blood Work & Delivery:
-- [x] PR 11: Order + Wallet GraphQL Resolvers (2 commits)
-- [x] PR 12: Portal Test Coverage (4 commits)
-- [x] PR 13: Patient Tracking Screens (4 commits)
-
-### Phase 5 — Payment Integration:
-- [x] PR 14: Payment Integration (Razorpay) — 4 tasks, all complete
-
-### Phase 6 — AI Pre-Assessment:
-- [x] PR 15, Task 1: Claude API integration in AIService (TDD)
-- [x] PR 15, Task 2: AI Resolver + DTOs + intake trigger (TDD)
-
-### Phase 7 — Prescription PDF Generation:
-- [x] PR 16, Task 1: PDF generation + S3 upload (TDD)
-- [x] PR 16, Task 2: PDF regeneration endpoint (TDD)
-
-### Phase 8 — Questionnaire Expansion:
-- [x] PR 17: Full spec-compliant questionnaires for all 4 verticals (TDD)
-
-### Phase 9 — Notification System + Dashboard Completion:
-- [x] PR 18: Notification Resolver + DTOs (TDD) — 18 tests
-- [x] PR 19: Web Test Infrastructure + Core Tests — 63 tests
-- [x] PR 20: Notification Scheduler Service (TDD) — 16 tests
-- [x] PR 21: Backend Doctor List Queries (TDD) — 24 tests
-- [x] PR 22: Web Doctor List Pages (TDD) — 33 tests
-
-### Phase 10 — Production Readiness (PRs 23-25):
-- [x] PR 23, Task 1: Redis Service Module — 8 tests (TDD)
-- [x] PR 23, Task 2: Environment Validation — 5 tests (TDD)
-- [x] PR 23, Task 3: Health Check Endpoints — 10 tests (TDD)
-- [x] PR 24, Task 1: Redis-based Rate Limit Guard — 8 tests (TDD)
-- [x] PR 24, Task 2: Security Hardening (Helmet + CORS + Depth Limit) — 3 tests
-- [x] PR 25, Task 1: Cache Service — 7 tests (TDD)
-- [x] PR 25, Task 2: Sentry Error Tracking — 11 tests (TDD)
-- [x] PR 25, Task 3: Cache questionnaire templates in Redis (1h TTL)
-
-### Phase 11 — Mobile Missing Screens + Web Portal Tests:
-- [x] PR 26, Task 1: /profile/prescriptions screen — 8 mobile tests + 2 backend tests (TDD)
-- [x] PR 26, Task 2: /profile/lab-results screen — 7 mobile tests (TDD)
-- [x] PR 26, Task 3: /profile/health screen — 6 mobile tests (TDD)
-- [x] PR 26, Task 4: /order/[id] detail screen — 9 mobile tests (TDD)
-- [x] PR 27: Web admin dashboard tests (6 pages) — 44 tests
-- [x] PR 28: Web partner portal tests (lab + pharmacy + collect) — 41 tests
-- [x] PR 29: Mobile sub-screen test coverage (6 screens) — 40 tests
-
-### Phase 12 — Doctor Onboarding + Auto-Assignment Engine:
-- [x] Commit 1: Schema changes — DoctorProfile (7 new fields), Consultation (3 new fields)
-- [x] Commit 2: Doctor onboarding service — 25 tests (TDD)
-- [x] Commit 3: Doctor onboarding resolver — 10 tests (TDD)
-- [x] Commit 4: AI auto-trigger enhancement + assignment wiring — 5 tests (TDD)
-- [x] Commit 5: Assignment service (load-balanced) — 21 tests (TDD)
-- [x] Commit 6: SLA timer service — 8 tests (TDD)
-- [x] Commit 7: Admin doctor web pages — 15 tests
-- [x] Commit 8: Final wiring + AssignmentModule in AppModule + CHECKPOINT
+### Phase 13 — Video Consultation Integration (8 chunks):
+- [x] Chunk 1: Schema models + enums + status transitions + migration
+  - VideoSession, DoctorAvailabilitySlot, BookedSlot models
+  - VideoSessionStatus, CallType, DayOfWeek, BookedSlotStatus enums
+  - ConsultationStatus extended: VIDEO_SCHEDULED, VIDEO_COMPLETED, AWAITING_LABS
+  - Status transitions updated in consultation.service.ts
+- [x] Chunk 2: Doctor availability management service — 17 tests (TDD)
+  - AvailabilityService: setRecurringAvailability, getAvailability, getAvailableSlots, deactivateSlot, getAvailableDoctorSlots
+  - 15-min window generation, booked-slot exclusion
+- [x] Chunk 3: Slot booking service — 23 tests (TDD)
+  - SlotBookingService: bookSlot, cancelBooking, rescheduleBooking, getUpcomingBookings, handleNoShow
+  - Race condition prevention via @@unique constraint + P2002 error handling
+  - CONNECTIVITY_WARNING string for all booking responses
+- [x] Chunk 4: 100ms integration service — 18 tests (TDD)
+  - HmsService: createRoom, generateToken, verifyWebhookSignature, handleWebhook, handleDisconnect, storeRecording
+  - Mock mode when HMS_ACCESS_KEY empty; HMAC SHA256 webhook verification
+- [x] Chunk 5: Prescription gating (critical legal gate) — 14 tests (TDD)
+  - canPrescribe() method: blocks first-time prescriptions without completed video
+  - Per-vertical gating (HAIR_LOSS video doesn't satisfy SEXUAL_HEALTH)
+  - Defense-in-depth: application-layer status verification
+- [x] Chunk 6: Post-call automation + notifications — 22 tests (TDD)
+  - VideoSchedulerService: send24HourReminders, send1HourReminders, createRoomsForUpcomingSessions, checkDoctorNoShow, onVideoCompleted, onAwaitingLabs
+  - VideoNotificationService: 10 notification methods
+- [x] Chunk 7: GraphQL API endpoints — 19 tests (TDD)
+  - VideoResolver: patient (7 endpoints), doctor (7 endpoints), webhook (1 endpoint)
+  - VideoModule: wires all video services
+  - AppModule updated with VideoModule
+- [x] Chunk 8: Edge cases hardening — 25 tests (TDD)
+  - Auto-reconnect, audio/phone fallback, grace period enforcement, session access control, connectivity warning surfacing, error handling
 
 ## Test Counts:
-- Backend: 2,177 tests (58 test suites)
+- Backend: 2,327 tests (66 test suites)
 - Mobile: 501 tests (39 test suites)
 - Web: 196 tests (28 test suites)
-- **Total: 2,874 tests**
+- **Total: 3,024 tests**
 
----
+## Phase 13 New Files:
+```
+backend/src/video/
+  availability.service.ts + .spec.ts     (Chunk 2)
+  slot-booking.service.ts + .spec.ts     (Chunk 3)
+  hms.service.ts + .spec.ts              (Chunk 4)
+  video-scheduler.service.ts + .spec.ts  (Chunk 6)
+  video-notification.service.ts + .spec.ts (Chunk 6)
+  video.resolver.ts + .spec.ts           (Chunk 7)
+  video.module.ts                        (Chunk 7)
+  edge-cases.spec.ts                     (Chunk 8)
+backend/src/prescription/
+  prescription-gating.spec.ts            (Chunk 5)
+```
 
-## Phase 12 Summary — Doctor Onboarding + Auto-Assignment (84 new tests, 8 commits)
+## Modified Files:
+- `backend/prisma/schema.prisma` — 4 new enums, 3 new models, User/Consultation relations
+- `backend/src/consultation/consultation.service.ts` — VALID_STATUS_TRANSITIONS updated
+- `backend/src/prescription/prescription.service.ts` — canPrescribe() + gating in createPrescription
+- `backend/src/prescription/prescription.service.spec.ts` — Mock infrastructure for gating
+- `backend/src/app.module.ts` — Added VideoModule
+- `backend/src/config/env.validation.ts` — HMS_* optional env vars
 
-### Feature 1: Doctor Onboarding (Admin-Only)
+## New Environment Variables (all optional):
+- HMS_ACCESS_KEY, HMS_APP_SECRET, HMS_TEMPLATE_ID, HMS_WEBHOOK_SECRET
 
-**Commit 1: Schema changes**
-- `backend/prisma/schema.prisma` — DoctorProfile: +specializations[], +verticals[], +dailyCaseLimit, +seniorDoctor, +isActive, +lastAssignedAt, +signatureUrl; Consultation: +assignedAt, +slaDeadline, +previousDoctorIds[]
-
-**Commit 2: Doctor service (25 tests)**
-- `backend/src/doctor/doctor.service.ts` — createDoctor (validates phone/email/NMC/specializations/verticals/limits), updateDoctor, toggleAvailability, deactivateDoctor, listDoctors, getDoctorStats, getDoctorById
-- `backend/src/doctor/doctor.service.spec.ts` — 25 tests
-- `backend/src/doctor/doctor.module.ts` — Imports PrismaModule, NotificationModule
-- `backend/src/doctor/dto/create-doctor.input.ts` — InputType
-- `backend/src/doctor/dto/update-doctor.input.ts` — InputType
-- `backend/src/doctor/dto/doctor-list.dto.ts` — ObjectType
-- `backend/src/doctor/dto/doctor-stats.dto.ts` — ObjectType
-- Constants: VALID_SPECIALIZATIONS (10 specializations), VERTICAL_SPECIALIZATION_MAP (4 verticals)
-
-**Commit 3: Doctor resolver (10 tests)**
-- `backend/src/doctor/doctor.resolver.ts` — @Roles(ADMIN) GraphQL mutations (createDoctor, updateDoctor, toggleAvailability, deactivateDoctor) + queries (doctors, doctorStats, doctorById)
-- `backend/src/doctor/doctor.resolver.spec.ts` — 10 tests
-- `backend/src/app.module.ts` — Added DoctorModule
-
-### Feature 2: AI Auto-Trigger Enhancement
-
-**Commit 4: Intake resolver enhancement (5 tests)**
-- `backend/src/intake/intake.resolver.ts` — Enhanced fire-and-forget: AI → storeAIAssessment → assignDoctor(); admin notification on AI failure
-- `backend/src/intake/intake.resolver.spec.ts` — 5 tests
-- `backend/src/intake/intake.module.ts` — Added AssignmentModule, NotificationModule imports
-
-### Feature 3: Load-Balanced Doctor Auto-Assignment
-
-**Commit 5: Assignment service (21 tests)**
-- `backend/src/assignment/assignment.service.ts` — assignDoctor, reassignDoctor, calculateLoadScore, getEligibleDoctors (private), notifyAdmin (private)
-- `backend/src/assignment/assignment.service.spec.ts` — 21 tests
-- `backend/src/assignment/assignment.module.ts` — Imports PrismaModule, NotificationModule
-- Algorithm: loadScore = activeCount / dailyCaseLimit, sort ASC, tie-break by lastAssignedAt
-- SLA windows: LOW=4hr, MEDIUM=2hr, HIGH=1hr
-- HIGH risk: prefer seniorDoctor=true, fallback to any + admin alert
-
-**Commit 6: SLA timer service (8 tests)**
-- `backend/src/assignment/sla-timer.service.ts` — @Cron('*/5 * * * *'), detects breached slaDeadline, triggers reassignDoctor, max 3 bounces
-- `backend/src/assignment/sla-timer.service.spec.ts` — 8 tests
-- Admin alerts: SLA_BREACH (each breach), SLA_MAX_BOUNCES (after 3 bounces)
-
-### Feature 4: Admin Doctor Web Pages
-
-**Commit 7: Web admin pages (15 tests)**
-- `web/src/graphql/doctors.ts` — ADMIN_DOCTORS, DOCTOR_BY_ID, DOCTOR_STATS, CREATE_DOCTOR, UPDATE_DOCTOR, TOGGLE_DOCTOR_AVAILABILITY, DEACTIVATE_DOCTOR queries/mutations
-- `web/src/app/admin/doctors/page.tsx` — Doctor list with search, vertical filters, availability toggle
-- `web/src/app/admin/doctors/add/page.tsx` — Add doctor form with specialization/vertical multi-select + live validation
-- `web/src/app/admin/doctors/[id]/page.tsx` — Doctor detail: stats cards, profile info, availability toggle, deactivate
-- `web/src/app/admin/layout.tsx` — Added Doctors nav item with Stethoscope icon
-- `web/src/app/admin/doctors/__tests__/page.spec.tsx` — 8 tests
-- `web/src/app/admin/doctors/add/__tests__/page.spec.tsx` — 7 tests
-
-**Commit 8: Final wiring**
-- `backend/src/app.module.ts` — Added AssignmentModule
-- `backend/src/doctor/dto/doctor-stats.dto.ts` — Fixed avgResponseTimeHours type
-- `backend/src/doctor/doctor.resolver.ts` — Removed unused imports
-- `backend/src/doctor/dto/create-doctor.input.ts` — Removed unused imports
-- TypeScript: 0 errors (backend)
-- All 2,874 tests pass
-
-### New Modules:
-- `backend/src/doctor/` — Doctor onboarding (admin-only CRUD)
-- `backend/src/assignment/` — Auto-assignment engine + SLA timer
-
-### Key Architecture Decisions:
-- **Real-time load counting** — Active consultation count queried per-doctor (not cached)
-- **Fire-and-forget chain** — intake.resolver: AI → storeAIAssessment → assignDoctor (non-blocking)
-- **SLA cron every 5 min** — Breached consultations re-assigned with doctor exclusion list
-- **Max 3 bounces** — After 3 SLA breaches, urgent admin alert, no more re-assignment
-- **Vertical-specialization validation** — Each vertical requires at least one matching specialization
+## Key Architecture Decisions:
+- **Mock mode**: All HMS methods return deterministic mocks when credentials absent
+- **Race prevention**: DB unique constraint + P2002 catch → user-friendly error
+- **Legal gate**: First-time prescription requires completed video; follow-ups allowed async
+- **Multi-vertical**: Each vertical's video requirement is independent
+- **5-min grace period**: Server-enforced for markNoShow
+- **Auto-reconnect**: <5min elapsed → new room; >=5min → notify doctor to decide
 
 ---
 
 ## Next Up:
-- Phase 13+ planning (see BUILD-PLAN.md)
+- Phase 14+ planning (see BUILD-PLAN.md)
+- Frontend TODO: Mobile video screens (pre-call, waiting room, consent modal, slot picker, video call)
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
 - Redis connection warning logged once on startup if Redis not available (by design)
-- Web has pre-existing unused import TS warnings (non-blocking, from earlier phases)
+- schema.gql has uncommitted changes from Phase 13 schema additions
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
