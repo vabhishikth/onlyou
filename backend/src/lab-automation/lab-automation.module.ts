@@ -4,6 +4,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { LabOnboardingService } from './lab-onboarding.service';
 import { PhlebotomistOnboardingService } from './phlebotomist-onboarding.service';
 import { LabOrderCreationService } from './lab-order-creation.service';
+import { SlotAssignmentService } from './slot-assignment.service';
 
 // Spec: Phase 16 — Lab Automation Module
 
@@ -13,11 +14,13 @@ import { LabOrderCreationService } from './lab-order-creation.service';
     LabOnboardingService,
     PhlebotomistOnboardingService,
     LabOrderCreationService,
+    SlotAssignmentService,
   ],
   exports: [
     LabOnboardingService,
     PhlebotomistOnboardingService,
     LabOrderCreationService,
+    SlotAssignmentService,
   ],
 })
 export class LabAutomationModule {}
