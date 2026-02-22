@@ -110,22 +110,44 @@
 - **Chunk 9:** Returns + damage reports + payment validation — 48h sealed return gate, cold chain auto-replacement (18 tests)
 - **Tests:** Full TDD coverage (2,509 backend tests, 75 suites)
 
+## Phase 16: Lab/Phlebotomist Auto-Assignment + Automation — COMPLETE
+- **Chunk 1:** PartnerLab + LabPhlebotomist + LabTechnician models + onboarding services (59 tests)
+  - Prisma models: PartnerLab (~60 fields), LabTechnician, LabPhlebotomist (new alongside old PartnerDiagnosticCentre/Phlebotomist)
+  - LabOnboardingService: register, review, suspend/reactivate/deactivate, credential expiry cron (NABL=alert only, license=auto-suspend)
+  - PhlebotomistOnboardingService: 5-gate activation (training, equipment, background, lab, areas)
+- **Chunk 2:** Enhanced LabOrder + LabResult + PhlebotomistDailyRoster + constants (36 tests)
+  - Extended LabOrderStatus with 5 new values, LabResult model (25 fields, trend tracking), PhlebotomistDailyRoster
+  - Constants: 20-status transition map, fasting tests, GLP-1/PCOS protocols, SLA hours, critical value thresholds (9 tests)
+- **Chunk 3:** Lab order creation + fasting detection + protocol auto-triggering (18 tests)
+  - LabOrderCreationService: auto fasting, test availability check, payment status, GLP-1/PCOS auto-order, follow-up >3mo, patient upload, doctor review
+- **Chunk 4:** Phlebotomist slot booking + auto-assignment (22 tests)
+  - SlotAssignmentService: auto-assign by lowest daily load, fasting=morning-only slots, roster management
+- **Chunk 5:** Collection day logistics + sample tracking (20 tests)
+  - CollectionTrackingService: en route → fasting verify → collected → transit → delivered → received, tube mismatch detection
+- **Chunk 6:** Lab processing + result upload + critical value alerts (21 tests)
+  - LabProcessingService: auto status determination (NORMAL/LOW/HIGH/CRITICAL), trend calculation, immediate critical alerts, sample issue reporting
+- **Chunk 7:** Biomarker dashboard data layer (10 tests)
+  - BiomarkerDashboardService: history grouped by test code, trend charts, latest results, critical values summary
+- **Chunk 8:** GraphQL resolver — 35+ endpoints across 5 roles (Admin, Doctor, Patient, Phlebotomist, Lab) (31 tests)
+- **Chunk 9:** Edge cases hardening — transitions, fasting, critical values, protocols, SLA, integration (42 tests)
+- **Tests:** Full TDD coverage (2,769 backend tests, 85 suites)
+
 ---
 
 # B. TEST COUNT SUMMARY
 
 | Area | Test Suites | Tests |
 |------|-------------|-------|
-| Backend | 75 | 2,509 |
+| Backend | 85 | 2,769 |
 | Mobile | 46+ | 571+ |
 | Web | 28 | 196 |
-| **Total** | **149+** | **3,276+** |
+| **Total** | **159+** | **3,536+** |
 
 ---
 
 # C. NEXT PHASES (PLANNED)
 
-## Phase 16: Production Readiness
+## Phase 17: Production Readiness
 - Error monitoring: Sentry integration (frontend + backend)
 - Performance: Redis caching for hot paths, query optimization
 - Security audit: OWASP top 10 review, rate limiting on all endpoints
@@ -133,14 +155,14 @@
 - Real 100ms room testing with HMS credentials
 - CI/CD pipeline: GitHub Actions for test + build + deploy
 
-## Phase 17: Launch Preparation
+## Phase 18: Launch Preparation
 - Landing page (onlyou.life): marketing site with conversion flow
 - App Store / Play Store submission preparation
 - Legal compliance: TPG 2020 documentation, privacy policy, terms of service
 - Analytics: event tracking, funnel analysis
 - Load testing: simulate concurrent video sessions + API traffic
 
-## Phase 18: Post-Launch
+## Phase 19: Post-Launch
 - GraphQL subscriptions for real-time updates (replace polling in waiting room)
 - Video recording storage + playback
 - Follow-up consultation scheduling
@@ -159,6 +181,10 @@
 6. **Auto-reconnect**: <5min elapsed → new room; >=5min → notify doctor to decide
 7. **Single session screen with state machine**: Avoids losing HMS connection on navigation
 8. **useHMS custom hook**: Wraps SDK so tests mock the hook, not the SDK
+9. **New lab models alongside old**: PartnerLab/LabPhlebotomist coexist with PartnerDiagnosticCentre/Phlebotomist — zero breaking changes
+10. **Critical value alerts**: Patient safety — immediate doctor + admin notification for values outside critical thresholds
+11. **Phlebotomist 5-gate activation**: Training + equipment + background + active lab + service areas — all must pass
+12. **Protocol auto-triggering**: GLP-1 and PCOS verticals get auto-ordered blood panels
 
 ---
 
@@ -181,6 +207,7 @@ backend/src/
   assignment/     - Auto-assignment engine
   video/          - Video consultation (availability, booking, HMS, scheduler)
   pharmacy/       - Pharmacy assignment, fulfillment, delivery, SLA, returns
+  lab-automation/ - Lab/phlebotomist onboarding, order creation, slot booking, collection, processing, biomarker dashboard
   upload/         - S3 presigned URLs + photo validation
   prisma/         - Database service
   config/         - Env validation + config module
@@ -215,4 +242,4 @@ web/src/app/
 
 ---
 
-*This plan follows TDD principles from CLAUDE.md. All phases through 15 are complete.*
+*This plan follows TDD principles from CLAUDE.md. All phases through 16 are complete.*
