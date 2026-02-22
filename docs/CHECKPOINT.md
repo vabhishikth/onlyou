@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-21
+# CHECKPOINT — Last Updated: 2026-02-22
 
-## Current Phase: Phase 11 — Mobile Missing Screens + Web Portal Test Coverage (COMPLETE)
-## Current Task: All PRs 26-29 Complete
+## Current Phase: Phase 12 — Doctor Onboarding + Auto-Assignment Engine (COMPLETE)
+## Current Task: All 8 Commits Complete
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -68,134 +68,106 @@
 - [x] PR 28: Web partner portal tests (lab + pharmacy + collect) — 41 tests
 - [x] PR 29: Mobile sub-screen test coverage (6 screens) — 40 tests
 
+### Phase 12 — Doctor Onboarding + Auto-Assignment Engine:
+- [x] Commit 1: Schema changes — DoctorProfile (7 new fields), Consultation (3 new fields)
+- [x] Commit 2: Doctor onboarding service — 25 tests (TDD)
+- [x] Commit 3: Doctor onboarding resolver — 10 tests (TDD)
+- [x] Commit 4: AI auto-trigger enhancement + assignment wiring — 5 tests (TDD)
+- [x] Commit 5: Assignment service (load-balanced) — 21 tests (TDD)
+- [x] Commit 6: SLA timer service — 8 tests (TDD)
+- [x] Commit 7: Admin doctor web pages — 15 tests
+- [x] Commit 8: Final wiring + AssignmentModule in AppModule + CHECKPOINT
+
 ## Test Counts:
-- Backend: 2,108 tests (53 test suites)
+- Backend: 2,177 tests (58 test suites)
 - Mobile: 501 tests (39 test suites)
-- Web: 181 tests (26 test suites)
-- **Total: 2,790 tests**
+- Web: 196 tests (28 test suites)
+- **Total: 2,874 tests**
 
 ---
 
-## Phase 11 PR 26 Summary — Mobile Missing Sub-Screens (30 new tests, 4 new screens)
+## Phase 12 Summary — Doctor Onboarding + Auto-Assignment (84 new tests, 8 commits)
 
-**Task 1: /profile/prescriptions screen (10 tests)**
-- `mobile/app/profile/prescriptions.tsx` — SafeAreaView, vertical badge, medication count, download PDF
-- `mobile/app/profile/__tests__/prescriptions.test.tsx` — 8 tests
-- `mobile/src/graphql/profile.ts` — GET_MY_PRESCRIPTIONS query
-- `backend/src/prescription/prescription.service.ts` — getPatientPrescriptions method
-- `backend/src/prescription/prescription.resolver.ts` — myPrescriptions query
-- `backend/src/prescription/dto/prescription.dto.ts` — PatientPrescriptionItem type
-- `backend/src/prescription/prescription.service.spec.ts` — 2 tests
+### Feature 1: Doctor Onboarding (Admin-Only)
 
-**Task 2: /profile/lab-results screen (7 tests)**
-- `mobile/app/profile/lab-results.tsx` — status badges (10 states), panel name, test count
-- `mobile/app/profile/__tests__/lab-results.test.tsx` — 7 tests
-- `mobile/src/graphql/profile.ts` — GET_MY_LAB_ORDERS query
-- `backend/src/lab-order/lab-order.resolver.ts` — myLabOrders query
+**Commit 1: Schema changes**
+- `backend/prisma/schema.prisma` — DoctorProfile: +specializations[], +verticals[], +dailyCaseLimit, +seniorDoctor, +isActive, +lastAssignedAt, +signatureUrl; Consultation: +assignedAt, +slaDeadline, +previousDoctorIds[]
 
-**Task 3: /profile/health screen (6 tests)**
-- `mobile/app/profile/health.tsx` — read-only health info, missing-profile CTA
-- `mobile/app/profile/__tests__/health.test.tsx` — 6 tests
+**Commit 2: Doctor service (25 tests)**
+- `backend/src/doctor/doctor.service.ts` — createDoctor (validates phone/email/NMC/specializations/verticals/limits), updateDoctor, toggleAvailability, deactivateDoctor, listDoctors, getDoctorStats, getDoctorById
+- `backend/src/doctor/doctor.service.spec.ts` — 25 tests
+- `backend/src/doctor/doctor.module.ts` — Imports PrismaModule, NotificationModule
+- `backend/src/doctor/dto/create-doctor.input.ts` — InputType
+- `backend/src/doctor/dto/update-doctor.input.ts` — InputType
+- `backend/src/doctor/dto/doctor-list.dto.ts` — ObjectType
+- `backend/src/doctor/dto/doctor-stats.dto.ts` — ObjectType
+- Constants: VALID_SPECIALIZATIONS (10 specializations), VERTICAL_SPECIALIZATION_MAP (4 verticals)
 
-**Task 4: /order/[id] detail screen (9 tests)**
-- `mobile/app/order/[id].tsx` — delivery stepper, OTP display, cost breakdown
-- `mobile/app/order/__tests__/[id].test.tsx` — 9 tests
-- `mobile/app/order/_layout.tsx` — Slot layout
-- `mobile/src/graphql/orders.ts` — GET_ORDER_DETAIL query, OrderDetail type
+**Commit 3: Doctor resolver (10 tests)**
+- `backend/src/doctor/doctor.resolver.ts` — @Roles(ADMIN) GraphQL mutations (createDoctor, updateDoctor, toggleAvailability, deactivateDoctor) + queries (doctors, doctorStats, doctorById)
+- `backend/src/doctor/doctor.resolver.spec.ts` — 10 tests
+- `backend/src/app.module.ts` — Added DoctorModule
 
----
+### Feature 2: AI Auto-Trigger Enhancement
 
-## Phase 10 Summary
+**Commit 4: Intake resolver enhancement (5 tests)**
+- `backend/src/intake/intake.resolver.ts` — Enhanced fire-and-forget: AI → storeAIAssessment → assignDoctor(); admin notification on AI failure
+- `backend/src/intake/intake.resolver.spec.ts` — 5 tests
+- `backend/src/intake/intake.module.ts` — Added AssignmentModule, NotificationModule imports
 
-### PR 23 — Redis Module + Health Checks + Env Validation (23 new tests)
+### Feature 3: Load-Balanced Doctor Auto-Assignment
 
-**Task 1: Redis Service Module (8 tests)**
-- `backend/src/redis/redis.service.ts` — ioredis wrapper with fail-open pattern, lazyConnect
-- `backend/src/redis/redis.module.ts` — @Global() module
-- `backend/src/redis/redis.service.spec.ts` — 8 tests
-- Methods: get, set (with optional TTL), del, incr, expire, keys, ping
+**Commit 5: Assignment service (21 tests)**
+- `backend/src/assignment/assignment.service.ts` — assignDoctor, reassignDoctor, calculateLoadScore, getEligibleDoctors (private), notifyAdmin (private)
+- `backend/src/assignment/assignment.service.spec.ts` — 21 tests
+- `backend/src/assignment/assignment.module.ts` — Imports PrismaModule, NotificationModule
+- Algorithm: loadScore = activeCount / dailyCaseLimit, sort ASC, tie-break by lastAssignedAt
+- SLA windows: LOW=4hr, MEDIUM=2hr, HIGH=1hr
+- HIGH risk: prefer seniorDoctor=true, fallback to any + admin alert
 
-**Task 2: Environment Validation (5 tests)**
-- `backend/src/config/env.validation.ts` — Validates DATABASE_URL, JWT secrets (required), REDIS_URL/NODE_ENV/PORT/SENTRY_DSN (optional with defaults)
-- `backend/src/config/env.validation.spec.ts` — 5 tests
-- Wired into ConfigModule.forRoot({ validate })
+**Commit 6: SLA timer service (8 tests)**
+- `backend/src/assignment/sla-timer.service.ts` — @Cron('*/5 * * * *'), detects breached slaDeadline, triggers reassignDoctor, max 3 bounces
+- `backend/src/assignment/sla-timer.service.spec.ts` — 8 tests
+- Admin alerts: SLA_BREACH (each breach), SLA_MAX_BOUNCES (after 3 bounces)
 
-**Task 3: Health Check Endpoints (10 tests)**
-- `backend/src/health/health.controller.ts` — REST: /health, /health/live, /health/ready
-- `backend/src/health/indicators/prisma.health.ts` — DB health via SELECT 1
-- `backend/src/health/indicators/redis.health.ts` — Redis health via ping
-- `backend/src/health/health.controller.spec.ts` — 10 tests
-- Dependency: @nestjs/terminus
+### Feature 4: Admin Doctor Web Pages
 
-### PR 24 — Rate Limiting + Security Hardening (11 new tests)
+**Commit 7: Web admin pages (15 tests)**
+- `web/src/graphql/doctors.ts` — ADMIN_DOCTORS, DOCTOR_BY_ID, DOCTOR_STATS, CREATE_DOCTOR, UPDATE_DOCTOR, TOGGLE_DOCTOR_AVAILABILITY, DEACTIVATE_DOCTOR queries/mutations
+- `web/src/app/admin/doctors/page.tsx` — Doctor list with search, vertical filters, availability toggle
+- `web/src/app/admin/doctors/add/page.tsx` — Add doctor form with specialization/vertical multi-select + live validation
+- `web/src/app/admin/doctors/[id]/page.tsx` — Doctor detail: stats cards, profile info, availability toggle, deactivate
+- `web/src/app/admin/layout.tsx` — Added Doctors nav item with Stethoscope icon
+- `web/src/app/admin/doctors/__tests__/page.spec.tsx` — 8 tests
+- `web/src/app/admin/doctors/add/__tests__/page.spec.tsx` — 7 tests
 
-**Task 1: Redis-based Rate Limit Guard (8 tests)**
-- `backend/src/common/guards/rate-limit.guard.ts` — Sliding window counter per IP
-- `backend/src/common/decorators/rate-limit.decorator.ts` — @RateLimit(limit, windowSeconds)
-- `backend/src/common/guards/rate-limit.guard.spec.ts` — 8 tests
-- Default 100 req/min, fail-open when Redis down
+**Commit 8: Final wiring**
+- `backend/src/app.module.ts` — Added AssignmentModule
+- `backend/src/doctor/dto/doctor-stats.dto.ts` — Fixed avgResponseTimeHours type
+- `backend/src/doctor/doctor.resolver.ts` — Removed unused imports
+- `backend/src/doctor/dto/create-doctor.input.ts` — Removed unused imports
+- TypeScript: 0 errors (backend)
+- All 2,874 tests pass
 
-**Task 2: Security Hardening (3 tests)**
-- `backend/src/main.ts` — Helmet middleware, production CORS (6 onlyou.life subdomains), SentryInterceptor
-- `backend/src/app.module.ts` — GraphQL depth limit (max 7), formatGraphQLError
-- `backend/src/auth/auth.resolver.ts` — @RateLimit(5, 60) on requestOtp, @RateLimit(10, 60) on verifyOtp
-- `backend/src/common/plugins/depth-limit.spec.ts` — 3 tests
-- Dependencies: helmet, graphql-depth-limit
+### New Modules:
+- `backend/src/doctor/` — Doctor onboarding (admin-only CRUD)
+- `backend/src/assignment/` — Auto-assignment engine + SLA timer
 
-### PR 25 — Error Tracking + Caching (18 new tests)
-
-**Task 1: Cache Service (7 tests)**
-- `backend/src/common/cache/cache.service.ts` — Cache-aside: getOrSet, invalidate, invalidatePattern
-- `backend/src/common/cache/cache.module.ts` — @Global() module
-- `backend/src/common/cache/cache.service.spec.ts` — 7 tests
-
-**Task 2: Sentry Error Tracking (11 tests)**
-- `backend/src/common/sentry/sentry.interceptor.ts` — Captures exceptions, strips sensitive fields
-- `backend/src/common/sentry/graphql-error-formatter.ts` — Strips stack traces in prod, generic messages for internal errors
-- `backend/src/common/sentry/sentry.module.ts` — Initializes from SENTRY_DSN, no-ops when not set
-- `backend/src/common/sentry/sentry.interceptor.spec.ts` — 6 tests
-- `backend/src/common/sentry/graphql-error-formatter.spec.ts` — 5 tests
-- Dependency: @sentry/nestjs
-
-**Task 3: Cache Questionnaire Templates**
-- `backend/src/intake/intake.service.ts` — Wrapped getQuestionnaireTemplate with CacheService.getOrSet (key: questionnaire:{vertical}, TTL: 3600s)
-- Prescription templates are in-memory constants — no caching needed
-
-### New Dependencies Added:
-- @nestjs/terminus
-- helmet + @types/helmet
-- graphql-depth-limit
-- @sentry/nestjs
-
-### Key Architectural Decisions:
-- **OTP migration deferred** — existing tests access (service as any).otpStore internals; separate PR needed
-- **Redis fail-open** — all Redis ops wrapped in try/catch, app works without Redis
-- **lazyConnect** — prevents connection spam when Redis unavailable in dev
-- **Cache-aside pattern** — CacheService wraps Redis with JSON serialization
+### Key Architecture Decisions:
+- **Real-time load counting** — Active consultation count queried per-doctor (not cached)
+- **Fire-and-forget chain** — intake.resolver: AI → storeAIAssessment → assignDoctor (non-blocking)
+- **SLA cron every 5 min** — Breached consultations re-assigned with doctor exclusion list
+- **Max 3 bounces** — After 3 SLA breaches, urgent admin alert, no more re-assignment
+- **Vertical-specialization validation** — Each vertical requires at least one matching specialization
 
 ---
-
-## Phase 11 Complete Summary — PRs 26-29 (155 new tests)
-
-**PR 27: Web Admin Dashboard Tests (44 tests)**
-- 6 admin pages: dashboard, escalations, lab-orders, deliveries, partners, patients
-- Pattern: MockedProvider + addTypename={false} + framer-motion mock
-
-**PR 28: Web Partner Portal Tests (41 tests)**
-- Lab portal (19): incoming samples, processing, upload, profile
-- Pharmacy portal (16): new orders, preparing, ready, profile
-- Collect portal (6): summary, assignments, empty state
-- Fixed status config label clashes (badge vs header)
-
-**PR 29: Mobile Sub-Screen Tests (40 tests)**
-- Chat detail, edit profile, wallet, notifications, subscriptions, lab booking
-- Pattern: useQuery/useMutation mocks
 
 ## Next Up:
-- Phase 12+ planning (see BUILD-PLAN.md)
+- Phase 13+ planning (see BUILD-PLAN.md)
 
 ## Known Issues:
 - Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
 - Redis connection warning logged once on startup if Redis not available (by design)
+- Web has pre-existing unused import TS warnings (non-blocking, from earlier phases)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*

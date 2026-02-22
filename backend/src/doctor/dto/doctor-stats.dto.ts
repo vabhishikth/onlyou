@@ -14,7 +14,7 @@ export class DoctorStats {
   dailyCaseLimit: number;
 
   @Field(() => Float, { nullable: true })
-  avgResponseTimeHours?: number;
+  avgResponseTimeHours?: number | null;
 
   @Field()
   isAvailable: boolean;

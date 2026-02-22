@@ -1,4 +1,4 @@
-import { InputType, Field, Int, registerEnumType } from '@nestjs/graphql';
+import { InputType, Field, Int } from '@nestjs/graphql';
 import { HealthVertical } from '@prisma/client';
 
 // Spec: Phase 12 — Doctor Onboarding Input

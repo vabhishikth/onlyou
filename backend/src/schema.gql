@@ -492,6 +492,18 @@ type ContraindicationResultType {
   suggestMinoxidilOnly: Boolean
 }
 
+type ConversationSummaryType {
+  consultationId: String!
+  consultationStatus: String!
+  lastMessageAt: DateTime
+  lastMessageContent: String
+  lastMessageIsFromDoctor: Boolean!
+  patientName: String
+  totalMessages: Int!
+  unreadCount: Int!
+  vertical: HealthVertical!
+}
+
 input CreateDiagnosticCentreInput {
   address: String!
   avgTurnaroundHours: Int
@@ -503,6 +515,21 @@ input CreateDiagnosticCentreInput {
   pincode: String!
   state: String!
   testsOffered: [String!]!
+}
+
+input CreateDoctorInput {
+  bio: String
+  consultationFee: Int!
+  dailyCaseLimit: Int! = 15
+  email: String!
+  name: String!
+  phone: String!
+  qualifications: [String!]!
+  registrationNo: String!
+  seniorDoctor: Boolean = false
+  specializations: [String!]!
+  verticals: [HealthVertical!]!
+  yearsOfExperience: Int!
 }
 
 input CreateLabOrderInput {
@@ -675,6 +702,37 @@ type DoctorPrescriptionItem {
 input DoctorPrescriptionsFilterInput {
   search: String
   vertical: HealthVertical
+}
+
+type DoctorProfileType {
+  avatarUrl: String
+  bio: String
+  consultationFee: Int!
+  createdAt: DateTime!
+  dailyCaseLimit: Int!
+  id: ID!
+  isActive: Boolean!
+  isAvailable: Boolean!
+  lastAssignedAt: DateTime
+  qualifications: [String!]!
+  registrationNo: String!
+  seniorDoctor: Boolean!
+  signatureUrl: String
+  specialization: String!
+  specializations: [String!]!
+  updatedAt: DateTime!
+  userId: String!
+  verticals: [HealthVertical!]!
+  yearsOfExperience: Int!
+}
+
+type DoctorStats {
+  activeCases: Int!
+  avgResponseTimeHours: Float
+  completedToday: Int!
+  dailyCaseLimit: Int!
+  isAvailable: Boolean!
+  seniorDoctor: Boolean!
 }
 
 """User gender"""
@@ -933,6 +991,7 @@ type Mutation {
   confirmDelivery(input: ConfirmDeliveryInput!): OrderMutationResponse!
   confirmDeliveryOTP(input: ConfirmDeliveryOTPInput!): ConfirmOTPResponse!
   createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
+  createDoctor(input: CreateDoctorInput!): DoctorProfileType!
   createLabOrder(input: CreateLabOrderInput!): CreateLabOrderResponse!
   createOrder(input: CreateOrderInput!): OrderMutationResponse!
   createPaymentOrder(input: CreatePaymentOrderInput!): PaymentOrderResponse!
@@ -941,6 +1000,7 @@ type Mutation {
   createPrescription(input: CreatePrescriptionInput!): CreatePrescriptionResponse!
   createReorder(originalOrderId: String!): OrderMutationResponse!
   creditWallet(input: CreditWalletInput!): WalletMutationResponse!
+  deactivateDoctor(id: String!): Boolean!
   getPresignedUploadUrl(input: GetPresignedUrlInput!): PresignedUrlResponse!
   initiateRefund(input: InitiateRefundInput!): RefundMutationResponse!
   labMarkSampleReceived(input: MarkSampleReceivedInput!): LabSampleSummary!
@@ -978,11 +1038,13 @@ type Mutation {
   submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
   testS3Connection: S3TestResult!
   toggleDiagnosticCentreActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  toggleDoctorAvailability(id: String!): DoctorProfileType!
   togglePharmacyActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   togglePhlebotomistActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   updateConsultationStatus(consultationId: String!, doctorNotes: String, rejectionReason: String, status: String!): ConsultationStatusResponse!
   updateDeliveryStatus(input: MarkDeliveryStatusInput!): DeliveryMutationResponse!
   updateDiagnosticCentre(input: UpdateDiagnosticCentreInput!): DiagnosticCentre!
+  updateDoctor(id: String!, input: UpdateDoctorInput!): DoctorProfileType!
   updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferenceType!
   updateOnboarding(input: UpdateOnboardingInput!): OnboardingResponse!
   updatePharmacy(input: UpdatePharmacyInput!): PharmacyDetails!
@@ -1201,6 +1263,19 @@ type PatientOrderSummary {
   id: String!
   status: String!
   totalAmountPaise: Int!
+}
+
+type PatientPrescriptionItem {
+  consultationId: String!
+  createdAt: DateTime!
+  doctorName: String
+  id: String!
+  instructions: String
+  issuedAt: DateTime!
+  medications: JSON!
+  pdfUrl: String
+  validUntil: DateTime!
+  vertical: HealthVertical!
 }
 
 type PatientProfileType {
@@ -1423,9 +1498,13 @@ type Query {
   consultationMessages(consultationId: String!): [MessageType!]!
   deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
+  doctorById(id: String!): DoctorProfileType!
+  doctorConversations: [ConversationSummaryType!]!
   doctorLabOrders(filters: DoctorLabOrdersFilterInput): [DoctorLabOrderItem!]!
   doctorPrescriptions(filters: DoctorPrescriptionsFilterInput): [DoctorPrescriptionItem!]!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
+  doctorStats(id: String!): DoctorStats!
+  doctors(isAvailable: Boolean, vertical: HealthVertical): [DoctorProfileType!]!
   getAssessment(consultationId: String!): AIPreAssessmentType
   labCompletedSamples: [LabSampleSummary!]!
   labInProgressSamples: [LabSampleSummary!]!
@@ -1440,7 +1519,9 @@ type Query {
   me: UserProfileType
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
   myIntakes: [IntakeResponseType!]!
+  myLabOrders: [LabOrderType!]!
   myPayments(status: String): [PaymentType!]!
+  myPrescriptions: [PatientPrescriptionItem!]!
   mySubscriptions: [SubscriptionType!]!
   nearbyLabs: [NearbyLab!]!
   notificationPreferences: NotificationPreferenceType!
@@ -1779,6 +1860,17 @@ input UpdateDiagnosticCentreInput {
   name: String
   phone: String
   testsOffered: [String!]
+}
+
+input UpdateDoctorInput {
+  bio: String
+  consultationFee: Int
+  dailyCaseLimit: Int
+  qualifications: [String!]
+  seniorDoctor: Boolean
+  specializations: [String!]
+  verticals: [HealthVertical!]
+  yearsOfExperience: Int
 }
 
 input UpdateNotificationPreferencesInput {

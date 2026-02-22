@@ -33,6 +33,7 @@ import { NotificationModule } from './notification/notification.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { DoctorModule } from './doctor/doctor.module';
+import { AssignmentModule } from './assignment/assignment.module';
 
 @Module({
     imports: [
@@ -78,6 +79,7 @@ import { DoctorModule } from './doctor/doctor.module';
         HealthModule,
         SentryModule,
         DoctorModule,
+        AssignmentModule,
     ],
 })
 export class AppModule { }

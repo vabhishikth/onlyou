@@ -1,9 +1,8 @@
-import { Resolver, Query, Mutation, Args, ObjectType, Field, ID, Int, Float, registerEnumType } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { DoctorService, CreateDoctorServiceInput, UpdateDoctorServiceInput } from './doctor.service';
 import { CreateDoctorInput } from './dto/create-doctor.input';
 import { UpdateDoctorInput } from './dto/update-doctor.input';
-import { DoctorListItem } from './dto/doctor-list.dto';
 import { DoctorStats } from './dto/doctor-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
