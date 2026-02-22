@@ -7,7 +7,12 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MockedProvider, MockedResponse } from '@apollo/client/testing';
 import CollectPage from '../page';
-import { COLLECT_TODAY_SUMMARY, TODAY_ASSIGNMENTS } from '@/graphql/collect-portal';
+import {
+    COLLECT_TODAY_SUMMARY,
+    TODAY_ASSIGNMENTS,
+    COLLECT_MARK_EN_ROUTE,
+    COLLECT_VERIFY_FASTING,
+} from '@/graphql/collect-portal';
 
 jest.mock('framer-motion', () => ({
     motion: {
@@ -37,6 +42,7 @@ const mockAssignments = [
         tubeCount: 3,
         collectedAt: null,
         notes: null,
+        requiresFasting: false,
     },
     {
         id: 'a-2',
@@ -51,6 +57,7 @@ const mockAssignments = [
         tubeCount: 2,
         collectedAt: '2026-02-21T09:30:00Z',
         notes: null,
+        requiresFasting: false,
     },
 ];
 
@@ -127,5 +134,47 @@ describe('Collect Portal (Phlebotomist)', () => {
         await waitFor(() => {
             expect(screen.getByText(/Running Late/)).toBeDefined();
         });
+    });
+
+    // Phase 16: Enhanced collection features
+    it('should show en-route button on pending assignments', async () => {
+        renderWithProvider([summaryMock, assignmentsMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Rahul/)).toBeDefined();
+        });
+
+        expect(screen.getByTestId('en-route-a-1')).toBeDefined();
+    });
+
+    it('should show fasting badge when assignment requires fasting', async () => {
+        const fastingAssignments = [
+            {
+                ...mockAssignments[0],
+                requiresFasting: true,
+            },
+            mockAssignments[1],
+        ];
+        const fastingMock: MockedResponse = {
+            request: { query: TODAY_ASSIGNMENTS },
+            result: { data: { todayAssignments: fastingAssignments } },
+        };
+        renderWithProvider([summaryMock, fastingMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Rahul/)).toBeDefined();
+        });
+
+        expect(screen.getByTestId('fasting-badge-a-1')).toBeDefined();
+    });
+
+    it('should show in-transit button on collected assignments', async () => {
+        renderWithProvider([summaryMock, assignmentsMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Priya/)).toBeDefined();
+        });
+
+        expect(screen.getByTestId('in-transit-a-2')).toBeDefined();
     });
 });

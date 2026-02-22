@@ -23,6 +23,9 @@ import {
     COLLECT_MARK_UNAVAILABLE,
     COLLECT_REPORT_LATE,
     COLLECT_DELIVER_TO_LAB,
+    COLLECT_MARK_EN_ROUTE,
+    COLLECT_VERIFY_FASTING,
+    COLLECT_MARK_IN_TRANSIT,
     CollectTodaySummaryResponse,
     TodayAssignmentsResponse,
     NearbyLabsResponse,
@@ -91,6 +94,19 @@ export default function CollectPage() {
             setSelectedLab(null);
             refetch();
         },
+    });
+
+    // Spec: Phase 16 — Enhanced collection mutations
+    const [markEnRoute] = useMutation(COLLECT_MARK_EN_ROUTE, {
+        onCompleted: () => refetch(),
+    });
+
+    const [verifyFasting] = useMutation(COLLECT_VERIFY_FASTING, {
+        onCompleted: () => refetch(),
+    });
+
+    const [markInTransit] = useMutation(COLLECT_MARK_IN_TRANSIT, {
+        onCompleted: () => refetch(),
     });
 
     const summary = summaryData?.collectTodaySummary;
@@ -260,6 +276,8 @@ export default function CollectPage() {
                             onCall={() => callPatient(assignment.patientPhone)}
                             onCollect={() => openCollectDialog(assignment)}
                             onUnavailable={() => openUnavailableDialog(assignment)}
+                            onEnRoute={() => markEnRoute({ variables: { labOrderId: assignment.id } })}
+                            onVerifyFasting={(confirmed) => verifyFasting({ variables: { labOrderId: assignment.id, fastingConfirmed: confirmed } })}
                         />
                     </motion.div>
                 ))}
@@ -275,6 +293,7 @@ export default function CollectPage() {
                         <CollectedCard
                             assignment={assignment}
                             onDeliver={() => openDeliverDialog(assignment)}
+                            onMarkInTransit={() => markInTransit({ variables: { labOrderId: assignment.id } })}
                         />
                     </motion.div>
                 ))}
@@ -534,12 +553,16 @@ function AssignmentCard({
     onCall,
     onCollect,
     onUnavailable,
+    onEnRoute,
+    onVerifyFasting,
 }: {
     assignment: TodayAssignment;
     onNavigate: () => void;
     onCall: () => void;
     onCollect: () => void;
     onUnavailable: () => void;
+    onEnRoute: () => void;
+    onVerifyFasting: (confirmed: boolean) => void;
 }) {
     const statusConfig = COLLECT_STATUS_CONFIG[assignment.status] || {
         label: assignment.status,
@@ -553,9 +576,20 @@ function AssignmentCard({
             {/* Time and status */}
             <div className="flex items-center justify-between mb-3">
                 <span className="text-lg font-bold text-blue-600">{assignment.timeWindow}</span>
-                <span className={cn('px-2 py-0.5 rounded text-xs font-medium', statusConfig.bgColor, statusConfig.color)}>
-                    {statusConfig.icon} {statusConfig.label}
-                </span>
+                <div className="flex items-center gap-2">
+                    {/* Phase 16: Fasting badge */}
+                    {assignment.requiresFasting && (
+                        <span
+                            data-testid={`fasting-badge-${assignment.id}`}
+                            className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700"
+                        >
+                            Fasting Required
+                        </span>
+                    )}
+                    <span className={cn('px-2 py-0.5 rounded text-xs font-medium', statusConfig.bgColor, statusConfig.color)}>
+                        {statusConfig.icon} {statusConfig.label}
+                    </span>
+                </div>
             </div>
 
             {/* Patient info */}
@@ -568,6 +602,16 @@ function AssignmentCard({
                 </div>
                 <p className="text-sm text-muted-foreground">{assignment.panelName}</p>
             </div>
+
+            {/* Phase 16: En-route button */}
+            <button
+                data-testid={`en-route-${assignment.id}`}
+                onClick={onEnRoute}
+                className="w-full h-10 mb-2 bg-teal-100 text-teal-700 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-teal-200 transition-colors"
+            >
+                <Navigation className="w-4 h-4" />
+                Mark En Route
+            </button>
 
             {/* Action buttons — BIG, 48px height minimum */}
             <div className="grid grid-cols-3 gap-2 mb-2">
@@ -609,9 +653,11 @@ function AssignmentCard({
 function CollectedCard({
     assignment,
     onDeliver,
+    onMarkInTransit,
 }: {
     assignment: TodayAssignment;
     onDeliver: () => void;
+    onMarkInTransit: () => void;
 }) {
     return (
         <div className="card-premium p-4 border-l-4 border-green-500">
@@ -636,6 +682,15 @@ function CollectedCard({
             <p className="text-sm text-muted-foreground mb-3">
                 {assignment.patientFirstName} — {assignment.panelName}
             </p>
+
+            {/* Phase 16: In-transit button */}
+            <button
+                data-testid={`in-transit-${assignment.id}`}
+                onClick={onMarkInTransit}
+                className="w-full h-10 mb-2 bg-amber-100 text-amber-700 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-amber-200 transition-colors"
+            >
+                Mark In Transit
+            </button>
 
             {/* Deliver button */}
             <button

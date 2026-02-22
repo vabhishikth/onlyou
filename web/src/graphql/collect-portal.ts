@@ -45,6 +45,7 @@ export const TODAY_ASSIGNMENTS = gql`
             tubeCount
             collectedAt
             notes
+            requiresFasting
         }
     }
 `;
@@ -103,6 +104,65 @@ export const COLLECT_DELIVER_TO_LAB = gql`
     }
 `;
 
+// Spec: Phase 16 — Enhanced collection operations
+
+export const COLLECT_MARK_EN_ROUTE = gql`
+    mutation CollectMarkEnRoute($labOrderId: String!) {
+        markEnRoute(labOrderId: $labOrderId) {
+            id
+            status
+        }
+    }
+`;
+
+export const COLLECT_VERIFY_FASTING = gql`
+    mutation CollectVerifyFasting($labOrderId: String!, $fastingConfirmed: Boolean!) {
+        verifyFastingStatus(labOrderId: $labOrderId, fastingConfirmed: $fastingConfirmed) {
+            id
+            fastingVerified
+        }
+    }
+`;
+
+export const COLLECT_MARK_IN_TRANSIT = gql`
+    mutation CollectMarkInTransit($labOrderId: String!) {
+        markSampleInTransit(labOrderId: $labOrderId) {
+            id
+            status
+        }
+    }
+`;
+
+export const COLLECT_MY_DAILY_ROSTER = gql`
+    query CollectMyDailyRoster($date: String!) {
+        myDailyRoster(date: $date) {
+            id
+            patientFirstName
+            patientPhone
+            patientArea
+            fullAddress
+            timeWindow
+            panelName
+            testsOrdered
+            status
+            requiresFasting
+        }
+    }
+`;
+
+export interface DailyRosterItem {
+    id: string;
+    patientFirstName: string;
+    patientPhone: string;
+    patientArea: string;
+    fullAddress: string;
+    timeWindow: string;
+    panelName: string;
+    testsOrdered: string[];
+    status: string;
+    requiresFasting: boolean;
+}
+
 // =============================================
 // TYPES
 // =============================================
@@ -135,6 +195,7 @@ export interface TodayAssignment {
     tubeCount: number | null;
     collectedAt: string | null;
     notes: string | null;
+    requiresFasting?: boolean;
 }
 
 export interface NearbyLab {
