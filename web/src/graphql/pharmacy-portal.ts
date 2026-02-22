@@ -162,6 +162,13 @@ export const PHARMACY_MARK_READY_FOR_PICKUP = gql`
     }
 `;
 
+// Spec: Phase 15 — Pharmacy inventory management
+export const PHARMACY_UPDATE_INVENTORY = gql`
+    mutation PharmacyUpdateInventory($updates: JSON!) {
+        updateInventory(updates: $updates)
+    }
+`;
+
 // =============================================
 // TYPES
 // =============================================
