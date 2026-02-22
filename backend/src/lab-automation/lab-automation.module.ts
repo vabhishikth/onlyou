@@ -7,6 +7,7 @@ import { LabOrderCreationService } from './lab-order-creation.service';
 import { SlotAssignmentService } from './slot-assignment.service';
 import { CollectionTrackingService } from './collection-tracking.service';
 import { LabProcessingService } from './lab-processing.service';
+import { BiomarkerDashboardService } from './biomarker-dashboard.service';
 
 // Spec: Phase 16 — Lab Automation Module
 
@@ -19,6 +20,7 @@ import { LabProcessingService } from './lab-processing.service';
     SlotAssignmentService,
     CollectionTrackingService,
     LabProcessingService,
+    BiomarkerDashboardService,
   ],
   exports: [
     LabOnboardingService,
@@ -27,6 +29,7 @@ import { LabProcessingService } from './lab-processing.service';
     SlotAssignmentService,
     CollectionTrackingService,
     LabProcessingService,
+    BiomarkerDashboardService,
   ],
 })
 export class LabAutomationModule {}
