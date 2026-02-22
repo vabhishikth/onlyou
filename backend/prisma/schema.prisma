@@ -187,16 +187,23 @@ model HealthProfile {
 }
 
 model DoctorProfile {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  registrationNo    String   @unique // Medical Council Registration
-  specialization    String
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  registrationNo    String           @unique // Medical Council Registration (NMC)
+  specialization    String           // Legacy singular field — use specializations[] for new code
+  specializations   String[]         // e.g., ["Urology", "Andrology"]
+  verticals         HealthVertical[] // which condition verticals this doctor handles
   qualifications    String[]
   yearsOfExperience Int
   bio               String?
   avatarUrl         String?
-  isAvailable       Boolean  @default(true)
-  consultationFee   Int      @default(0) // in paise
+  signatureUrl      String?          // Digital signature for prescriptions
+  isAvailable       Boolean          @default(true)
+  isActive          Boolean          @default(true) // Soft delete flag
+  seniorDoctor      Boolean          @default(false) // Receives high-attention cases
+  dailyCaseLimit    Int              @default(15) // Max consultations per day (1-50)
+  consultationFee   Int              @default(0) // in paise
+  lastAssignedAt    DateTime?        // For round-robin tie-breaking
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -352,18 +359,21 @@ model PatientPhoto {
 // ============================================
 
 model Consultation {
-  id               String             @id @default(cuid())
-  patientId        String
-  doctorId         String?
-  intakeResponseId String             @unique
-  vertical         HealthVertical
-  status           ConsultationStatus @default(PENDING_ASSESSMENT)
-  doctorNotes      String?
-  rejectionReason  String?
-  scheduledAt      DateTime?
-  completedAt      DateTime?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id                String             @id @default(cuid())
+  patientId         String
+  doctorId          String?
+  intakeResponseId  String             @unique
+  vertical          HealthVertical
+  status            ConsultationStatus @default(PENDING_ASSESSMENT)
+  doctorNotes       String?
+  rejectionReason   String?
+  scheduledAt       DateTime?
+  completedAt       DateTime?
+  assignedAt        DateTime?          // When doctor was auto-assigned
+  slaDeadline       DateTime?          // When SLA expires for current doctor
+  previousDoctorIds String[]           @default([]) // Track re-assignment chain (max 3)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   patient        User            @relation("PatientConsultations", fields: [patientId], references: [id])
   doctor         User?           @relation("DoctorConsultations", fields: [doctorId], references: [id])
