@@ -6,6 +6,7 @@ import { PhlebotomistOnboardingService } from './phlebotomist-onboarding.service
 import { LabOrderCreationService } from './lab-order-creation.service';
 import { SlotAssignmentService } from './slot-assignment.service';
 import { CollectionTrackingService } from './collection-tracking.service';
+import { LabProcessingService } from './lab-processing.service';
 
 // Spec: Phase 16 — Lab Automation Module
 
@@ -17,6 +18,7 @@ import { CollectionTrackingService } from './collection-tracking.service';
     LabOrderCreationService,
     SlotAssignmentService,
     CollectionTrackingService,
+    LabProcessingService,
   ],
   exports: [
     LabOnboardingService,
@@ -24,6 +26,7 @@ import { CollectionTrackingService } from './collection-tracking.service';
     LabOrderCreationService,
     SlotAssignmentService,
     CollectionTrackingService,
+    LabProcessingService,
   ],
 })
 export class LabAutomationModule {}
