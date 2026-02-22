@@ -6,12 +6,27 @@ import { PharmacyAssignmentService } from './pharmacy-assignment.service';
 import { PharmacyFulfillmentService } from './pharmacy-fulfillment.service';
 import { DeliveryService } from './delivery.service';
 import { SlaMonitorService } from './sla-monitor.service';
+import { AutoRefillService } from './auto-refill.service';
 
 // Spec: Phase 15 — Pharmacy Module
 
 @Module({
   imports: [PrismaModule, NotificationModule],
-  providers: [PharmacyOnboardingService, PharmacyAssignmentService, PharmacyFulfillmentService, DeliveryService, SlaMonitorService],
-  exports: [PharmacyOnboardingService, PharmacyAssignmentService, PharmacyFulfillmentService, DeliveryService, SlaMonitorService],
+  providers: [
+    PharmacyOnboardingService,
+    PharmacyAssignmentService,
+    PharmacyFulfillmentService,
+    DeliveryService,
+    SlaMonitorService,
+    AutoRefillService,
+  ],
+  exports: [
+    PharmacyOnboardingService,
+    PharmacyAssignmentService,
+    PharmacyFulfillmentService,
+    DeliveryService,
+    SlaMonitorService,
+    AutoRefillService,
+  ],
 })
 export class PharmacyModule {}

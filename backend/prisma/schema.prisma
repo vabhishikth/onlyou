@@ -231,6 +231,7 @@ model User {
   onboardedPharmacies   Pharmacy[]              @relation("PharmacyOnboardedBy")
   activatedPharmacies   Pharmacy[]              @relation("PharmacyActivatedBy")
   suspendedPharmacies   Pharmacy[]              @relation("PharmacySuspendedBy")
+  autoRefillConfigs     AutoRefillConfig[]      @relation("PatientAutoRefills")
 
   @@index([phone])
   @@index([role])
@@ -551,6 +552,7 @@ model Prescription {
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   orders       Order[]
   pharmacyOrders PharmacyOrder[] // Phase 15
+  autoRefillConfigs AutoRefillConfig[] // Phase 15
 
   @@index([consultationId])
 }
@@ -1502,4 +1504,28 @@ model PharmacyInventory {
   @@unique([pharmacyId, medicationName])
   @@index([pharmacyId])
   @@index([medicationName])
+}
+
+// Spec: Phase 15 Chunk 7 — Auto-Refill Configuration
+model AutoRefillConfig {
+  id                          String   @id @default(cuid())
+  patientId                   String
+  prescriptionId              String
+  lastPharmacyOrderId         String?  // last auto-refill order created
+  intervalDays                Int      @default(30)
+  nextRefillDate              DateTime
+  isActive                    Boolean  @default(true)
+  pausedAt                    DateTime?
+  pauseReason                 String?
+  totalRefillsCreated         Int      @default(0)
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  patient                     User     @relation("PatientAutoRefills", fields: [patientId], references: [id])
+  prescription                Prescription @relation(fields: [prescriptionId], references: [id])
+
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([nextRefillDate])
 }
