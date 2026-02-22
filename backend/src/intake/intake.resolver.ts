@@ -3,9 +3,12 @@ import { UseGuards, Logger } from '@nestjs/common';
 import { IntakeService } from './intake.service';
 import { AIService } from '../ai/ai.service';
 import { ConsultationService } from '../consultation/consultation.service';
+import { AssignmentService } from '../assignment/assignment.service';
+import { NotificationService } from '../notification/notification.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { HealthVertical, User } from '@prisma/client';
+import { HealthVertical, User, UserRole } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import {
     VerticalInfo,
     QuestionnaireTemplateType,
@@ -25,6 +28,9 @@ export class IntakeResolver {
         private readonly intakeService: IntakeService,
         private readonly aiService: AIService,
         private readonly consultationService: ConsultationService,
+        private readonly assignmentService: AssignmentService,
+        private readonly notificationService: NotificationService,
+        private readonly prisma: PrismaService,
     ) { }
 
     /**
@@ -101,24 +107,50 @@ export class IntakeResolver {
     ): Promise<SubmitIntakeResponse> {
         const result = await this.intakeService.submitIntake(user.id, input);
 
-        // Fire-and-forget AI assessment (non-blocking)
-        // Spec: Section 6 — Pipeline: submit → call Claude → parse → store → assign
+        // Fire-and-forget AI assessment + auto-assignment (non-blocking)
+        // Spec: Phase 12 — Pipeline: submit → AI → store → assign doctor
         if (result.consultation) {
-            this.aiService.runAssessment(result.consultation.id)
+            const consultationId = result.consultation.id;
+            this.aiService.runAssessment(consultationId)
                 .then(assessment => {
                     if (assessment) {
                         return this.consultationService.storeAIAssessment(
-                            result.consultation!.id,
+                            consultationId,
                             assessment,
                         );
                     }
-                    this.logger.warn(`AI assessment returned null for consultation ${result.consultation!.id}`);
+                    this.logger.warn(`AI assessment returned null for consultation ${consultationId}`);
                     return undefined;
                 })
-                .catch(err => {
+                .then(storedConsultation => {
+                    if (storedConsultation) {
+                        return this.assignmentService.assignDoctor(consultationId);
+                    }
+                    return undefined;
+                })
+                .catch(async err => {
                     this.logger.error(
-                        `AI assessment failed for consultation ${result.consultation!.id}: ${err?.message}`,
+                        `AI assessment failed for consultation ${consultationId}: ${err?.message}`,
                     );
+                    // Notify admin on AI failure
+                    try {
+                        const admin = await this.prisma.user.findFirst({
+                            where: { role: UserRole.ADMIN },
+                        });
+                        if (admin) {
+                            await this.notificationService.sendNotification({
+                                recipientId: admin.id,
+                                recipientRole: 'ADMIN',
+                                channel: 'IN_APP',
+                                eventType: 'AI_ASSESSMENT_FAILED',
+                                title: 'AI Assessment Failed',
+                                body: `AI assessment failed for consultation #${consultationId}: ${err?.message}`,
+                                data: { consultationId, error: err?.message },
+                            });
+                        }
+                    } catch (notifyErr: any) {
+                        this.logger.error(`Failed to send AI failure admin notification: ${notifyErr?.message}`);
+                    }
                 });
         }
 
