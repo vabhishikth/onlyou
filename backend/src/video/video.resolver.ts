@@ -13,6 +13,7 @@ import { HmsService } from './hms.service';
 import { VideoSchedulerService } from './video-scheduler.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoSessionStatus } from '@prisma/client';
+import { GraphQLJSON } from 'graphql-type-json';
 import {
   SetAvailabilitySlotInput,
 } from './dto/video.input';
@@ -293,7 +294,7 @@ export class VideoResolver {
 
   @Mutation(() => Boolean, { name: 'hmsWebhook' })
   async hmsWebhook(
-    @Args('payload') payload: any,
+    @Args('payload', { type: () => GraphQLJSON }) payload: any,
     @Args('signature') signature: string,
   ) {
     await this.hmsService.handleWebhook({ ...payload, webhookSignature: signature });
