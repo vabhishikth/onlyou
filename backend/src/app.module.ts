@@ -35,6 +35,7 @@ import { HealthModule } from './health/health.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { VideoModule } from './video/video.module';
+import { PharmacyModule } from './pharmacy/pharmacy.module';
 
 @Module({
     imports: [
@@ -82,6 +83,7 @@ import { VideoModule } from './video/video.module';
         DoctorModule,
         AssignmentModule,
         VideoModule,
+        PharmacyModule,
     ],
 })
 export class AppModule { }

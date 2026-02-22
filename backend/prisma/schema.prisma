@@ -119,6 +119,24 @@ enum BookedSlotStatus {
   NO_SHOW
 }
 
+// Spec: Phase 15 — Pharmacy Status
+enum PharmacyStatus {
+  PENDING_VERIFICATION
+  DOCUMENTS_SUBMITTED
+  UNDER_REVIEW
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+// Spec: Phase 15 — Pharmacy Staff Role
+enum PharmacyStaffRole {
+  PHARMACIST
+  DISPENSER
+  DELIVERY_COORDINATOR
+  PHARMACY_ADMIN
+}
+
 // Spec: master spec Section 7.3 — Lab Order Status Enum
 // Main flow: ORDERED → SLOT_BOOKED → PHLEBOTOMIST_ASSIGNED → SAMPLE_COLLECTED →
 //            DELIVERED_TO_LAB → SAMPLE_RECEIVED → PROCESSING → RESULTS_READY →
@@ -180,6 +198,12 @@ model User {
   doctorAvailability    DoctorAvailabilitySlot[] @relation("DoctorAvailabilitySlots")
   doctorBookedSlots     BookedSlot[]            @relation("DoctorBookedSlots")
   patientBookedSlots    BookedSlot[]            @relation("PatientBookedSlots")
+
+  // Phase 15: Pharmacy relations
+  pharmacyStaffs        PharmacyStaff[]
+  onboardedPharmacies   Pharmacy[]              @relation("PharmacyOnboardedBy")
+  activatedPharmacies   Pharmacy[]              @relation("PharmacyActivatedBy")
+  suspendedPharmacies   Pharmacy[]              @relation("PharmacySuspendedBy")
 
   @@index([phone])
   @@index([role])
@@ -1209,4 +1233,110 @@ model BookedSlot {
   @@index([patientId])
   @@index([consultationId])
   @@index([status])
+}
+
+// ============================================
+// PHARMACY MANAGEMENT (Phase 15)
+// Spec: Phase 15 — Pharmacy Auto-Assignment + Fulfillment
+// ============================================
+
+model Pharmacy {
+  id                          String         @id @default(cuid())
+  name                        String
+  city                        String
+  address                     String
+  pincode                     String
+  contactPhone                String
+  contactEmail                String?
+  status                      PharmacyStatus @default(PENDING_VERIFICATION)
+
+  // Cold chain
+  hasColdChainCapability      Boolean        @default(false)
+  coldChainVerified           Boolean        @default(false)
+  coldChainVerifiedAt         DateTime?
+  coldChainVerifiedBy         String?
+
+  // Services & capacity
+  servicesAvailable           String[]       // e.g., ["standard", "cold-chain", "schedule-h1"]
+  dailyOrderLimit             Int            @default(50)
+  operatingHoursStart         String?        // "09:00" IST
+  operatingHoursEnd           String?        // "21:00" IST
+  currentQueueSize            Int            @default(0)
+
+  // Licensing
+  drugLicenseNumber           String         @unique
+  drugLicenseExpiry           DateTime?
+  gstNumber                   String?
+  pharmacyRegistrationNumber  String?
+
+  // Owner details
+  ownerName                   String
+  ownerPhone                  String
+  ownerEmail                  String?
+
+  // Onboarding documents
+  agreementSignedAt           DateTime?
+  agreementDocumentUrl        String?
+  drugLicenseDocumentUrl      String?
+  gstDocumentUrl              String?
+
+  // Admin tracking
+  onboardedById               String?
+  activatedById               String?
+  activatedAt                 DateTime?
+  suspensionReason            String?
+  suspendedById               String?
+  suspendedAt                 DateTime?
+  deactivationReason          String?
+  notes                       String?
+
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  // Relations
+  onboardedBy                 User?          @relation("PharmacyOnboardedBy", fields: [onboardedById], references: [id])
+  activatedBy                 User?          @relation("PharmacyActivatedBy", fields: [activatedById], references: [id])
+  suspendedBy                 User?          @relation("PharmacySuspendedBy", fields: [suspendedById], references: [id])
+  staff                       PharmacyStaff[]
+
+  @@index([city])
+  @@index([status])
+  @@index([pincode])
+}
+
+model PharmacyStaff {
+  id                                String            @id @default(cuid())
+  pharmacyId                        String
+  userId                            String            @unique
+  name                              String
+  email                             String?
+  phone                             String
+  role                              PharmacyStaffRole @default(DISPENSER)
+
+  // Pharmacist-specific credentials
+  pharmacistRegistrationNumber      String?
+  pharmacistRegistrationExpiry      DateTime?
+  pharmacistRegistrationDocumentUrl String?
+
+  // Permissions
+  isActive                          Boolean           @default(true)
+  canAcceptOrders                   Boolean           @default(false)
+  canDispense                       Boolean           @default(false)
+  canManageInventory                Boolean           @default(false)
+
+  // Tracking
+  lastLoginAt                       DateTime?
+  invitedById                       String?
+  invitedAt                         DateTime          @default(now())
+  activatedAt                       DateTime?
+
+  createdAt                         DateTime          @default(now())
+  updatedAt                         DateTime          @updatedAt
+
+  // Relations
+  pharmacy                          Pharmacy          @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  user                              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([pharmacyId])
+  @@index([userId])
 }
