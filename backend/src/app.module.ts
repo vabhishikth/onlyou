@@ -34,6 +34,7 @@ import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { AssignmentModule } from './assignment/assignment.module';
+import { VideoModule } from './video/video.module';
 
 @Module({
     imports: [
@@ -80,6 +81,7 @@ import { AssignmentModule } from './assignment/assignment.module';
         SentryModule,
         DoctorModule,
         AssignmentModule,
+        VideoModule,
     ],
 })
 export class AppModule { }
