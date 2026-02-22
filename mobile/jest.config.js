@@ -39,6 +39,7 @@ module.exports = {
     ],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
+        '^@100mslive/react-native-hms$': '<rootDir>/src/__mocks__/hms-sdk.js',
     },
     testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
     collectCoverageFrom: [
