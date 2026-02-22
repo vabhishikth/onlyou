@@ -1,118 +1,106 @@
 # CHECKPOINT — Last Updated: 2026-02-22
 
-## Current Phase: Phase 14 — Mobile Video Consultation Screens (COMPLETE)
-## Current Task: All 8 Chunks Complete
+## Current Phase: Phase 15 — Pharmacy Auto-Assignment + Fulfillment (COMPLETE)
+## Current Task: All 9 Chunks Complete
 ## Status: COMPLETE
 
 ## Completed Work:
 
-### Phases 1-13 — ALL COMPLETE (see git log and BUILD-PLAN.md)
+### Phases 1-14 — ALL COMPLETE (see git log and BUILD-PLAN.md)
 
-### Phase 14 — Mobile Video Consultation Screens (8 chunks):
-- [x] Chunk 0: Backend GraphQL DTOs + resolver decorators
-  - dto/video.input.ts: BookVideoSlotInput, RescheduleVideoBookingInput, SetAvailabilitySlotInput, etc.
-  - dto/video.output.ts: All ObjectType classes + Prisma enum registrations
-  - video.resolver.ts: Added @Query/@Mutation/@Args/@UseGuards decorators to all 13 methods
-  - Fixed onVideoCompleted call signature (videoSessionId, session)
-- [x] Chunk 1: Mobile GraphQL operations + types — 14 tests (TDD)
-  - mobile/src/graphql/video.ts: 7 operations (2 queries, 5 mutations)
-  - TypeScript types: VideoSession, BookedSlot, AvailableSlotsResponse, etc.
-  - Status labels: VIDEO_SESSION_STATUS_LABELS, BOOKED_SLOT_STATUS_LABELS
-- [x] Chunk 2: 100ms SDK mock + useHMS hook — 10 tests (TDD)
-  - src/__mocks__/hms-sdk.js: Manual mock via moduleNameMapper
-  - src/hooks/useHMS.ts: join, leave, toggleAudio, toggleVideo, connectionState
-  - jest.config.js: Added @100mslive/react-native-hms mapping
-- [x] Chunk 3: Video route layout + upcoming sessions — 10 tests (TDD)
-  - app/video/_layout.tsx: Slot wrapper
-  - app/video/upcoming.tsx: Session list with status badges, Join/Cancel/Reschedule
-  - Pull-to-refresh, loading skeleton, empty state, staggered animations
-- [x] Chunk 4: Video slot picker — 10 tests (TDD)
-  - app/video/slots/[consultationId].tsx: Date tabs, time chips, confirm booking
-  - Connectivity warning banner, grouped slots by date
-- [x] Chunk 5: Recording consent modal — 9 tests (TDD)
-  - src/components/video/RecordingConsentModal.tsx: TPG 2020 consent text, checkbox
-  - Triggers giveRecordingConsent mutation
-- [x] Chunk 6+7: Video session screen — 11 tests (TDD)
-  - app/video/session/[videoSessionId].tsx: Multi-state screen
-  - State machine: PRE_CALL → CONSENT → WAITING → IN_CALL → POST_CALL
-  - Pre-call: camera preview, audio/video toggles, Join Call
-  - In-call: doctor feed, self-view PiP, duration timer, end call
-  - Post-call: summary, return home
-- [x] Chunk 8: Integration polish — 6 tests (TDD)
-  - src/components/video/UpcomingSessionBanner.tsx: Home screen banner
-  - docs/BUILD-PLAN.md: Updated with Phases 12-14 completion + Phase 15+ roadmap
-  - docs/CHECKPOINT.md: Updated
+### Phase 15 — Pharmacy Auto-Assignment + Fulfillment (9 chunks):
+- [x] Chunk 1: Pharmacy + PharmacyStaff models + PharmacyOnboardingService (32 tests)
+  - Prisma enums: PharmacyStatus (6 values), PharmacyStaffRole (4 values)
+  - Prisma models: Pharmacy (30+ fields), PharmacyStaff
+  - PharmacyOnboardingService: 12 methods (register, upload docs, review, suspend, reactivate, deactivate, invite staff, update permissions, deactivate staff, credential expiry check, list, getById)
+  - DTOs: pharmacy.input.ts, pharmacy.output.ts
+- [x] Chunk 2: PharmacyOrder + DeliveryTracking + PharmacyInventory models + constants (26 tests)
+  - Prisma enums: PharmacyOrderStatus (13 values), DeliveryTrackingStatus (6 values)
+  - Prisma models: PharmacyOrder, DeliveryTracking, PharmacyInventory
+  - constants.ts: Status transitions, SLA hours, cold chain medications, helper functions
+  - DTOs: pharmacy-order.output.ts
+- [x] Chunk 3: Pharmacy assignment engine (22 tests)
+  - PharmacyAssignmentService: assignPharmacy, reassignPharmacy, determineColdChainRequirement
+  - Ranking: ACTIVE + city match + cold chain verified + lowest queue + pincode proximity
+  - Auto-generates orderNumber, increments/decrements queue, notifies staff
+- [x] Chunk 4: Pharmacy fulfillment flows (26 tests)
+  - PharmacyFulfillmentService: acceptOrder, rejectOrder, reportStockIssue, proposeSubstitution, approveSubstitution, rejectSubstitution, confirmDiscreetPackaging, markReadyForPickup, updateInventory
+  - Permission validation: PHARMACIST+canAcceptOrders, canDispense, canManageInventory
+  - Discreet packaging gate for markReadyForPickup
+- [x] Chunk 5: Delivery tracking + OTP confirmation (17 tests)
+  - DeliveryService: dispatchOrder, updateDeliveryStatus, confirmDelivery (OTP), reportDeliveryFailure, updateDeliveryAddress
+  - Cold chain: no reattempt on failure; Standard: max 2 attempts
+  - Pre-dispatch address update only
+- [x] Chunk 6: SLA timers + breach monitoring (13 tests)
+  - SlaMonitorService: checkSlaBreaches (@Cron */10), getSlaStatus, getPharmacyPerformanceReport
+  - SLA windows: Acceptance 4h, Preparation 4h, Delivery 6h, Cold chain 2h
+- [x] Chunk 7: Auto-refill for subscriptions (11 tests)
+  - Prisma model: AutoRefillConfig
+  - AutoRefillService: processUpcomingRefills (@Cron daily 10 AM), createRefillSubscription, cancelRefillSubscription
+  - 5-day lookahead, prescription validity check
+- [x] Chunk 8: GraphQL API endpoints (17 tests)
+  - PharmacyResolver: 40+ endpoints across 5 roles
+  - Admin (14), Pharmacy Staff (9), Doctor (3), Patient (6), Delivery (5)
+  - Staff context resolution via resolveStaff(userId)
+  - Delivery endpoints exclude medication names (privacy)
+- [x] Chunk 9: Returns + damaged medication + payment validation (18 tests)
+  - ReturnsService: reportDamagedOrder, approveDamageReport, processReturn, handleColdChainBreach, validatePaymentBeforeOrder, handlePaymentForBloodWork
+  - Sealed/unopened within 48h return gate
+  - Cold chain breach auto-replacement
+  - Active subscription validation
 
 ## Test Counts:
-- Backend: 2,327 tests (66 test suites)
+- Backend: 2,509 tests (75 test suites)
 - Mobile: 571+ tests (46+ test suites)
 - Web: 196 tests (28 test suites)
-- **Total: 3,094+ tests**
+- **Total: 3,276+ tests**
 
-## Phase 14 New Files:
+## Phase 15 New Files:
 ```
-backend/src/video/dto/
-  video.input.ts                     (Chunk 0)
-  video.output.ts                    (Chunk 0)
-
-mobile/src/graphql/
-  video.ts                           (Chunk 1)
-  __tests__/video.test.ts            (Chunk 1)
-
-mobile/src/__mocks__/
-  hms-sdk.js                         (Chunk 2)
-
-mobile/src/hooks/
-  useHMS.ts                          (Chunk 2)
-  __tests__/useHMS.test.ts           (Chunk 2)
-
-mobile/app/video/
-  _layout.tsx                        (Chunk 3)
-  upcoming.tsx                       (Chunk 3)
-  __tests__/upcoming.test.tsx        (Chunk 3)
-  slots/_layout.tsx                  (Chunk 4)
-  slots/[consultationId].tsx         (Chunk 4)
-  slots/__tests__/consultationId.test.tsx (Chunk 4)
-  session/_layout.tsx                (Chunk 6)
-  session/[videoSessionId].tsx       (Chunk 6+7)
-  session/__tests__/videoSessionId.test.tsx (Chunk 6+7)
-
-mobile/src/components/video/
-  RecordingConsentModal.tsx          (Chunk 5)
-  UpcomingSessionBanner.tsx          (Chunk 8)
-  index.ts                           (Chunk 5+8)
-  __tests__/RecordingConsentModal.test.tsx (Chunk 5)
-  __tests__/UpcomingSessionBanner.test.tsx (Chunk 8)
+backend/src/pharmacy/
+  pharmacy.module.ts                    (Chunk 1, updated through Chunk 9)
+  pharmacy-onboarding.service.ts        (Chunk 1)
+  pharmacy-onboarding.service.spec.ts   (Chunk 1)
+  constants.ts                          (Chunk 2)
+  constants.spec.ts                     (Chunk 2)
+  pharmacy-assignment.service.ts        (Chunk 3)
+  pharmacy-assignment.service.spec.ts   (Chunk 3)
+  pharmacy-fulfillment.service.ts       (Chunk 4)
+  pharmacy-fulfillment.service.spec.ts  (Chunk 4)
+  delivery.service.ts                   (Chunk 5)
+  delivery.service.spec.ts              (Chunk 5)
+  sla-monitor.service.ts                (Chunk 6)
+  sla-monitor.service.spec.ts           (Chunk 6)
+  auto-refill.service.ts                (Chunk 7)
+  auto-refill.service.spec.ts           (Chunk 7)
+  pharmacy.resolver.ts                  (Chunk 8+9)
+  pharmacy.resolver.spec.ts             (Chunk 8+9)
+  returns.service.ts                    (Chunk 9)
+  returns.service.spec.ts               (Chunk 9)
+  dto/
+    pharmacy.input.ts                   (Chunk 1)
+    pharmacy.output.ts                  (Chunk 1)
+    pharmacy-order.output.ts            (Chunk 2)
 ```
-
-## Modified Files:
-- `backend/src/video/video.resolver.ts` — Added all GraphQL decorators + fixed onVideoCompleted call
-- `backend/src/video/edge-cases.spec.ts` — Updated assertion for corrected call signature
-- `mobile/jest.config.js` — Added @100mslive/react-native-hms moduleNameMapper
-- `mobile/jest.setup.js` — (Minor cleanup during HMS mock exploration)
-- `mobile/src/components/video/index.ts` — Barrel exports
-- `docs/BUILD-PLAN.md` — Full update with Phases 1-14 completion + Phase 15+ roadmap
 
 ## Key Architecture Decisions:
-- **Single session screen with state machine** — PRE_CALL → CONSENT → WAITING → IN_CALL → POST_CALL avoids losing HMS connection on navigation
-- **useHMS custom hook** — Wraps @100mslive/react-native-hms SDK so tests mock the hook, not the SDK
-- **Manual mock via moduleNameMapper** — Real SDK not installed yet (requires native build), mock used for tests
-- **Polling for waiting room** — Apollo pollInterval (3s) on session status; subscriptions deferred
-- **Consent before join** — Modal appears on "Join Call" tap; skipped if consent already given
+- **New models alongside old**: Pharmacy/PharmacyOrder coexist with PartnerPharmacy/Order — no breaking changes
+- **Discreet packaging gate**: Non-negotiable hard gate before markReadyForPickup
+- **Delivery endpoint privacy**: NEVER expose medication names to delivery role
+- **Cold chain verification**: hasColdChainCapability ≠ coldChainVerified — admin must explicitly verify
+- **Staff context resolution**: PharmacyStaff resolved from User ID via resolveStaff()
+- **Fire-and-forget notifications**: .catch(err => logger.error(...)) pattern
 
 ---
 
 ## Next Up:
-- Phase 15: Production readiness (see BUILD-PLAN.md)
-- Install actual @100mslive/react-native-hms package (requires native build setup)
-- Set HMS_ACCESS_KEY, HMS_APP_SECRET, HMS_TEMPLATE_ID env vars for real video
+- Phase 16: Production readiness (Sentry, Redis caching, security audit)
 - CI/CD pipeline setup
-- Sentry error monitoring
+- Install actual @100mslive/react-native-hms package
 
 ## Known Issues:
-- Apollo Client 3.14 deprecates `addTypename` prop on MockedProvider (console warnings, non-breaking)
-- Redis connection warning logged once on startup if Redis not available (by design)
-- schema.gql has uncommitted changes from Phase 13 schema additions
+- schema.gql has uncommitted changes from Phase 13+ schema additions
 - @100mslive/react-native-hms not actually installed — mock only for tests
+- Redis connection warning on startup if Redis not available (by design)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*

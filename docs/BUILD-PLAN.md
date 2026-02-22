@@ -98,22 +98,34 @@
 - **Chunk 8:** UpcomingSessionBanner for home screen + BUILD-PLAN.md + CHECKPOINT.md update
 - **Tests:** Full TDD coverage
 
+## Phase 15: Pharmacy Auto-Assignment + Fulfillment — COMPLETE
+- **Chunk 1:** Pharmacy + PharmacyStaff models + PharmacyOnboardingService (12 methods, 32 tests)
+- **Chunk 2:** PharmacyOrder + DeliveryTracking + PharmacyInventory models + constants (26 tests)
+- **Chunk 3:** Pharmacy assignment engine — city match, cold chain, queue ranking, auto-assignment (22 tests)
+- **Chunk 4:** Pharmacy fulfillment flows — accept/reject, stock issue, substitution, discreet packaging gate (26 tests)
+- **Chunk 5:** Delivery tracking + OTP confirmation — dispatch, cold chain no-reattempt, max 2 attempts (17 tests)
+- **Chunk 6:** SLA timers + breach monitoring — 4h acceptance, 4h prep, 6h delivery, 2h cold chain (13 tests)
+- **Chunk 7:** Auto-refill subscriptions — 5-day lookahead cron, prescription validity check (11 tests)
+- **Chunk 8:** GraphQL resolver — 40+ endpoints across 5 roles (Admin, Pharmacy, Doctor, Patient, Delivery) (17 tests)
+- **Chunk 9:** Returns + damage reports + payment validation — 48h sealed return gate, cold chain auto-replacement (18 tests)
+- **Tests:** Full TDD coverage (2,509 backend tests, 75 suites)
+
 ---
 
 # B. TEST COUNT SUMMARY
 
 | Area | Test Suites | Tests |
 |------|-------------|-------|
-| Backend | 66 | 2,327 |
+| Backend | 75 | 2,509 |
 | Mobile | 46+ | 571+ |
 | Web | 28 | 196 |
-| **Total** | **140+** | **3,094+** |
+| **Total** | **149+** | **3,276+** |
 
 ---
 
 # C. NEXT PHASES (PLANNED)
 
-## Phase 15: Production Readiness
+## Phase 16: Production Readiness
 - Error monitoring: Sentry integration (frontend + backend)
 - Performance: Redis caching for hot paths, query optimization
 - Security audit: OWASP top 10 review, rate limiting on all endpoints
@@ -121,14 +133,14 @@
 - Real 100ms room testing with HMS credentials
 - CI/CD pipeline: GitHub Actions for test + build + deploy
 
-## Phase 16: Launch Preparation
+## Phase 17: Launch Preparation
 - Landing page (onlyou.life): marketing site with conversion flow
 - App Store / Play Store submission preparation
 - Legal compliance: TPG 2020 documentation, privacy policy, terms of service
 - Analytics: event tracking, funnel analysis
 - Load testing: simulate concurrent video sessions + API traffic
 
-## Phase 17: Post-Launch
+## Phase 18: Post-Launch
 - GraphQL subscriptions for real-time updates (replace polling in waiting room)
 - Video recording storage + playback
 - Follow-up consultation scheduling
@@ -168,6 +180,7 @@ backend/src/
   doctor/         - Doctor onboarding + management
   assignment/     - Auto-assignment engine
   video/          - Video consultation (availability, booking, HMS, scheduler)
+  pharmacy/       - Pharmacy assignment, fulfillment, delivery, SLA, returns
   upload/         - S3 presigned URLs + photo validation
   prisma/         - Database service
   config/         - Env validation + config module
@@ -202,4 +215,4 @@ web/src/app/
 
 ---
 
-*This plan follows TDD principles from CLAUDE.md. All phases through 14 are complete.*
+*This plan follows TDD principles from CLAUDE.md. All phases through 15 are complete.*
