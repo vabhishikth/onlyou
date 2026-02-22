@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: Phase 16 Chunk 7 — Biomarker Dashboard Data Layer
@@ -16,8 +16,6 @@ export interface BiomarkerGroup {
 
 @Injectable()
 export class BiomarkerDashboardService {
-  private readonly logger = new Logger(BiomarkerDashboardService.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
   /**

@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, Int, Float } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { UseGuards, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -195,7 +195,7 @@ export class LabAutomationResolver {
   @Mutation(() => GraphQLJSON)
   @Roles(UserRole.DOCTOR)
   async autoTriggerProtocolBloodWork(
-    @CurrentUser() user: any,
+    @CurrentUser() _user: any,
     @Args('consultationId') consultationId: string,
     @Args('vertical') vertical: string,
   ) {

@@ -11,9 +11,6 @@ const BOOKABLE_STATUSES = ['ORDERED', 'PAYMENT_COMPLETED', 'COLLECTION_FAILED'];
 // Statuses that allow cancellation
 const CANCELLABLE_STATUSES = ['SLOT_BOOKED', 'PHLEBOTOMIST_ASSIGNED'];
 
-// Fasting collection must be before 10:00 AM
-const FASTING_CUTOFF_HOUR = '10:00';
-
 @Injectable()
 export class SlotAssignmentService {
   private readonly logger = new Logger(SlotAssignmentService.name);
@@ -76,7 +73,7 @@ export class SlotAssignmentService {
     }
 
     // Rank by lowest daily load (check roster for the booked date)
-    const bookedDate = labOrder.bookedDate;
+    const bookedDate = labOrder.bookedDate!;
     const candidates: { phlebotomist: any; load: number }[] = [];
 
     for (const phleb of eligible) {

@@ -5,7 +5,6 @@ import { UserRole } from '@prisma/client';
 import {
   determineResultStatus,
   isCriticalValue,
-  CRITICAL_VALUE_THRESHOLDS,
 } from './constants';
 
 // Spec: Phase 16 Chunk 6 — Lab Processing + Result Upload + Critical Value Alerts
@@ -37,7 +36,7 @@ export class LabProcessingService {
    * Start processing a sample
    * Spec: Phase 16 Chunk 6 — SAMPLE_RECEIVED → PROCESSING
    */
-  async startProcessing(labOrderId: string, labTechId: string) {
+  async startProcessing(labOrderId: string, _labTechId: string) {
     const order = await this.prisma.labOrder.findUnique({
       where: { id: labOrderId },
     });
@@ -98,7 +97,7 @@ export class LabProcessingService {
     // Calculate trend from previous lab order
     let previousValue: number | null = null;
     let previousTestDate: Date | null = null;
-    let changeDirection = 'NEW';
+    let changeDirection: string = 'NEW';
     let changePercentage: number | null = null;
 
     if (order.previousLabOrderId) {
@@ -138,12 +137,12 @@ export class LabProcessingService {
         referenceRangeMin: input.referenceRangeMin,
         referenceRangeMax: input.referenceRangeMax,
         referenceRangeText: input.referenceRangeText,
-        status: resultStatus,
+        status: resultStatus as any,
         isCritical: critical,
         previousValue,
         previousTestDate,
         changePercentage,
-        changeDirection,
+        changeDirection: changeDirection as any,
         uploadedByLabTechId: labTechId,
         labNotes: input.labNotes,
       },
@@ -335,7 +334,7 @@ export class LabProcessingService {
    */
   async doctorReviewResults(
     labOrderId: string,
-    doctorId: string,
+    _doctorId: string,
     reviewNotes: string,
   ) {
     const order = await this.prisma.labOrder.findUnique({

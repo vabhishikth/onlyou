@@ -1,94 +1,131 @@
 # CHECKPOINT — Last Updated: 2026-02-22
 
-## Current Phase: Phase 16 — Lab/Phlebotomist Auto-Assignment + Automation (COMPLETE)
-## Current Task: All 9 Chunks Complete
+## Current Phase: Phase 17 — Frontend Integration (COMPLETE)
+## Current Task: All 20 Chunks Complete
 ## Status: COMPLETE
 
 ## Completed Work:
 
-### Phases 1-15 — ALL COMPLETE (see git log and BUILD-PLAN.md)
+### Phases 1-16 — ALL COMPLETE (see git log and BUILD-PLAN.md)
 
-### Phase 16 — Lab/Phlebotomist Auto-Assignment + Automation (9 chunks):
-- [x] Chunk 1: PartnerLab + LabPhlebotomist + LabTechnician models + onboarding services (59 tests)
-  - Prisma enums: PartnerLabStatus (6), LabTechRole (3), PhlebotomistOnboardingStatus (7), BackgroundVerificationStatus (4)
-  - Prisma models: PartnerLab (~60 fields), LabTechnician (~15), LabPhlebotomist (~30)
-  - LabOnboardingService: registerLab, uploadDocuments, review, suspend, reactivate, deactivate, inviteLabTech, updatePermissions, deactivateLabTech, listLabs, getLabById, checkExpiringCredentials (@Cron daily)
-  - PhlebotomistOnboardingService: register, uploadDocs, startTraining, completeTraining, verifyEquipment, updateBackgroundVerification, activate (5-gate check), suspend, updateServiceableAreas, checkExpiringCredentials
-  - NABL expiry: alert only, no auto-suspend. Lab license expired: auto-suspend.
-- [x] Chunk 2: Enhanced LabOrder + LabResult + PhlebotomistDailyRoster + constants (36 tests)
-  - Extended LabOrderStatus with: PAYMENT_PENDING, PAYMENT_COMPLETED, PHLEBOTOMIST_EN_ROUTE, SAMPLE_IN_TRANSIT, RESULTS_PARTIAL
-  - Prisma models: LabResult (25 fields with trend tracking), PhlebotomistDailyRoster
-  - constants.ts: VALID_LAB_ORDER_TRANSITIONS (20 statuses), LAB_ORDER_TIMESTAMP_MAP, FASTING_REQUIRED_TESTS, GLP1_PROTOCOL_TESTS, PCOS_PROTOCOL_TESTS, LAB_SLA_HOURS, CRITICAL_VALUE_THRESHOLDS (9 tests)
-  - Helper functions: isValidLabOrderTransition, requiresFasting, isCriticalValue, determineResultStatus
-- [x] Chunk 3: Lab order creation + fasting detection + protocol auto-triggering (18 tests)
-  - LabOrderCreationService: createLabOrder (auto fasting, test availability check, payment status), autoTriggerProtocolBloodWork (GLP-1, PCOS), autoTriggerFollowUpBloodWork (>3 months), handlePatientUpload, doctorReviewUploadedResults
-- [x] Chunk 4: Phlebotomist slot booking + auto-assignment (22 tests)
-  - SlotAssignmentService: autoAssignPhlebotomist (rank by lowest daily load, skip at-capacity), bookSlotForLabOrder, getAvailableSlots (fasting=morning only), getDailyRoster, cancelSlotBooking
-- [x] Chunk 5: Collection day logistics + sample tracking (20 tests)
-  - CollectionTrackingService: markEnRoute, verifyFastingStatus, markSampleCollected, markCollectionFailed (admin alert after 2+), markSampleInTransit, markDeliveredToLab (tube count mismatch detection), markSampleReceived
-- [x] Chunk 6: Lab processing + result upload + critical value alerts (21 tests)
-  - LabProcessingService: startProcessing, uploadResult (auto status determination, critical value alerts, trend calculation), markResultsReady (URGENT prefix for critical), reportSampleIssue (links phlebotomist), acknowledgeCriticalValue (1-hour SLA), doctorReviewResults
-- [x] Chunk 7: Biomarker dashboard data layer (10 tests)
-  - BiomarkerDashboardService: getPatientBiomarkerHistory (grouped by test code), getTestTrend (chronological chart data), getLatestResults, getLabOrderSummary, getCriticalValuesSummary
-- [x] Chunk 8: GraphQL API endpoints for all portals (31 tests)
-  - LabAutomationResolver: 35+ endpoints across 5 roles
-  - Admin: registerPartnerLab, uploadLabDocuments, reviewPartnerLab, suspend, reactivate, deactivate, inviteLabTech, registerPhlebotomist, activatePhlebotomist, triggerAutoAssignment, listPartnerLabs, partnerLabById
-  - Doctor: createLabOrder, autoTriggerProtocolBloodWork, doctorReviewResults, reviewUploadedResults, acknowledgeCriticalValue, labOrderSummary
-  - Patient: bookLabSlot, cancelLabSlotBooking, availableLabSlots, uploadLabResults, myBiomarkerHistory, myBiomarkerTrend, myLatestLabResults, myCriticalValues
-  - Phlebotomist: markEnRoute, verifyFastingStatus, markSampleCollected, markCollectionFailed, markSampleInTransit, markDeliveredToLab, myDailyRoster
-  - Lab: markSampleReceived, startLabProcessing, uploadLabResult, markLabResultsReady, reportSampleIssue
-- [x] Chunk 9: Edge cases hardening (42 tests)
-  - Status transitions, fasting detection, critical values, result status, protocol tests, SLA config, service integration edge cases
+### Phase 17 — Frontend Integration (20 chunks):
+Surfaced ~60 unmapped backend endpoints (Phases 12-16) across all frontends.
+
+#### Doctor Portal (Chunks 1-4):
+- [x] Chunk 1: Video availability page + GraphQL ops
+- [x] Chunk 2: Video session management (no-show, complete, awaiting labs)
+- [x] Chunk 3: Substitution approval queue
+- [x] Chunk 4: Enhanced lab orders (critical values, protocol triggers)
+
+#### Pharmacy Portal (Chunks 5-7):
+- [x] Chunk 5: Accept/reject order flow
+- [x] Chunk 6: Substitution + discreet packaging
+- [x] Chunk 7: Inventory management
+
+#### Mobile Patient App (Chunks 8-12):
+- [x] Chunk 8: Pharmacy order GraphQL (8 ops + types)
+- [x] Chunk 9: Active pharmacy orders screen with status stepper
+- [x] Chunk 10: Auto-refill management screen
+- [x] Chunk 11: Biomarker dashboard + GraphQL (4 ops)
+- [x] Chunk 12: Biomarker trend detail + fasting reminders
+
+#### Collect Portal (Chunks 13-14):
+- [x] Chunk 13: Phase 16 enhanced collection (en-route, fasting, in-transit)
+- [x] Chunk 14: Daily roster page with area grouping
+
+#### Lab Portal (Chunks 15-16):
+- [x] Chunk 15: Mark results ready as distinct step
+- [x] Chunk 16: Structured result upload (per-test inputs)
+
+#### Admin Portal (Chunks 17-20):
+- [x] Chunk 17: Pharmacy management (lifecycle + performance)
+- [x] Chunk 18: Pharmacy order operations (dispatch, reassign)
+- [x] Chunk 19: Lab partner management (lifecycle + phlebotomist onboarding)
+- [x] Chunk 20: Lab partner detail (phlebotomist status, credential expiry, activate)
 
 ## Test Counts:
 - Backend: 2,769 tests (85 test suites)
-- Mobile: 571+ tests (46+ test suites)
-- Web: 196 tests (28 test suites)
-- **Total: 3,536+ tests**
-- Phase 16 added: 259 new tests (10 new test suites)
+- Mobile: 601 tests (52 test suites)
+- Web: 267 tests (37 test suites)
+- **Total: 3,637 tests**
+- Phase 17 added: 101 new tests (Web: 71 new, Mobile: 30 new)
 
-## Phase 16 New Files:
+## Phase 17 New Files:
 ```
-backend/src/lab-automation/
-  lab-automation.module.ts               (all chunks)
-  lab-automation.resolver.ts             (Chunk 8)
-  lab-automation.resolver.spec.ts        (Chunk 8)
-  lab-onboarding.service.ts              (Chunk 1)
-  lab-onboarding.service.spec.ts         (Chunk 1)
-  phlebotomist-onboarding.service.ts     (Chunk 1)
-  phlebotomist-onboarding.service.spec.ts (Chunk 1)
-  constants.ts                           (Chunk 2)
-  constants.spec.ts                      (Chunk 2)
-  lab-order-creation.service.ts          (Chunk 3)
-  lab-order-creation.service.spec.ts     (Chunk 3)
-  slot-assignment.service.ts             (Chunk 4)
-  slot-assignment.service.spec.ts        (Chunk 4)
-  collection-tracking.service.ts         (Chunk 5)
-  collection-tracking.service.spec.ts    (Chunk 5)
-  lab-processing.service.ts              (Chunk 6)
-  lab-processing.service.spec.ts         (Chunk 6)
-  biomarker-dashboard.service.ts         (Chunk 7)
-  biomarker-dashboard.service.spec.ts    (Chunk 7)
-  edge-cases.spec.ts                     (Chunk 9)
+# Doctor Portal
+web/src/graphql/doctor-video.ts
+web/src/graphql/doctor-pharmacy.ts
+web/src/app/doctor/video/page.tsx
+web/src/app/doctor/video/__tests__/page.spec.tsx
+web/src/app/doctor/video/sessions/page.tsx
+web/src/app/doctor/video/sessions/__tests__/page.spec.tsx
+web/src/app/doctor/substitutions/page.tsx
+web/src/app/doctor/substitutions/__tests__/page.spec.tsx
+web/src/graphql/lab-order.ts
+
+# Pharmacy Portal
+web/src/app/pharmacy/inventory/page.tsx
+web/src/app/pharmacy/inventory/__tests__/page.spec.tsx
+
+# Mobile Patient App
+mobile/src/graphql/pharmacy.ts
+mobile/src/graphql/biomarker.ts
+mobile/app/pharmacy/_layout.tsx
+mobile/app/pharmacy/index.tsx
+mobile/app/pharmacy/__tests__/index.test.tsx
+mobile/app/pharmacy/refills.tsx
+mobile/app/pharmacy/__tests__/refills.test.tsx
+mobile/app/lab/biomarkers/index.tsx
+mobile/app/lab/biomarkers/__tests__/index.test.tsx
+mobile/app/lab/biomarkers/[testCode].tsx
+mobile/app/lab/biomarkers/__tests__/testCode.test.tsx
+mobile/__tests__/graphql/pharmacy.test.ts
+mobile/__tests__/graphql/biomarker.test.ts
+
+# Collect Portal
+web/src/app/collect/roster/page.tsx
+web/src/app/collect/roster/__tests__/page.spec.tsx
+
+# Admin Portal
+web/src/graphql/admin-pharmacy.ts
+web/src/graphql/admin-lab-automation.ts
+web/src/app/admin/pharmacy-management/page.tsx
+web/src/app/admin/pharmacy-management/__tests__/page.spec.tsx
+web/src/app/admin/pharmacy-orders/page.tsx
+web/src/app/admin/pharmacy-orders/__tests__/page.spec.tsx
+web/src/app/admin/lab-partners/page.tsx
+web/src/app/admin/lab-partners/__tests__/page.spec.tsx
+web/src/app/admin/lab-partners/[id]/page.tsx
+web/src/app/admin/lab-partners/[id]/__tests__/page.spec.tsx
 ```
 
-## Key Architecture Decisions:
-- **New models alongside old**: PartnerLab/LabPhlebotomist coexist with PartnerDiagnosticCentre/Phlebotomist — no breaking changes to 2,510 existing tests
-- **Phlebotomist 5-gate activation**: ALL must pass — training completed, equipment verified, background=VERIFIED, assigned lab ACTIVE, service areas non-empty
-- **NABL accreditation**: alert only on expiry, no auto-suspend (not always mandatory in India)
-- **Lab license expiry**: auto-suspend (legal safety net)
-- **Critical value alerts**: immediate doctor + admin notification (patient safety)
-- **Fasting enforcement**: morning-only slots when requiresFasting=true
-- **Auto-assignment ranking**: lowest daily roster load wins
-- **Tube count mismatch**: automatic detection + admin alert
-- **Protocol auto-triggering**: GLP-1 (WEIGHT_MANAGEMENT) and PCOS only
-- **Follow-up monitoring**: auto-trigger after 3 months
+## Modified Files (Phase 17):
+```
+web/src/graphql/pharmacy-portal.ts     — added Phase 15 ops
+web/src/graphql/collect-portal.ts      — added Phase 16 ops
+web/src/graphql/lab-portal.ts          — added Phase 16 ops
+web/src/app/doctor/components/sidebar.tsx — added Video + Substitutions nav
+web/src/app/pharmacy/page.tsx          — accept/reject flow
+web/src/app/pharmacy/preparing/page.tsx — substitution + discreet packaging
+web/src/app/doctor/lab-orders/page.tsx — critical value badges
+web/src/app/collect/page.tsx           — en-route, fasting, in-transit
+web/src/app/lab/page.tsx               — mark results ready button
+web/src/app/lab/upload/page.tsx        — structured upload testid
+```
+
+## Key Architecture Decisions (Phase 17):
+- All frontend code is thin-client — business logic stays in backend
+- Apollo MockedProvider for web tests, mock hooks for mobile tests
+- framer-motion mocked as plain divs in all web tests
+- Mobile gql mock returns plain strings (not DocumentNode)
+- Status configs as typed Record<string, {label, color, bgColor}>
 
 ---
 
 ## Next Up:
-- Phase 17: Production readiness (Sentry, Redis caching, security audit)
+- Phase 18: Production readiness (Sentry, Redis caching, security audit)
 - CI/CD pipeline setup
+- Delivery portal (delivery model TBD)
 
 ## Known Issues:
 - schema.gql has uncommitted changes from Phase 13+ schema additions

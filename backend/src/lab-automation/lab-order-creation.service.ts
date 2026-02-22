@@ -77,9 +77,9 @@ export class LabOrderCreationService {
 
     // Check subscription for payment status
     const subscription = await this.prisma.subscription.findFirst({
-      where: { patientId, status: 'ACTIVE' },
+      where: { userId: patientId, status: 'ACTIVE' },
       include: { plan: true },
-    });
+    }) as any;
 
     const bloodWorkIncluded = subscription?.plan?.includesBloodWork ?? false;
     const initialStatus = bloodWorkIncluded ? 'ORDERED' : 'PAYMENT_PENDING';
@@ -187,7 +187,7 @@ export class LabOrderCreationService {
     // Create the protocol lab order
     const labOrder = await this.createLabOrder(
       consultationId,
-      consultation.doctorId,
+      consultation.doctorId!,
       consultation.patientId,
       [...protocolTests],
       {
@@ -261,16 +261,16 @@ export class LabOrderCreationService {
 
     // Check subscription
     const subscription = await this.prisma.subscription.findFirst({
-      where: { patientId, status: 'ACTIVE' },
+      where: { userId: patientId, status: 'ACTIVE' },
       include: { plan: true },
-    });
+    }) as any;
 
     const bloodWorkIncluded = subscription?.plan?.includesBloodWork ?? false;
 
     const labOrder = await this.prisma.labOrder.create({
       data: {
         consultationId: consultation.id,
-        doctorId: consultation.doctorId,
+        doctorId: consultation.doctorId!,
         patientId,
         testPanel: [...protocolTests],
         requiresFasting: requiresFasting([...protocolTests]),

@@ -2,7 +2,6 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { UserRole } from '@prisma/client';
-import { isValidLabOrderTransition } from './constants';
 
 // Spec: Phase 16 Chunk 5 — Collection Day Logistics + Sample Tracking
 
@@ -67,7 +66,7 @@ export class CollectionTrackingService {
    */
   async verifyFastingStatus(
     labOrderId: string,
-    phlebotomistId: string,
+    _phlebotomistId: string,
     patientHasFasted: boolean,
   ) {
     const order = await this.prisma.labOrder.findUnique({

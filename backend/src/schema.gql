@@ -257,6 +257,18 @@ type AuthResponse {
   user: UserType
 }
 
+type AvailabilitySlotType {
+  createdAt: DateTime!
+  dayOfWeek: DayOfWeek!
+  doctorId: String!
+  endTime: String!
+  id: String!
+  isActive: Boolean!
+  slotDurationMinutes: Int!
+  startTime: String!
+  updatedAt: DateTime!
+}
+
 type AvailableLab {
   address: String!
   avgTurnaroundHours: Int!
@@ -302,15 +314,48 @@ type AvailablePhlebotomistsResponse {
   phlebotomists: [AvailablePhlebotomist!]!
 }
 
+type AvailableSlotWindowType {
+  date: String!
+  endTime: String!
+  startTime: String!
+}
+
+type AvailableSlotsResponse {
+  connectivityWarning: String!
+  doctorId: String!
+  slots: [AvailableSlotWindowType!]!
+}
+
 type AvailableTemplatesResponse {
   templates: JSON!
   vertical: HealthVertical!
 }
 
-input BookSlotInput {
-  collectionAddress: String
-  labOrderId: String!
-  slotId: String!
+"""Status of a booked video slot"""
+enum BookedSlotStatus {
+  BOOKED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+type BookedSlotType {
+  consultationId: String!
+  createdAt: DateTime!
+  doctorId: String!
+  endTime: DateTime!
+  id: String!
+  patientId: String!
+  slotDate: DateTime!
+  startTime: DateTime!
+  status: BookedSlotStatus!
+  videoSessionId: String!
+}
+
+type BookingResponse {
+  bookedSlot: BookedSlotType!
+  connectivityWarning: String!
+  videoSession: VideoSessionType!
 }
 
 input BulkAssignPhlebotomistInput {
@@ -323,6 +368,18 @@ type BulkAssignmentResponse {
   message: String!
   success: Boolean!
   updatedCount: Int!
+}
+
+"""Type of video consultation call"""
+enum CallType {
+  AUDIO_ONLY
+  PHONE_FALLBACK
+  VIDEO
+}
+
+type CancelBookingResult {
+  id: String!
+  status: BookedSlotStatus!
 }
 
 input CancelLabInput {
@@ -453,11 +510,6 @@ type CollectTodaySummary {
   total: Int!
 }
 
-input ConfirmDeliveryInput {
-  orderId: String!
-  otp: String!
-}
-
 input ConfirmDeliveryOTPInput {
   orderId: String!
   otp: String!
@@ -530,13 +582,6 @@ input CreateDoctorInput {
   specializations: [String!]!
   verticals: [HealthVertical!]!
   yearsOfExperience: Int!
-}
-
-input CreateLabOrderInput {
-  consultationId: String!
-  doctorNotes: String
-  panelName: String
-  testPanel: [String!]!
 }
 
 type CreateLabOrderResponse {
@@ -626,6 +671,17 @@ enum DashboardStatus {
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+"""Day of the week for recurring availability"""
+enum DayOfWeek {
+  FRIDAY
+  MONDAY
+  SATURDAY
+  SUNDAY
+  THURSDAY
+  TUESDAY
+  WEDNESDAY
+}
 
 input DeliverToLabInput {
   labId: String!
@@ -812,6 +868,11 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON
 
+type JoinSessionResponse {
+  roomId: String!
+  token: String!
+}
+
 type LabCollectionStats {
   completed: Int!
   failed: Int!
@@ -834,11 +895,16 @@ enum LabOrderStatus {
   DOCTOR_REVIEWED
   EXPIRED
   ORDERED
+  PAYMENT_COMPLETED
+  PAYMENT_PENDING
   PHLEBOTOMIST_ASSIGNED
+  PHLEBOTOMIST_EN_ROUTE
   PROCESSING
+  RESULTS_PARTIAL
   RESULTS_READY
   RESULTS_UPLOADED
   SAMPLE_COLLECTED
+  SAMPLE_IN_TRANSIT
   SAMPLE_ISSUE
   SAMPLE_RECEIVED
   SLOT_BOOKED
@@ -914,12 +980,6 @@ input MarkDeliveryFailedInput {
   reason: String!
 }
 
-input MarkDeliveryStatusInput {
-  failedReason: String
-  orderId: String!
-  status: OrderStatus!
-}
-
 input MarkPharmacyStatusInput {
   issueReason: String
   orderId: String!
@@ -971,28 +1031,41 @@ type MessageType {
 }
 
 type Mutation {
+  acceptOrder(pharmacyOrderId: String!): JSON!
+  acknowledgeCriticalValue(labOrderId: String!, labResultId: String!, notes: String!): JSON!
+  activatePhlebotomist(phlebotomistId: String!): JSON!
   applyWalletAtCheckout(input: ApplyWalletAtCheckoutInput!): CheckoutResultType!
+  approveDamageReport(pharmacyOrderId: String!): JSON!
+  approveSubstitution(pharmacyOrderId: String!): JSON!
   arrangeDelivery(input: ArrangeDeliveryInput!): GenerateDeliveryOtpResponse!
   arrangePickup(input: ArrangePickupInput!): OrderMutationResponse!
   assignCaseToDoctor(consultationId: String!, doctorId: String!): ConsultationStatusResponse!
   assignLab(input: AssignLabInput!): AdminLabOrderMutationResponse!
   assignPhlebotomist(input: AssignPhlebotomistInput!): AdminLabOrderMutationResponse!
-  bookLabSlot(input: BookSlotInput!): TrackingMutationResponse!
+  autoTriggerProtocolBloodWork(consultationId: String!, vertical: String!): JSON!
+  bookLabSlot(labOrderId: String!, slotId: String!): JSON!
+  bookVideoSlot(consultationId: String!, slotDate: String!, startTime: String!): BookingResponse!
   bulkAssignPhlebotomist(input: BulkAssignPhlebotomistInput!): BulkAssignmentResponse!
+  cancelAutoRefill(autoRefillConfigId: String!): JSON!
   cancelLabOrder(input: CancelLabInput!): TrackingMutationResponse!
+  cancelLabSlotBooking(labOrderId: String!, reason: String!): JSON!
   cancelOrder(input: CancelOrderInput!): OrderMutationResponse!
   cancelSubscription(input: CancelSubscriptionInput!): SubscriptionMutationResponse!
+  cancelVideoBooking(bookedSlotId: String!, reason: String!): CancelBookingResult!
   closeLabOrder(labOrderId: String!): ReviewLabResultsResponse!
   collectDeliverToLab(input: DeliverToLabInput!): TodayAssignment!
   collectMarkCollected(input: MarkCollectedInput!): TodayAssignment!
   collectMarkUnavailable(input: MarkUnavailableInput!): CollectMutationResponse!
   collectReportLate(input: ReportLateInput!): CollectMutationResponse!
   completeOnboarding: OnboardingResponse!
-  confirmDelivery(input: ConfirmDeliveryInput!): OrderMutationResponse!
+  completeVideoSession(callType: String, notes: String!, videoSessionId: String!): VideoSessionType!
+  confirmDelivery(otp: String!, pharmacyOrderId: String!): JSON!
   confirmDeliveryOTP(input: ConfirmDeliveryOTPInput!): ConfirmOTPResponse!
+  confirmDiscreetPackaging(pharmacyOrderId: String!): JSON!
+  createAutoRefill(intervalDays: Int! = 30, prescriptionId: String!): JSON!
   createDiagnosticCentre(input: CreateDiagnosticCentreInput!): DiagnosticCentre!
   createDoctor(input: CreateDoctorInput!): DoctorProfileType!
-  createLabOrder(input: CreateLabOrderInput!): CreateLabOrderResponse!
+  createLabOrder(consultationId: String!, options: JSON!, patientId: String!, testPanel: [String!]!): JSON!
   createOrder(input: CreateOrderInput!): OrderMutationResponse!
   createPaymentOrder(input: CreatePaymentOrderInput!): PaymentOrderResponse!
   createPharmacy(input: CreatePharmacyInput!): PharmacyDetails!
@@ -1001,57 +1074,110 @@ type Mutation {
   createReorder(originalOrderId: String!): OrderMutationResponse!
   creditWallet(input: CreditWalletInput!): WalletMutationResponse!
   deactivateDoctor(id: String!): Boolean!
+  deactivatePartnerLab(labId: String!, reason: String!): JSON!
+  deactivatePharmacy(pharmacyId: String!, reason: String!): JSON!
+  deactivatePharmacyStaff(staffId: String!): JSON!
+  dispatchOrder(deliveryPersonName: String!, deliveryPersonPhone: String!, pharmacyOrderId: String!): JSON!
+  doctorReviewResults(labOrderId: String!, reviewNotes: String!): JSON!
   getPresignedUploadUrl(input: GetPresignedUrlInput!): PresignedUrlResponse!
+  giveRecordingConsent(videoSessionId: String!): RecordingConsentResponse!
+  handleColdChainBreach(pharmacyOrderId: String!): JSON!
+  hmsWebhook(payload: JSON!, signature: String!): Boolean!
   initiateRefund(input: InitiateRefundInput!): RefundMutationResponse!
+  inviteLabTechnician(input: JSON!, labId: String!): JSON!
+  invitePharmacyStaff(input: JSON!, pharmacyId: String!): JSON!
+  joinVideoSession(videoSessionId: String!): JoinSessionResponse!
   labMarkSampleReceived(input: MarkSampleReceivedInput!): LabSampleSummary!
   labReportSampleIssue(input: ReportSampleIssueInput!): LabPortalMutationResponse!
   labStartProcessing(labOrderId: String!): LabSampleSummary!
   labUploadResults(input: UploadResultsInput!): LabSampleSummary!
   logout(refreshToken: String): RequestOtpResponse!
+  manualReassign(pharmacyOrderId: String!, reason: String!): JSON!
   markAllMessagesAsRead(consultationId: String!): MarkAllReadResponse!
   markAllNotificationsAsRead: MarkAllNotificationsReadResponse!
+  markAwaitingLabs(labNotes: String!, videoSessionId: String!): Boolean!
+  markCollectionFailed(labOrderId: String!, reason: String!): JSON!
+  markDeliveredToLab(labOrderId: String!, receivedTubeCount: Int!): JSON!
   markDeliveryFailed(input: MarkDeliveryFailedInput!): OrderMutationResponse!
+  markEnRoute(labOrderId: String!): JSON!
+  markLabResultsReady(labOrderId: String!): JSON!
   markMessageAsRead(messageId: String!): MessageType!
+  markNoShow(videoSessionId: String!): NoShowResultType!
   markNotificationAsRead(notificationId: String!): NotificationType!
   markOutForDelivery(orderId: String!): OrderMutationResponse!
+  markReadyForPickup(pharmacyOrderId: String!): JSON!
+  markSampleCollected(labOrderId: String!, tubeCount: Int!): JSON!
+  markSampleInTransit(labOrderId: String!): JSON!
+  markSampleReceived(labOrderId: String!, receivedTubeCount: Int!): JSON!
   overrideLabOrderStatus(input: OverrideLabOrderStatusInput!): AdminLabOrderMutationResponse!
   pauseSubscription(subscriptionId: String!): SubscriptionMutationResponse!
   paymentWebhook(input: WebhookInput!): PaymentMutationResponse!
   pharmacyMarkReady(orderId: String!): PharmacyOrderSummary!
   pharmacyReportStockIssue(input: ReportStockIssueInput!): PharmacyMutationResponse!
   pharmacyStartPreparing(orderId: String!): PharmacyOrderSummary!
+  processReturn(pharmacyOrderId: String!, reason: String!): JSON!
+  proposeSubstitution(pharmacyOrderId: String!, substitutionDetails: JSON!): JSON!
   rateDelivery(input: RateDeliveryInput!): OrderMutationResponse!
+  reactivatePartnerLab(labId: String!, notes: String): JSON!
+  reactivatePharmacy(notes: String, pharmacyId: String!): JSON!
   refreshToken(input: RefreshTokenInput!): AuthResponse!
   regenerateDeliveryOtp(orderId: String!): GenerateDeliveryOtpResponse!
   regeneratePrescriptionPdf(prescriptionId: String!): RegeneratePdfResponse!
+  registerPartnerLab(input: JSON!): JSON!
+  registerPharmacy(input: JSON!): JSON!
+  registerPhlebotomist(input: JSON!): JSON!
+  rejectOrder(pharmacyOrderId: String!, reason: String!): JSON!
+  rejectSubstitution(pharmacyOrderId: String!, reason: String!): JSON!
+  reportDamagedOrder(description: String!, pharmacyOrderId: String!, photos: [String!]!): JSON!
+  reportDeliveryFailure(pharmacyOrderId: String!, reason: String!): JSON!
+  reportSampleIssue(issueType: String!, labOrderId: String!): JSON!
+  reportStockIssue(missingItems: [String!]!, pharmacyOrderId: String!): JSON!
   requestMoreInfo(consultationId: String!, message: String!): RequestMoreInfoResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
   rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
   rescheduleLabSlot(input: RescheduleLabInput!): TrackingMutationResponse!
+  rescheduleVideoBooking(bookedSlotId: String!, newSlotDate: String!, newStartTime: String!): BookingResponse!
   resumeSubscription(subscriptionId: String!): SubscriptionMutationResponse!
   retryAssessment(consultationId: String!): AIAssessmentResultType!
   reviewLabResults(input: ReviewLabResultsInput!): ReviewLabResultsResponse!
+  reviewPartnerLab(approved: Boolean!, labId: String!, notes: String): JSON!
+  reviewPharmacy(approved: Boolean!, notes: String, pharmacyId: String!): JSON!
+  reviewUploadedResults(accepted: Boolean!, labOrderId: String!, rejectionReason: String): JSON!
   runAssessment(input: RunAssessmentInput!): AIAssessmentResultType!
   saveIntakeDraft(input: SaveDraftInput!): SaveDraftResponse!
   sendMessage(consultationId: String!, content: String!): MessageType!
   sendToPharmacy(input: SendToPharmacyInput!): OrderMutationResponse!
+  setMyAvailability(slots: [SetAvailabilitySlotInput!]!): [AvailabilitySlotType!]!
+  startLabProcessing(labOrderId: String!): JSON!
   submitIntake(input: SubmitIntakeInput!): SubmitIntakeResponse!
+  suspendPartnerLab(labId: String!, reason: String!): JSON!
+  suspendPharmacy(pharmacyId: String!, reason: String!): JSON!
   testS3Connection: S3TestResult!
   toggleDiagnosticCentreActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   toggleDoctorAvailability(id: String!): DoctorProfileType!
   togglePharmacyActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
   togglePhlebotomistActive(id: String!, isActive: Boolean!): PartnerMutationResponse!
+  triggerAssignment(prescriptionId: String!): JSON!
+  triggerAutoAssignment(labOrderId: String!): JSON!
   updateConsultationStatus(consultationId: String!, doctorNotes: String, rejectionReason: String, status: String!): ConsultationStatusResponse!
-  updateDeliveryStatus(input: MarkDeliveryStatusInput!): DeliveryMutationResponse!
+  updateDeliveryAddress(newAddress: String!, newPincode: String!, pharmacyOrderId: String!): JSON!
+  updateDeliveryStatus(newStatus: String!, notes: String, pharmacyOrderId: String!): JSON!
   updateDiagnosticCentre(input: UpdateDiagnosticCentreInput!): DiagnosticCentre!
   updateDoctor(id: String!, input: UpdateDoctorInput!): DoctorProfileType!
+  updateInventory(updates: JSON!): JSON!
   updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferenceType!
   updateOnboarding(input: UpdateOnboardingInput!): OnboardingResponse!
   updatePharmacy(input: UpdatePharmacyInput!): PharmacyDetails!
+  updatePharmacyStaffPermissions(permissions: JSON!, staffId: String!): JSON!
   updatePharmacyStatus(input: MarkPharmacyStatusInput!): DeliveryMutationResponse!
   updatePhlebotomist(input: UpdatePhlebotomistInput!): PhlebotomistDetails!
   updateProfile(input: UpdateProfileInput!): ProfileUpdateResponse!
+  uploadLabDocuments(documents: JSON!, labId: String!): JSON!
+  uploadLabResult(input: JSON!, labOrderId: String!): JSON!
+  uploadLabResults(fileUrl: String!, labOrderId: String!): JSON!
+  uploadPharmacyDocuments(documents: JSON!, pharmacyId: String!): JSON!
   upsertHealthProfile(input: UpsertHealthProfileInput!): HealthProfileResponse!
+  verifyFastingStatus(labOrderId: String!, patientHasFasted: Boolean!): JSON!
   verifyOtp(input: VerifyOtpInput!): AuthResponse!
   verifyPayment(input: VerifyPaymentInput!): PaymentMutationResponse!
 }
@@ -1062,6 +1188,12 @@ type NearbyLab {
   id: String!
   name: String!
   phone: String!
+}
+
+type NoShowResultType {
+  adminAlert: Boolean!
+  noShowMarkedBy: String!
+  status: VideoSessionStatus!
 }
 
 """Notification delivery channel"""
@@ -1484,7 +1616,9 @@ type Query {
   adminPatientDetail(patientId: String!): AdminPatientDetail
   adminPatients(filter: AdminPatientsFilterInput): AdminPatientsResponse!
   adminQueue(filters: QueueFiltersInput): QueueResponse!
+  allPharmacyOrders: JSON!
   availableActions(itemId: String!, type: String!): [String!]!
+  availableLabSlots(city: String!, endDate: String!, pincode: String!, requiresFasting: Boolean, startDate: String!): JSON!
   availableLabs(city: String!): AvailableLabsResponse!
   availablePharmacies(pincode: String!): AvailablePharmaciesResponse!
   availablePhlebotomists(date: DateTime!, pincode: String!): AvailablePhlebotomistsResponse!
@@ -1492,10 +1626,13 @@ type Query {
   availableTemplates(vertical: HealthVertical!): AvailableTemplatesResponse!
   availableTestPanels(vertical: HealthVertical!): AvailablePanelsResponse!
   availableVerticals: [VerticalInfo!]!
+  availableVideoSlots(consultationId: String!): AvailableSlotsResponse!
   caseDetail(consultationId: String!): CaseDetailType!
+  checkBloodWorkPayment(labOrderId: String!, patientId: String!): JSON!
   checkContraindications(input: CheckContraindicationsInput!): CheckContraindicationsResponse!
   collectTodaySummary: CollectTodaySummary!
   consultationMessages(consultationId: String!): [MessageType!]!
+  deliveryOrderDetail(pharmacyOrderId: String!): JSON!
   deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
   doctorById(id: String!): DoctorProfileType!
@@ -1512,27 +1649,46 @@ type Query {
   labInfo: LabInfo!
   labOrder(id: String!): LabOrderType
   labOrderProgress(labOrderId: String!): ProgressResponse!
+  labOrderSummary(labOrderId: String!): JSON!
   labOrdersByConsultation(consultationId: String!): [LabOrderType!]!
   labOrdersForReview(doctorId: String!): [LabOrderType!]!
   labTodaySummary: LabTodaySummary!
+  listPartnerLabs(city: String, status: String): JSON!
   lookupPincode(pincode: String!): PincodeLookupResponse!
   me: UserProfileType
+  myActiveDeliveries: JSON!
+  myActivePharmacyOrders: JSON!
+  myAutoRefills: JSON!
+  myAvailability: [AvailabilitySlotType!]!
+  myBiomarkerHistory: JSON!
+  myBiomarkerTrend(testCode: String!): JSON!
+  myCriticalValues: JSON!
+  myDailyRoster(date: String!): JSON!
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
   myIntakes: [IntakeResponseType!]!
   myLabOrders: [LabOrderType!]!
+  myLatestLabResults: JSON!
   myPayments(status: String): [PaymentType!]!
+  myPharmacyDetails: JSON!
+  myPharmacyOrderStatus(pharmacyOrderId: String!): JSON!
+  myPharmacyOrders: JSON!
   myPrescriptions: [PatientPrescriptionItem!]!
   mySubscriptions: [SubscriptionType!]!
+  myUpcomingVideoSessions: [BookedSlotType!]!
   nearbyLabs: [NearbyLab!]!
   notificationPreferences: NotificationPreferenceType!
   notifications(channel: NotificationChannel, eventType: NotificationEventType, limit: Int! = 20, page: Int! = 1): NotificationHistoryResponse!
   order(id: String!): OrderMutationResponse!
   ordersByPatient(patientId: String!): [OrderType!]!
   ordersDueForReorder: [OrderType!]!
+  partnerLabById(labId: String!): JSON!
   pendingDeliveries: [OrderType!]!
-  pharmacies(city: String, page: Float, pageSize: Float, search: String): PharmaciesResponse!
+  pendingSubstitutionApprovals: JSON!
+  pharmacies(city: String, status: String): JSON!
+  pharmacyById(id: String!): JSON!
   pharmacyInfo: PharmacyInfo!
   pharmacyNewOrders: [PharmacyOrderSummary!]!
+  pharmacyPerformance(pharmacyId: String!): JSON!
   pharmacyPreparingOrders: [PharmacyOrderSummary!]!
   pharmacyReadyOrders: [PharmacyOrderSummary!]!
   pharmacyTodaySummary: PharmacyTodaySummary!
@@ -1543,6 +1699,7 @@ type Query {
   queueStats: QueueStatsType!
   refundStatus(refundId: String!): RefundMutationResponse!
   refundsByUser(userId: String!): [RefundType!]!
+  slaBreaches(pharmacyOrderId: String!): JSON!
   slaEscalations: [SLAEscalation!]!
   suggestTemplate(consultationId: String!): TemplateSuggestionType!
   supportedPaymentMethods: [String!]!
@@ -1553,6 +1710,7 @@ type Query {
   unreadMessageCount(consultationId: String!): Int!
   unreadNotificationCount: Int!
   unreadNotifications: [NotificationType!]!
+  validatePaymentBeforeOrder(consultationId: String!, patientId: String!): JSON!
   validatePricing(amountPaise: Int!, planType: String!, vertical: String!): PricingValidationResponse!
   walletBalance(userId: String!): WalletBalanceType!
 }
@@ -1590,6 +1748,11 @@ type QueueStatsType {
 input RateDeliveryInput {
   orderId: String!
   rating: Int!
+}
+
+type RecordingConsentResponse {
+  id: String!
+  recordingConsentGiven: Boolean!
 }
 
 input RefreshTokenInput {
@@ -1723,6 +1886,12 @@ type SaveDraftResponse {
 input SendToPharmacyInput {
   orderId: String!
   pharmacyId: String!
+}
+
+input SetAvailabilitySlotInput {
+  dayOfWeek: DayOfWeek!
+  endTime: String!
+  startTime: String!
 }
 
 input SubmitIntakeInput {
@@ -1983,6 +2152,37 @@ type VerticalInfo {
   name: String!
   pricePerMonth: Int!
   tagline: String!
+}
+
+"""Status of a video consultation session"""
+enum VideoSessionStatus {
+  CANCELLED
+  COMPLETED
+  FAILED
+  IN_PROGRESS
+  NO_SHOW_DOCTOR
+  NO_SHOW_PATIENT
+  SCHEDULED
+  WAITING_FOR_DOCTOR
+  WAITING_FOR_PATIENT
+}
+
+type VideoSessionType {
+  actualEndTime: DateTime
+  actualStartTime: DateTime
+  callType: CallType!
+  consultationId: String!
+  createdAt: DateTime!
+  doctorId: String!
+  durationSeconds: Int
+  id: String!
+  notes: String
+  patientId: String!
+  recordingConsentGiven: Boolean!
+  roomId: String
+  scheduledEndTime: DateTime!
+  scheduledStartTime: DateTime!
+  status: VideoSessionStatus!
 }
 
 type WalletBalanceType {
