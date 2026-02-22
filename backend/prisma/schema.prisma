@@ -42,6 +42,9 @@ enum ConsultationStatus {
   PENDING_ASSESSMENT
   AI_REVIEWED
   DOCTOR_REVIEWING
+  VIDEO_SCHEDULED      // Phase 13: video slot booked, awaiting call
+  VIDEO_COMPLETED      // Phase 13: video call done, doctor can prescribe
+  AWAITING_LABS        // Phase 13: doctor wants labs before prescribing
   APPROVED
   NEEDS_INFO
   REJECTED
@@ -75,6 +78,45 @@ enum SubscriptionStatus {
   PAUSED
   CANCELLED
   EXPIRED
+}
+
+// Spec: Phase 13 — Video Session Status
+enum VideoSessionStatus {
+  SCHEDULED
+  WAITING_FOR_PATIENT
+  WAITING_FOR_DOCTOR
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW_PATIENT
+  NO_SHOW_DOCTOR
+  FAILED
+}
+
+// Spec: Phase 13 — Call Type (TPG 2020: all 3 are valid consultation types)
+enum CallType {
+  VIDEO
+  AUDIO_ONLY
+  PHONE_FALLBACK
+}
+
+// Spec: Phase 13 — Day of Week for recurring availability
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// Spec: Phase 13 — Booked Slot Status
+enum BookedSlotStatus {
+  BOOKED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
 }
 
 // Spec: master spec Section 7.3 — Lab Order Status Enum
@@ -131,6 +173,13 @@ model User {
   auditLogs       AuditLog[]
   labOrders       LabOrder[]        @relation("PatientLabOrders")
   wallet          Wallet?
+
+  // Phase 13: Video consultation relations
+  doctorVideoSessions   VideoSession[]          @relation("DoctorVideoSessions")
+  patientVideoSessions  VideoSession[]          @relation("PatientVideoSessions")
+  doctorAvailability    DoctorAvailabilitySlot[] @relation("DoctorAvailabilitySlots")
+  doctorBookedSlots     BookedSlot[]            @relation("DoctorBookedSlots")
+  patientBookedSlots    BookedSlot[]            @relation("PatientBookedSlots")
 
   @@index([phone])
   @@index([role])
@@ -383,6 +432,10 @@ model Consultation {
   messages       Message[]
   followUps      FollowUp[]
   labOrders      LabOrder[]
+
+  // Phase 13: Video consultation relations
+  videoSessions  VideoSession[]
+  bookedSlots    BookedSlot[]
 
   @@index([patientId])
   @@index([doctorId])
@@ -1067,5 +1120,93 @@ model Refund {
 
   @@index([userId])
   @@index([paymentId])
+  @@index([status])
+}
+
+// ============================================
+// VIDEO CONSULTATIONS (Phase 13)
+// Spec: Phase 13 — TPG 2020 compliance for Schedule H prescriptions
+// ============================================
+
+model VideoSession {
+  id                   String             @id @default(cuid())
+  consultationId       String
+  doctorId             String
+  patientId            String
+  roomId               String?            // 100ms room ID, null until room created
+  status               VideoSessionStatus @default(SCHEDULED)
+  scheduledStartTime   DateTime
+  scheduledEndTime     DateTime
+  actualStartTime      DateTime?          // When both parties joined
+  actualEndTime        DateTime?          // When session ended
+  durationSeconds      Int?               // Calculated from actual times
+  recordingConsentGiven Boolean           @default(false)
+  recordingUrl         String?            // R2/S3 URL, encrypted at rest
+  callType             CallType           @default(VIDEO)
+  disconnectCount      Int                @default(0)
+  reconnectRoomId      String?            // New room after disconnect
+  notes                String?            // Doctor's post-call notes
+  noShowMarkedBy       String?            // Who marked the no-show
+  cancellationReason   String?
+  cancelledBy          String?
+  cancelledAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+  doctor       User         @relation("DoctorVideoSessions", fields: [doctorId], references: [id])
+  patient      User         @relation("PatientVideoSessions", fields: [patientId], references: [id])
+  bookedSlots  BookedSlot[]
+
+  @@index([consultationId])
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([status])
+  @@index([scheduledStartTime])
+}
+
+model DoctorAvailabilitySlot {
+  id                  String    @id @default(cuid())
+  doctorId            String
+  dayOfWeek           DayOfWeek
+  startTime           String    // "18:00" (IST, 24hr format)
+  endTime             String    // "20:00"
+  slotDurationMinutes Int       @default(15)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  doctor      User         @relation("DoctorAvailabilitySlots", fields: [doctorId], references: [id])
+  bookedSlots BookedSlot[]
+
+  @@unique([doctorId, dayOfWeek, startTime])
+  @@index([doctorId])
+  @@index([dayOfWeek])
+}
+
+model BookedSlot {
+  id                 String          @id @default(cuid())
+  videoSessionId     String
+  availabilitySlotId String?
+  doctorId           String
+  patientId          String
+  consultationId     String
+  slotDate           DateTime        @db.Date
+  startTime          DateTime
+  endTime            DateTime
+  status             BookedSlotStatus @default(BOOKED)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  videoSession     VideoSession          @relation(fields: [videoSessionId], references: [id])
+  availabilitySlot DoctorAvailabilitySlot? @relation(fields: [availabilitySlotId], references: [id])
+  doctor           User                  @relation("DoctorBookedSlots", fields: [doctorId], references: [id])
+  patient          User                  @relation("PatientBookedSlots", fields: [patientId], references: [id])
+  consultation     Consultation          @relation(fields: [consultationId], references: [id])
+
+  @@unique([doctorId, slotDate, startTime])
+  @@index([doctorId, slotDate])
+  @@index([patientId])
+  @@index([consultationId])
   @@index([status])
 }

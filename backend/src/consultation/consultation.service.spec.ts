@@ -557,4 +557,95 @@ describe('ConsultationService', () => {
       );
     });
   });
+
+  // Spec: Phase 13 — Video Consultation Status Transitions
+  describe('Phase 13: Video Consultation Status Transitions', () => {
+    describe('valid video transitions', () => {
+      it('should allow DOCTOR_REVIEWING → VIDEO_SCHEDULED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.DOCTOR_REVIEWING,
+          ConsultationStatus.VIDEO_SCHEDULED
+        )).toBe(true);
+      });
+
+      it('should allow VIDEO_SCHEDULED → VIDEO_COMPLETED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_SCHEDULED,
+          ConsultationStatus.VIDEO_COMPLETED
+        )).toBe(true);
+      });
+
+      it('should allow VIDEO_SCHEDULED → DOCTOR_REVIEWING (video cancelled)', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_SCHEDULED,
+          ConsultationStatus.DOCTOR_REVIEWING
+        )).toBe(true);
+      });
+
+      it('should allow VIDEO_COMPLETED → APPROVED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_COMPLETED,
+          ConsultationStatus.APPROVED
+        )).toBe(true);
+      });
+
+      it('should allow VIDEO_COMPLETED → AWAITING_LABS', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_COMPLETED,
+          ConsultationStatus.AWAITING_LABS
+        )).toBe(true);
+      });
+
+      it('should allow VIDEO_COMPLETED → REJECTED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_COMPLETED,
+          ConsultationStatus.REJECTED
+        )).toBe(true);
+      });
+
+      it('should allow AWAITING_LABS → APPROVED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.AWAITING_LABS,
+          ConsultationStatus.APPROVED
+        )).toBe(true);
+      });
+
+      it('should allow AWAITING_LABS → REJECTED', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.AWAITING_LABS,
+          ConsultationStatus.REJECTED
+        )).toBe(true);
+      });
+    });
+
+    describe('invalid video transitions', () => {
+      it('should NOT allow PENDING_ASSESSMENT → VIDEO_SCHEDULED (skip AI + doctor)', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.PENDING_ASSESSMENT,
+          ConsultationStatus.VIDEO_SCHEDULED
+        )).toBe(false);
+      });
+
+      it('should NOT allow VIDEO_SCHEDULED → APPROVED (must go through VIDEO_COMPLETED)', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.VIDEO_SCHEDULED,
+          ConsultationStatus.APPROVED
+        )).toBe(false);
+      });
+
+      it('should NOT allow AWAITING_LABS → DOCTOR_REVIEWING', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.AWAITING_LABS,
+          ConsultationStatus.DOCTOR_REVIEWING
+        )).toBe(false);
+      });
+
+      it('should NOT allow AI_REVIEWED → VIDEO_SCHEDULED (must go through DOCTOR_REVIEWING)', () => {
+        expect(service.isValidTransition(
+          ConsultationStatus.AI_REVIEWED,
+          ConsultationStatus.VIDEO_SCHEDULED
+        )).toBe(false);
+      });
+    });
+  });
 });

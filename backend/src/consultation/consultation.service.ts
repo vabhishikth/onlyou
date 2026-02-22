@@ -7,12 +7,27 @@ import { Consultation, ConsultationStatus, HealthVertical, UserRole } from '@pri
 
 // Valid status transitions per state machine
 // Spec: submitted → assigned → reviewed → completed/referred
+// Phase 13: Added VIDEO_SCHEDULED, VIDEO_COMPLETED, AWAITING_LABS for video consultation flow
 export const VALID_STATUS_TRANSITIONS: Record<ConsultationStatus, ConsultationStatus[]> = {
   [ConsultationStatus.PENDING_ASSESSMENT]: [ConsultationStatus.AI_REVIEWED],
   [ConsultationStatus.AI_REVIEWED]: [ConsultationStatus.DOCTOR_REVIEWING],
   [ConsultationStatus.DOCTOR_REVIEWING]: [
     ConsultationStatus.APPROVED,
+    ConsultationStatus.VIDEO_SCHEDULED,  // Phase 13: doctor requests video consultation
     ConsultationStatus.NEEDS_INFO,
+    ConsultationStatus.REJECTED,
+  ],
+  [ConsultationStatus.VIDEO_SCHEDULED]: [
+    ConsultationStatus.VIDEO_COMPLETED,  // Phase 13: video call completed
+    ConsultationStatus.DOCTOR_REVIEWING, // Phase 13: video cancelled, back to reviewing
+  ],
+  [ConsultationStatus.VIDEO_COMPLETED]: [
+    ConsultationStatus.APPROVED,         // Phase 13: doctor prescribes after video
+    ConsultationStatus.AWAITING_LABS,    // Phase 13: doctor wants labs before prescribing
+    ConsultationStatus.REJECTED,
+  ],
+  [ConsultationStatus.AWAITING_LABS]: [
+    ConsultationStatus.APPROVED,         // Phase 13: labs reviewed, doctor prescribes
     ConsultationStatus.REJECTED,
   ],
   [ConsultationStatus.NEEDS_INFO]: [ConsultationStatus.DOCTOR_REVIEWING],
