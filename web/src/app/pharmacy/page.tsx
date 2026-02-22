@@ -19,6 +19,8 @@ import {
     PHARMACY_NEW_ORDERS,
     PHARMACY_START_PREPARING,
     PHARMACY_REPORT_STOCK_ISSUE,
+    PHARMACY_ACCEPT_ORDER,
+    PHARMACY_REJECT_ORDER,
     PharmacyTodaySummaryResponse,
     PharmacyNewOrdersResponse,
     PharmacyOrderSummary,
@@ -26,6 +28,7 @@ import {
 } from '@/graphql/pharmacy-portal';
 
 // Spec: master spec Section 8.1 — Pharmacy Portal
+// Spec: Phase 15 — Accept/reject order flow
 // New Orders tab: incoming prescriptions to prepare
 
 export default function PharmacyNewOrdersPage() {
@@ -58,6 +61,14 @@ export default function PharmacyNewOrdersPage() {
             setMissingMeds([]);
             refetch();
         },
+    });
+
+    const [acceptOrder] = useMutation(PHARMACY_ACCEPT_ORDER, {
+        onCompleted: () => refetch(),
+    });
+
+    const [rejectOrder] = useMutation(PHARMACY_REJECT_ORDER, {
+        onCompleted: () => refetch(),
     });
 
     const summary = summaryData?.pharmacyTodaySummary;
@@ -174,6 +185,8 @@ export default function PharmacyNewOrdersPage() {
                             onStartPreparing={() => handleStartPreparing(order)}
                             onViewPrescription={() => openPrescription(order)}
                             onStockIssue={() => openStockIssue(order)}
+                            onAccept={() => acceptOrder({ variables: { pharmacyOrderId: order.id } })}
+                            onReject={(reason: string) => rejectOrder({ variables: { pharmacyOrderId: order.id, reason } })}
                             loading={starting && selectedOrder?.id === order.id}
                         />
                     </motion.div>
@@ -333,14 +346,21 @@ function OrderCard({
     onStartPreparing,
     onViewPrescription,
     onStockIssue,
+    onAccept,
+    onReject,
     loading,
 }: {
     order: PharmacyOrderSummary;
     onStartPreparing: () => void;
     onViewPrescription: () => void;
     onStockIssue: () => void;
+    onAccept: () => void;
+    onReject: (reason: string) => void;
     loading: boolean;
 }) {
+    const [showRejectForm, setShowRejectForm] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+
     return (
         <div className="card-premium p-4">
             {/* Header */}
@@ -374,6 +394,61 @@ function OrderCard({
                     </div>
                 ))}
             </div>
+
+            {/* Phase 15: Accept / Reject buttons */}
+            <div className="flex gap-2 mb-2">
+                <button
+                    data-testid={`accept-${order.id}`}
+                    onClick={onAccept}
+                    className="flex-1 h-10 bg-green-100 text-green-700 rounded-lg font-medium text-sm flex items-center justify-center gap-1.5 hover:bg-green-200 transition-colors"
+                >
+                    <CheckCircle className="w-4 h-4" />
+                    Accept
+                </button>
+                {!showRejectForm && (
+                    <button
+                        data-testid={`reject-${order.id}`}
+                        onClick={() => setShowRejectForm(true)}
+                        className="flex-1 h-10 bg-red-100 text-red-600 rounded-lg font-medium text-sm flex items-center justify-center gap-1.5 hover:bg-red-200 transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                        Reject
+                    </button>
+                )}
+            </div>
+
+            {/* Reject reason form */}
+            {showRejectForm && (
+                <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                    <input
+                        data-testid="reject-reason-input"
+                        type="text"
+                        placeholder="Reason for rejection..."
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm mb-2"
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            data-testid={`confirm-reject-${order.id}`}
+                            onClick={() => {
+                                onReject(rejectReason);
+                                setShowRejectForm(false);
+                                setRejectReason('');
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                        >
+                            Confirm Reject
+                        </button>
+                        <button
+                            onClick={() => setShowRejectForm(false)}
+                            className="px-3 py-2 text-sm text-neutral-500 hover:text-foreground"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 mb-2">

@@ -7,7 +7,12 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MockedProvider, MockedResponse } from '@apollo/client/testing';
 import PharmacyDashboard from '../page';
-import { PHARMACY_TODAY_SUMMARY, PHARMACY_NEW_ORDERS } from '@/graphql/pharmacy-portal';
+import {
+    PHARMACY_TODAY_SUMMARY,
+    PHARMACY_NEW_ORDERS,
+    PHARMACY_ACCEPT_ORDER,
+    PHARMACY_REJECT_ORDER,
+} from '@/graphql/pharmacy-portal';
 
 jest.mock('framer-motion', () => ({
     motion: {
@@ -100,5 +105,32 @@ describe('Pharmacy Dashboard — New Orders', () => {
         await waitFor(() => {
             expect(screen.getByText('Start Preparing')).toBeDefined();
         });
+    });
+
+    // Phase 15: Accept/Reject flow
+    it('should show accept and reject buttons on new orders', async () => {
+        renderWithProvider([summaryMock, ordersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('ORD-001')).toBeDefined();
+        });
+
+        expect(screen.getByTestId('accept-po-1')).toBeDefined();
+        expect(screen.getByTestId('reject-po-1')).toBeDefined();
+    });
+
+    it('should show rejection reason input when reject clicked', async () => {
+        const { fireEvent: fe } = require('@testing-library/react');
+        renderWithProvider([summaryMock, ordersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('ORD-001')).toBeDefined();
+        });
+
+        const rejectBtn = screen.getByTestId('reject-po-1');
+        fe.click(rejectBtn);
+
+        expect(screen.getByTestId('reject-reason-input')).toBeDefined();
+        expect(screen.getByTestId('confirm-reject-po-1')).toBeDefined();
     });
 });

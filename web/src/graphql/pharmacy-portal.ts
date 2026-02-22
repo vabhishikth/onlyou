@@ -122,6 +122,19 @@ export const PHARMACY_REPORT_STOCK_ISSUE = gql`
     }
 `;
 
+// Spec: Phase 15 — Pharmacy accept/reject order
+export const PHARMACY_ACCEPT_ORDER = gql`
+    mutation PharmacyAcceptOrder($pharmacyOrderId: String!) {
+        acceptOrder(pharmacyOrderId: $pharmacyOrderId)
+    }
+`;
+
+export const PHARMACY_REJECT_ORDER = gql`
+    mutation PharmacyRejectOrder($pharmacyOrderId: String!, $reason: String!) {
+        rejectOrder(pharmacyOrderId: $pharmacyOrderId, reason: $reason)
+    }
+`;
+
 // =============================================
 // TYPES
 // =============================================
