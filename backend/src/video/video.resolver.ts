@@ -1,18 +1,39 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AvailabilityService } from './availability.service';
 import { SlotBookingService, CONNECTIVITY_WARNING } from './slot-booking.service';
 import { HmsService } from './hms.service';
 import { VideoSchedulerService } from './video-scheduler.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoSessionStatus } from '@prisma/client';
+import {
+  BookVideoSlotInput,
+  RescheduleVideoBookingInput,
+  SetAvailabilitySlotInput,
+  CompleteVideoSessionInput,
+  MarkAwaitingLabsInput,
+} from './dto/video.input';
+import {
+  AvailableSlotsResponse,
+  BookingResponse,
+  CancelBookingResult,
+  JoinSessionResponse,
+  RecordingConsentResponse,
+  AvailabilitySlotType,
+  NoShowResultType,
+  VideoSessionType,
+  BookedSlotType,
+} from './dto/video.output';
 
-// Spec: Phase 13 plan — Chunk 7
+// Spec: Phase 13 plan — Chunk 7, Phase 14 — Chunk 0 (GraphQL decorators)
 // GraphQL resolver for video consultation endpoints
 
 @Resolver()
@@ -31,7 +52,11 @@ export class VideoResolver {
   // Patient endpoints
   // ============================================================
 
-  async getAvailableSlots(consultationId: string) {
+  @Query(() => AvailableSlotsResponse, { name: 'availableVideoSlots' })
+  @UseGuards(JwtAuthGuard)
+  async getAvailableSlots(
+    @Args('consultationId') consultationId: string,
+  ) {
     const result = await this.availabilityService.getAvailableDoctorSlots(consultationId);
     return {
       ...result,
@@ -39,11 +64,13 @@ export class VideoResolver {
     };
   }
 
+  @Mutation(() => BookingResponse, { name: 'bookVideoSlot' })
+  @UseGuards(JwtAuthGuard)
   async bookVideoSlot(
-    user: any,
-    consultationId: string,
-    slotDate: string,
-    startTime: string,
+    @CurrentUser() user: any,
+    @Args('consultationId') consultationId: string,
+    @Args('slotDate') slotDate: string,
+    @Args('startTime') startTime: string,
   ) {
     return this.slotBookingService.bookSlot({
       consultationId,
@@ -53,15 +80,23 @@ export class VideoResolver {
     });
   }
 
-  async cancelVideoBooking(user: any, bookedSlotId: string, reason: string) {
+  @Mutation(() => CancelBookingResult, { name: 'cancelVideoBooking' })
+  @UseGuards(JwtAuthGuard)
+  async cancelVideoBooking(
+    @CurrentUser() user: any,
+    @Args('bookedSlotId') bookedSlotId: string,
+    @Args('reason') reason: string,
+  ) {
     return this.slotBookingService.cancelBooking(bookedSlotId, user.id, reason);
   }
 
+  @Mutation(() => BookingResponse, { name: 'rescheduleVideoBooking' })
+  @UseGuards(JwtAuthGuard)
   async rescheduleVideoBooking(
-    user: any,
-    bookedSlotId: string,
-    newSlotDate: string,
-    newStartTime: string,
+    @CurrentUser() user: any,
+    @Args('bookedSlotId') bookedSlotId: string,
+    @Args('newSlotDate') newSlotDate: string,
+    @Args('newStartTime') newStartTime: string,
   ) {
     return this.slotBookingService.rescheduleBooking(
       bookedSlotId,
@@ -71,11 +106,18 @@ export class VideoResolver {
     );
   }
 
-  async getMyUpcomingVideoSessions(user: any) {
+  @Query(() => [BookedSlotType], { name: 'myUpcomingVideoSessions' })
+  @UseGuards(JwtAuthGuard)
+  async getMyUpcomingVideoSessions(@CurrentUser() user: any) {
     return this.slotBookingService.getUpcomingBookings(user.id, user.role);
   }
 
-  async joinVideoSession(user: any, videoSessionId: string) {
+  @Mutation(() => JoinSessionResponse, { name: 'joinVideoSession' })
+  @UseGuards(JwtAuthGuard)
+  async joinVideoSession(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
     const session = await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
@@ -105,7 +147,12 @@ export class VideoResolver {
     return { roomId, token };
   }
 
-  async giveRecordingConsent(user: any, videoSessionId: string) {
+  @Mutation(() => RecordingConsentResponse, { name: 'giveRecordingConsent' })
+  @UseGuards(JwtAuthGuard)
+  async giveRecordingConsent(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
     const session = await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
@@ -128,7 +175,12 @@ export class VideoResolver {
   // Doctor endpoints
   // ============================================================
 
-  async setMyAvailability(user: any, slots: any[]) {
+  @Mutation(() => [AvailabilitySlotType], { name: 'setMyAvailability' })
+  @UseGuards(JwtAuthGuard)
+  async setMyAvailability(
+    @CurrentUser() user: any,
+    @Args('slots', { type: () => [SetAvailabilitySlotInput] }) slots: SetAvailabilitySlotInput[],
+  ) {
     if (user.role !== 'DOCTOR') {
       throw new ForbiddenException('Only doctors can set availability');
     }
@@ -136,11 +188,18 @@ export class VideoResolver {
     return this.availabilityService.setRecurringAvailability(user.id, slots);
   }
 
-  async getMyAvailability(user: any) {
+  @Query(() => [AvailabilitySlotType], { name: 'myAvailability' })
+  @UseGuards(JwtAuthGuard)
+  async getMyAvailability(@CurrentUser() user: any) {
     return this.availabilityService.getAvailability(user.id);
   }
 
-  async markNoShow(user: any, videoSessionId: string) {
+  @Mutation(() => NoShowResultType, { name: 'markNoShow' })
+  @UseGuards(JwtAuthGuard)
+  async markNoShow(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
     const session = await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
@@ -172,11 +231,13 @@ export class VideoResolver {
     );
   }
 
+  @Mutation(() => VideoSessionType, { name: 'completeVideoSession' })
+  @UseGuards(JwtAuthGuard)
   async completeVideoSession(
-    user: any,
-    videoSessionId: string,
-    notes: string,
-    callType?: string,
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+    @Args('notes') notes: string,
+    @Args('callType', { nullable: true }) callType?: string,
   ) {
     const session = await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
@@ -204,13 +265,19 @@ export class VideoResolver {
       },
     });
 
-    // Trigger post-call automation
-    await this.schedulerService.onVideoCompleted(session.consultationId);
+    // Trigger post-call automation (fixed: pass videoSessionId + session object)
+    await this.schedulerService.onVideoCompleted(videoSessionId, session);
 
     return updated;
   }
 
-  async markAwaitingLabs(user: any, videoSessionId: string, labNotes: string) {
+  @Mutation(() => Boolean, { name: 'markAwaitingLabs' })
+  @UseGuards(JwtAuthGuard)
+  async markAwaitingLabs(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+    @Args('labNotes') labNotes: string,
+  ) {
     const session = await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
@@ -224,13 +291,19 @@ export class VideoResolver {
     }
 
     await this.schedulerService.onAwaitingLabs(session.consultationId, labNotes);
+    return true;
   }
 
   // ============================================================
   // Webhook (no auth guard — verified by HMAC signature)
   // ============================================================
 
-  async hmsWebhook(payload: any, signature: string) {
+  @Mutation(() => Boolean, { name: 'hmsWebhook' })
+  async hmsWebhook(
+    @Args('payload') payload: any,
+    @Args('signature') signature: string,
+  ) {
     await this.hmsService.handleWebhook({ ...payload, webhookSignature: signature });
+    return true;
   }
 }

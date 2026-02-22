@@ -438,7 +438,10 @@ describe('Video Edge Cases', () => {
       const user = { id: 'doctor-1', role: 'DOCTOR' };
       await resolver.completeVideoSession(user, 'vs-1', 'All good');
 
-      expect(mockSchedulerService.onVideoCompleted).toHaveBeenCalledWith('consult-1');
+      expect(mockSchedulerService.onVideoCompleted).toHaveBeenCalledWith(
+        'vs-1',
+        expect.objectContaining({ consultationId: 'consult-1' }),
+      );
     });
   });
 
