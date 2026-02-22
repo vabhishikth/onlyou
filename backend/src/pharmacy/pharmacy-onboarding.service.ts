@@ -135,7 +135,7 @@ export class PharmacyOnboardingService {
    * Upload pharmacy documents
    * Spec: Phase 15 Chunk 1 — Status -> DOCUMENTS_SUBMITTED
    */
-  async uploadPharmacyDocuments(pharmacyId: string, adminId: string, documents: UploadDocumentsInput) {
+  async uploadPharmacyDocuments(pharmacyId: string, _adminId: string, documents: UploadDocumentsInput) {
     const pharmacy = await this.prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
     if (!pharmacy) {
       throw new NotFoundException('Pharmacy not found');
@@ -223,7 +223,7 @@ export class PharmacyOnboardingService {
    * Reactivate pharmacy from suspension
    * Spec: Phase 15 Chunk 1 — Status -> ACTIVE from SUSPENDED only
    */
-  async reactivatePharmacy(pharmacyId: string, adminId: string, notes?: string) {
+  async reactivatePharmacy(pharmacyId: string, _adminId: string, notes?: string) {
     const pharmacy = await this.prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
     if (!pharmacy) {
       throw new NotFoundException('Pharmacy not found');
@@ -249,7 +249,7 @@ export class PharmacyOnboardingService {
    * Deactivate pharmacy (permanent)
    * Spec: Phase 15 Chunk 1 — Block if active orders exist
    */
-  async deactivatePharmacy(pharmacyId: string, adminId: string, reason: string) {
+  async deactivatePharmacy(pharmacyId: string, _adminId: string, reason: string) {
     const pharmacy = await this.prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
     if (!pharmacy) {
       throw new NotFoundException('Pharmacy not found');
@@ -361,7 +361,7 @@ export class PharmacyOnboardingService {
    * Update staff permissions
    * Spec: Phase 15 Chunk 1 — Only PHARMACIST can have canAcceptOrders=true
    */
-  async updatePharmacyStaffPermissions(staffId: string, adminId: string, permissions: UpdatePermissionsInput) {
+  async updatePharmacyStaffPermissions(staffId: string, _adminId: string, permissions: UpdatePermissionsInput) {
     const staff = await this.prisma.pharmacyStaff.findUnique({ where: { id: staffId } });
     if (!staff) {
       throw new NotFoundException('Staff member not found');
@@ -386,7 +386,7 @@ export class PharmacyOnboardingService {
    * Deactivate staff member
    * Spec: Phase 15 Chunk 1 — isActive -> false, revokes access
    */
-  async deactivatePharmacyStaff(staffId: string, adminId: string) {
+  async deactivatePharmacyStaff(staffId: string, _adminId: string) {
     const staff = await this.prisma.pharmacyStaff.findUnique({ where: { id: staffId } });
     if (!staff) {
       throw new NotFoundException('Staff member not found');

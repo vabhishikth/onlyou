@@ -92,6 +92,18 @@ export class PharmacyAssignmentService {
   }
 
   /**
+   * Extract address from patient profile (supports addressLine1/addressLine2 and legacy address field)
+   */
+  private extractAddress(profile: any): string {
+    if (!profile) return '';
+    // Support both schema formats
+    if (profile.addressLine1 || profile.addressLine2) {
+      return [profile.addressLine1, profile.addressLine2].filter(Boolean).join(', ');
+    }
+    return profile.address || '';
+  }
+
+  /**
    * Core assignment logic shared by assignPharmacy and reassignPharmacy
    */
   private async performAssignment(ctx: AssignmentContext): Promise<PharmacyAssignmentResult> {
@@ -137,9 +149,13 @@ export class PharmacyAssignmentService {
     const ranked = this.rankPharmacies(eligible, ctx.patientPincode);
     const bestPharmacy = ranked[0];
 
+    // Generate unique order number: PO-XXXXXX
+    const orderNumber = `PO-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+
     // Create PharmacyOrder
     const pharmacyOrder = await this.prisma.pharmacyOrder.create({
       data: {
+        orderNumber,
         prescriptionId: ctx.prescriptionId,
         pharmacyId: bestPharmacy.id,
         patientId: ctx.patientId,
@@ -187,6 +203,7 @@ export class PharmacyAssignmentService {
       pharmacyId: bestPharmacy.id,
       pharmacyName: bestPharmacy.name,
       pharmacyOrderId: pharmacyOrder.id,
+      reason: 'assigned',
     };
   }
 
@@ -215,12 +232,12 @@ export class PharmacyAssignmentService {
 
     const ctx: AssignmentContext = {
       prescriptionId,
-      patientId: prescription.consultation?.patientId || prescription.patientId,
+      patientId: prescription.consultation?.patientId || '',
       consultationId: prescription.consultationId,
       medications: (prescription.medications as any[]) || [],
       patientCity: prescription.consultation?.patient?.patientProfile?.city || '',
       patientPincode: prescription.consultation?.patient?.patientProfile?.pincode || '',
-      patientAddress: prescription.consultation?.patient?.patientProfile?.address || '',
+      patientAddress: this.extractAddress(prescription.consultation?.patient?.patientProfile),
       excludePharmacyIds,
     };
 
