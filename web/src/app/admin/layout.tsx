@@ -10,6 +10,7 @@ import {
     Users,
     Building2,
     AlertTriangle,
+    Stethoscope,
     Menu,
     X,
     LogOut,
@@ -50,6 +51,11 @@ const NAV_ITEMS = [
         href: '/admin/patients',
         label: 'Patients',
         icon: Users,
+    },
+    {
+        href: '/admin/doctors',
+        label: 'Doctors',
+        icon: Stethoscope,
     },
 ];
 
