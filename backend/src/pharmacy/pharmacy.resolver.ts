@@ -12,9 +12,10 @@ import { PharmacyFulfillmentService } from './pharmacy-fulfillment.service';
 import { DeliveryService } from './delivery.service';
 import { SlaMonitorService } from './sla-monitor.service';
 import { AutoRefillService } from './auto-refill.service';
+import { ReturnsService } from './returns.service';
 import { GraphQLJSON } from 'graphql-type-json';
 
-// Spec: Phase 15 Chunk 8 — GraphQL API Endpoints
+// Spec: Phase 15 Chunks 8-9 — GraphQL API Endpoints
 
 @Resolver()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -26,6 +27,7 @@ export class PharmacyResolver {
     private readonly deliveryService: DeliveryService,
     private readonly slaService: SlaMonitorService,
     private readonly refillService: AutoRefillService,
+    private readonly returnsService: ReturnsService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -492,5 +494,69 @@ export class PharmacyResolver {
     @Args('notes', { nullable: true }) notes?: string,
   ) {
     return this.deliveryService.updateDeliveryStatus(pharmacyOrderId, newStatus, notes);
+  }
+
+  // ========================================
+  // RETURNS + PAYMENT endpoints (Chunk 9)
+  // ========================================
+
+  @Mutation(() => GraphQLJSON)
+  @Roles(UserRole.PATIENT)
+  async reportDamagedOrder(
+    @CurrentUser() user: any,
+    @Args('pharmacyOrderId') pharmacyOrderId: string,
+    @Args('photos', { type: () => [String] }) photos: string[],
+    @Args('description') description: string,
+  ) {
+    return this.returnsService.reportDamagedOrder(pharmacyOrderId, user.id, photos, description);
+  }
+
+  @Mutation(() => GraphQLJSON)
+  @Roles(UserRole.PATIENT)
+  async processReturn(
+    @CurrentUser() user: any,
+    @Args('pharmacyOrderId') pharmacyOrderId: string,
+    @Args('reason') reason: string,
+  ) {
+    return this.returnsService.processReturn(pharmacyOrderId, user.id, reason);
+  }
+
+  @Mutation(() => GraphQLJSON)
+  @Roles(UserRole.ADMIN)
+  async approveDamageReport(
+    @CurrentUser() user: any,
+    @Args('pharmacyOrderId') pharmacyOrderId: string,
+  ) {
+    return this.returnsService.approveDamageReport(pharmacyOrderId, user.id);
+  }
+
+  @Mutation(() => GraphQLJSON)
+  @Roles(UserRole.ADMIN)
+  async handleColdChainBreach(
+    @CurrentUser() _user: any,
+    @Args('pharmacyOrderId') pharmacyOrderId: string,
+  ) {
+    await this.returnsService.handleColdChainBreach(pharmacyOrderId);
+    return { success: true };
+  }
+
+  @Query(() => GraphQLJSON)
+  @Roles(UserRole.ADMIN)
+  async validatePaymentBeforeOrder(
+    @CurrentUser() _user: any,
+    @Args('patientId') patientId: string,
+    @Args('consultationId') consultationId: string,
+  ) {
+    return this.returnsService.validatePaymentBeforeOrder(patientId, consultationId);
+  }
+
+  @Query(() => GraphQLJSON)
+  @Roles(UserRole.ADMIN)
+  async checkBloodWorkPayment(
+    @CurrentUser() _user: any,
+    @Args('patientId') patientId: string,
+    @Args('labOrderId') labOrderId: string,
+  ) {
+    return this.returnsService.handlePaymentForBloodWork(patientId, labOrderId);
   }
 }

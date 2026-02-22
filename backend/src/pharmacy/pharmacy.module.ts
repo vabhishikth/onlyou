@@ -7,6 +7,7 @@ import { PharmacyFulfillmentService } from './pharmacy-fulfillment.service';
 import { DeliveryService } from './delivery.service';
 import { SlaMonitorService } from './sla-monitor.service';
 import { AutoRefillService } from './auto-refill.service';
+import { ReturnsService } from './returns.service';
 import { PharmacyResolver } from './pharmacy.resolver';
 
 // Spec: Phase 15 — Pharmacy Module
@@ -21,6 +22,7 @@ import { PharmacyResolver } from './pharmacy.resolver';
     DeliveryService,
     SlaMonitorService,
     AutoRefillService,
+    ReturnsService,
   ],
   exports: [
     PharmacyOnboardingService,
@@ -29,6 +31,7 @@ import { PharmacyResolver } from './pharmacy.resolver';
     DeliveryService,
     SlaMonitorService,
     AutoRefillService,
+    ReturnsService,
   ],
 })
 export class PharmacyModule {}

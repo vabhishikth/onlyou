@@ -6,6 +6,7 @@ import { PharmacyFulfillmentService } from './pharmacy-fulfillment.service';
 import { DeliveryService } from './delivery.service';
 import { SlaMonitorService } from './sla-monitor.service';
 import { AutoRefillService } from './auto-refill.service';
+import { ReturnsService } from './returns.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: Phase 15 Chunk 8 — GraphQL API Endpoints
@@ -89,6 +90,17 @@ describe('PharmacyResolver', () => {
           useValue: {
             createRefillSubscription: jest.fn().mockResolvedValue({ id: 'arc-1', isActive: true }),
             cancelRefillSubscription: jest.fn().mockResolvedValue({ id: 'arc-1', isActive: false }),
+          },
+        },
+        {
+          provide: ReturnsService,
+          useValue: {
+            reportDamagedOrder: jest.fn().mockResolvedValue({ id: 'po-1', status: 'DAMAGE_REPORTED' }),
+            approveDamageReport: jest.fn().mockResolvedValue({ id: 'po-1', status: 'DAMAGE_APPROVED' }),
+            processReturn: jest.fn().mockResolvedValue({ id: 'po-1', status: 'RETURN_ACCEPTED' }),
+            handleColdChainBreach: jest.fn().mockResolvedValue(undefined),
+            validatePaymentBeforeOrder: jest.fn().mockResolvedValue({ valid: true }),
+            handlePaymentForBloodWork: jest.fn().mockResolvedValue({ requiresPayment: false, reason: 'INCLUDED_IN_PLAN' }),
           },
         },
         {
