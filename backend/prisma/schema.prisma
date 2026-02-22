@@ -1471,6 +1471,7 @@ model DeliveryTracking {
 
   // Attempt tracking
   attemptNumber               Int                   @default(1)
+  isColdChain                 Boolean               @default(false)
 
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
