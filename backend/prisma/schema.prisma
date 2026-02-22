@@ -168,23 +168,29 @@ enum DeliveryTrackingStatus {
   RETURNED
 }
 
-// Spec: master spec Section 7.3 — Lab Order Status Enum
-// Main flow: ORDERED → SLOT_BOOKED → PHLEBOTOMIST_ASSIGNED → SAMPLE_COLLECTED →
-//            DELIVERED_TO_LAB → SAMPLE_RECEIVED → PROCESSING → RESULTS_READY →
-//            DOCTOR_REVIEWED → CLOSED
+// Spec: master spec Section 7.3 + Phase 16 — Lab Order Status Enum
+// Main flow: ORDERED → PAYMENT_PENDING → PAYMENT_COMPLETED → SLOT_BOOKED →
+//            PHLEBOTOMIST_ASSIGNED → PHLEBOTOMIST_EN_ROUTE → SAMPLE_COLLECTED →
+//            SAMPLE_IN_TRANSIT → DELIVERED_TO_LAB → SAMPLE_RECEIVED → PROCESSING →
+//            RESULTS_PARTIAL → RESULTS_READY → DOCTOR_REVIEWED → CLOSED
 // Branches: COLLECTION_FAILED, SAMPLE_ISSUE, RESULTS_UPLOADED, CANCELLED, EXPIRED
 enum LabOrderStatus {
   ORDERED
+  PAYMENT_PENDING           // Phase 16: awaiting payment
+  PAYMENT_COMPLETED         // Phase 16: payment received
   SLOT_BOOKED
   PHLEBOTOMIST_ASSIGNED
+  PHLEBOTOMIST_EN_ROUTE     // Phase 16: phlebotomist heading to patient
   SAMPLE_COLLECTED
   COLLECTION_FAILED
+  SAMPLE_IN_TRANSIT         // Phase 16: sample on the way to lab
   DELIVERED_TO_LAB
   SAMPLE_RECEIVED
   SAMPLE_ISSUE
   PROCESSING
+  RESULTS_PARTIAL           // Phase 16: some results uploaded, others pending
   RESULTS_READY
-  RESULTS_UPLOADED      // Patient self-upload path
+  RESULTS_UPLOADED          // Patient self-upload path
   DOCTOR_REVIEWED
   CLOSED
   CANCELLED
@@ -928,6 +934,29 @@ model LabOrder {
   patientCharge         Int         @default(0)
   coveredBySubscription Boolean     @default(true)
 
+  // Phase 16: Enhanced fields
+  requiresFasting             Boolean   @default(false)
+  collectionMethod            String?   // HOME_COLLECTION or WALK_IN_LAB
+  collectionCompletedByPhlebotomistId String?
+  sampleReceivedByLabTechId   String?
+  resultsCompletedAt          DateTime?
+  resultsUploadedByLabTechId  String?
+  patientNotFasting           Boolean   @default(false)
+  collectionAttempts          Int       @default(0)
+  isProtocolRequired          Boolean   @default(false)
+  isFollowUp                  Boolean   @default(false)
+  previousLabOrderId          String?   // For trend tracking
+  uploadedResultsAccepted     Boolean?
+  uploadedResultsReviewedById String?
+  sampleIssueType             String?   // hemolyzed, insufficient, etc.
+  sampleIssueReportedByLabTechId String?
+  sampleIssueLinkedPhlebotomistId String?
+  phlebotomistEnRouteAt       DateTime?
+  sampleInTransitAt           DateTime?
+  resultsPartialAt            DateTime?
+  labPhlebotomistId           String?   // FK to new LabPhlebotomist model
+  partnerLabId                String?   // FK to new PartnerLab model
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -936,12 +965,14 @@ model LabOrder {
   consultation     Consultation             @relation(fields: [consultationId], references: [id])
   phlebotomist     Phlebotomist?            @relation(fields: [phlebotomistId], references: [id])
   diagnosticCentre PartnerDiagnosticCentre? @relation(fields: [diagnosticCentreId], references: [id])
+  labResults       LabResult[]              // Phase 16
 
   @@index([patientId])
   @@index([consultationId])
   @@index([status])
   @@index([orderedAt])
   @@index([bookedDate])
+  @@index([partnerLabId])
 }
 
 // ============================================
@@ -1748,4 +1779,87 @@ model LabPhlebotomist {
   @@index([status])
   @@index([assignedLabId])
   @@index([phone])
+}
+
+// Spec: Phase 16 Chunk 2 — Lab Result Status
+enum LabResultStatus {
+  NORMAL
+  LOW
+  HIGH
+  CRITICAL_LOW
+  CRITICAL_HIGH
+}
+
+// Spec: Phase 16 Chunk 2 — Change Direction for trend tracking
+enum ChangeDirection {
+  INCREASED
+  DECREASED
+  STABLE
+  NEW
+}
+
+// Spec: Phase 16 Chunk 2 — Lab Result (individual test result within a lab order)
+model LabResult {
+  id                          String          @id @default(cuid())
+  labOrderId                  String
+  testCode                    String          // "TSH", "fasting_glucose"
+  testName                    String          // human readable
+  value                       Float
+  unit                        String          // "mIU/L", "mg/dL"
+
+  // Reference range
+  referenceRangeMin           Float?
+  referenceRangeMax           Float?
+  referenceRangeText          String?         // For non-numeric ranges
+
+  // Status determination
+  status                      LabResultStatus @default(NORMAL)
+  isCritical                  Boolean         @default(false)
+
+  // Trend tracking (previous results)
+  previousValue               Float?
+  previousTestDate            DateTime?
+  changePercentage            Float?
+  changeDirection             ChangeDirection?
+
+  // Lab notes
+  labNotes                    String?
+
+  // Staff tracking
+  uploadedByLabTechId         String?
+  reviewedByDoctorId          String?
+  reviewedAt                  DateTime?
+  doctorNotes                 String?
+
+  // Critical value acknowledgment
+  criticalAcknowledgedByDoctorId String?
+  criticalAcknowledgedAt      DateTime?
+
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime        @updatedAt
+
+  // Relations
+  labOrder                    LabOrder        @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([labOrderId])
+  @@index([testCode])
+  @@index([isCritical])
+}
+
+// Spec: Phase 16 Chunk 2 — Phlebotomist Daily Roster
+model PhlebotomistDailyRoster {
+  id                          String   @id @default(cuid())
+  phlebotomistId              String   // FK to LabPhlebotomist
+  date                        DateTime @db.Date
+  totalBookings               Int      @default(0)
+  completedCollections        Int      @default(0)
+  failedCollections           Int      @default(0)
+  routeOrder                  Json?    // ordered patient list with addresses
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@unique([phlebotomistId, date])
+  @@index([phlebotomistId])
+  @@index([date])
 }
