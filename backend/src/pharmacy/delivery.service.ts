@@ -122,7 +122,7 @@ export class DeliveryService {
     const updated = await this.prisma.deliveryTracking.update({
       where: { id: tracking.id },
       data: {
-        status: newStatus,
+        status: newStatus as any,
         statusUpdatedAt: new Date(),
         notes: notes || tracking.notes,
       },

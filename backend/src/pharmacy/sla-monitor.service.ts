@@ -7,14 +7,14 @@ import { SLA_HOURS } from './constants';
 
 // Spec: Phase 15 Chunk 6 — SLA Timers + Breach Monitoring
 
-interface SlaBreach {
+export interface SlaBreach {
   type: 'ACCEPTANCE' | 'PREPARATION' | 'DELIVERY' | 'COLD_CHAIN' | 'OVERALL';
   detectedAt: string;
   elapsedHours: number;
   slaHours: number;
 }
 
-interface SlaStatus {
+export interface SlaStatus {
   orderId: string;
   breaches: SlaBreach[];
   acceptanceTimeRemaining: number; // hours
@@ -22,7 +22,7 @@ interface SlaStatus {
   deliveryTimeRemaining: number;
 }
 
-interface PerformanceReport {
+export interface PerformanceReport {
   pharmacyId: string;
   totalOrders: number;
   avgAcceptanceHours: number;

@@ -152,6 +152,10 @@ enum PharmacyOrderStatus {
   DELIVERED
   DELIVERY_FAILED
   CANCELLED
+  DAMAGE_REPORTED
+  DAMAGE_APPROVED
+  RETURN_ACCEPTED
+  COLD_CHAIN_BREACH
 }
 
 // Spec: Phase 15 — Delivery Tracking Status
@@ -639,10 +643,11 @@ model SubscriptionPlan {
   description     String?
   priceInPaise    Int            // Monthly price
   durationMonths  Int            @default(1)
-  features        String[]
-  isActive        Boolean        @default(true)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  features          String[]
+  includesBloodWork Boolean        @default(false)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   subscriptions Subscription[]
 
@@ -1429,6 +1434,17 @@ model PharmacyOrder {
   deliveryFailedReason        String?
   cancelledAt                 DateTime?
   cancellationReason          String?
+
+  // Returns + damage
+  isOpened                    Boolean             @default(false)
+  damageReportPhotos          String[]
+  damageReportDescription     String?
+  damageReportedAt            DateTime?
+  damageApprovedById          String?
+  damageApprovedAt            DateTime?
+  coldChainBreachAt           DateTime?
+  returnReason                String?
+  returnRequestedAt           DateTime?
 
   // Refill
   isAutoRefill                Boolean             @default(false)

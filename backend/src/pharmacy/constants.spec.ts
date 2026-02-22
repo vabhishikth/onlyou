@@ -15,7 +15,7 @@ describe('Pharmacy Constants', () => {
   // ========================================
 
   describe('VALID_PHARMACY_ORDER_TRANSITIONS', () => {
-    it('should have all 13 PharmacyOrderStatus values', () => {
+    it('should have all 17 PharmacyOrderStatus values', () => {
       const statuses = Object.keys(VALID_PHARMACY_ORDER_TRANSITIONS);
       expect(statuses).toContain('PENDING_ASSIGNMENT');
       expect(statuses).toContain('ASSIGNED');
@@ -30,12 +30,26 @@ describe('Pharmacy Constants', () => {
       expect(statuses).toContain('DELIVERED');
       expect(statuses).toContain('DELIVERY_FAILED');
       expect(statuses).toContain('CANCELLED');
-      expect(statuses.length).toBe(13);
+      expect(statuses).toContain('DAMAGE_REPORTED');
+      expect(statuses).toContain('DAMAGE_APPROVED');
+      expect(statuses).toContain('RETURN_ACCEPTED');
+      expect(statuses).toContain('COLD_CHAIN_BREACH');
+      expect(statuses.length).toBe(17);
     });
 
-    it('terminal states (DELIVERED, CANCELLED) should have no valid transitions', () => {
-      expect(VALID_PHARMACY_ORDER_TRANSITIONS['DELIVERED']).toEqual([]);
+    it('terminal states (CANCELLED, DAMAGE_APPROVED, RETURN_ACCEPTED, COLD_CHAIN_BREACH) should have no valid transitions', () => {
       expect(VALID_PHARMACY_ORDER_TRANSITIONS['CANCELLED']).toEqual([]);
+      expect(VALID_PHARMACY_ORDER_TRANSITIONS['DAMAGE_APPROVED']).toEqual([]);
+      expect(VALID_PHARMACY_ORDER_TRANSITIONS['RETURN_ACCEPTED']).toEqual([]);
+      expect(VALID_PHARMACY_ORDER_TRANSITIONS['COLD_CHAIN_BREACH']).toEqual([]);
+    });
+
+    it('DELIVERED can transition to DAMAGE_REPORTED, RETURN_ACCEPTED, or COLD_CHAIN_BREACH', () => {
+      expect(VALID_PHARMACY_ORDER_TRANSITIONS['DELIVERED']).toEqual([
+        'DAMAGE_REPORTED',
+        'RETURN_ACCEPTED',
+        'COLD_CHAIN_BREACH',
+      ]);
     });
 
     it('PENDING_ASSIGNMENT can transition to ASSIGNED or CANCELLED', () => {
@@ -93,9 +107,10 @@ describe('Pharmacy Constants', () => {
       expect(PHARMACY_ORDER_TIMESTAMP_MAP['PHARMACY_ACCEPTED']).toBe('acceptedAt');
     });
 
-    it('should map all non-terminal statuses to a timestamp field', () => {
+    it('should map all statuses with timestamp fields', () => {
       const statusesWithTimestamps = Object.keys(PHARMACY_ORDER_TIMESTAMP_MAP);
-      expect(statusesWithTimestamps.length).toBeGreaterThanOrEqual(10);
+      // 17 statuses minus PHARMACY_REJECTED (no dedicated timestamp) = 16
+      expect(statusesWithTimestamps.length).toBe(16);
     });
   });
 

@@ -12,9 +12,13 @@ export const VALID_PHARMACY_ORDER_TRANSITIONS: Record<string, string[]> = {
   READY_FOR_PICKUP: ['OUT_FOR_DELIVERY', 'CANCELLED'],
   OUT_FOR_DELIVERY: ['DELIVERY_ATTEMPTED', 'DELIVERED', 'DELIVERY_FAILED'],
   DELIVERY_ATTEMPTED: ['OUT_FOR_DELIVERY', 'DELIVERY_FAILED'],
-  DELIVERED: [],
+  DELIVERED: ['DAMAGE_REPORTED', 'RETURN_ACCEPTED', 'COLD_CHAIN_BREACH'],
   DELIVERY_FAILED: ['OUT_FOR_DELIVERY', 'CANCELLED'],
   CANCELLED: [],
+  DAMAGE_REPORTED: ['DAMAGE_APPROVED', 'CANCELLED'],
+  DAMAGE_APPROVED: [],
+  RETURN_ACCEPTED: [],
+  COLD_CHAIN_BREACH: [],
 };
 
 // Timestamp field name mapped to each status
@@ -31,6 +35,10 @@ export const PHARMACY_ORDER_TIMESTAMP_MAP: Record<string, string> = {
   DELIVERED: 'deliveredAt',
   DELIVERY_FAILED: 'deliveryFailedAt',
   CANCELLED: 'cancelledAt',
+  DAMAGE_REPORTED: 'damageReportedAt',
+  DAMAGE_APPROVED: 'damageApprovedAt',
+  RETURN_ACCEPTED: 'returnRequestedAt',
+  COLD_CHAIN_BREACH: 'coldChainBreachAt',
 };
 
 // SLA windows in hours
