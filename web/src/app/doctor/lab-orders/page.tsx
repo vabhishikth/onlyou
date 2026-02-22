@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery } from '@apollo/client';
-import { motion } from 'framer-motion';
-import { Search, TestTube, AlertTriangle } from 'lucide-react';
+import { useQuery, useMutation } from '@apollo/client';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, TestTube, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from '@/components/ui';
 import {
     DOCTOR_LAB_ORDERS,
+    ACKNOWLEDGE_CRITICAL_VALUE,
     DoctorLabOrdersResponse,
     LAB_ORDER_STATUS_CONFIG,
     LabOrderStatus,
@@ -15,6 +16,7 @@ import {
 import Link from 'next/link';
 
 // Spec: master spec Section 7 — Blood Work & Diagnostics
+// Spec: Phase 16 — Doctor acknowledge critical value
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
     { value: 'ALL', label: 'All' },
@@ -27,14 +29,24 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 export default function LabOrdersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
+    const [ackNotes, setAckNotes] = useState('');
 
-    const { data, loading } = useQuery<DoctorLabOrdersResponse>(
+    const { data, loading, refetch } = useQuery<DoctorLabOrdersResponse>(
         DOCTOR_LAB_ORDERS,
         {
             variables: {},
             fetchPolicy: 'cache-and-network',
         }
     );
+
+    const [acknowledgeCritical] = useMutation(ACKNOWLEDGE_CRITICAL_VALUE, {
+        onCompleted: () => {
+            setAcknowledgingId(null);
+            setAckNotes('');
+            refetch();
+        },
+    });
 
     const labOrders = data?.doctorLabOrders || [];
 
@@ -142,19 +154,17 @@ export default function LabOrdersPage() {
                         const isResultsReady = order.status === 'RESULTS_READY' || order.status === 'RESULTS_UPLOADED';
 
                         return (
-                            <Link
+                            <motion.div
                                 key={order.id}
-                                href={`/doctor/case/${order.consultationId}`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`card-premium p-5 hover:shadow-md transition-shadow ${
+                                    isResultsReady ? 'ring-1 ring-green-500/30' : ''
+                                }`}
+                                {...(isResultsReady ? { 'data-testid': 'results-ready-highlight' } : {})}
                             >
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`card-premium p-5 hover:shadow-md transition-shadow cursor-pointer ${
-                                        isResultsReady ? 'ring-1 ring-green-500/30' : ''
-                                    }`}
-                                    {...(isResultsReady ? { 'data-testid': 'results-ready-highlight' } : {})}
-                                >
-                                    <div className="flex items-center justify-between">
+                                <Link href={`/doctor/case/${order.consultationId}`}>
+                                    <div className="flex items-center justify-between cursor-pointer">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-semibold text-foreground truncate">
@@ -178,8 +188,64 @@ export default function LabOrdersPage() {
                                             {statusConfig.label}
                                         </span>
                                     </div>
-                                </motion.div>
-                            </Link>
+                                </Link>
+
+                                {/* Phase 16: Acknowledge critical value */}
+                                {order.criticalValues && isResultsReady && (
+                                    <div className="mt-3 pt-3 border-t border-border">
+                                        {acknowledgingId !== order.id ? (
+                                            <button
+                                                data-testid={`acknowledge-${order.id}`}
+                                                onClick={() => setAcknowledgingId(order.id)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                                            >
+                                                <ShieldCheck className="w-3.5 h-3.5" />
+                                                Acknowledge Critical Value
+                                            </button>
+                                        ) : (
+                                            <AnimatePresence>
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                >
+                                                    <input
+                                                        data-testid="acknowledge-notes-input"
+                                                        type="text"
+                                                        placeholder="Action taken (e.g., Patient contacted)..."
+                                                        value={ackNotes}
+                                                        onChange={(e) => setAckNotes(e.target.value)}
+                                                        className="w-full px-3 py-2 border border-border rounded-lg text-sm mb-2"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            data-testid="confirm-acknowledge"
+                                                            onClick={() =>
+                                                                acknowledgeCritical({
+                                                                    variables: {
+                                                                        labOrderId: order.id,
+                                                                        labResultId: order.id,
+                                                                        notes: ackNotes,
+                                                                    },
+                                                                })
+                                                            }
+                                                            className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+                                                        >
+                                                            Confirm
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setAcknowledgingId(null)}
+                                                            className="px-3 py-2 text-sm text-neutral-500 hover:text-foreground transition-colors"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            </AnimatePresence>
+                                        )}
+                                    </div>
+                                )}
+                            </motion.div>
                         );
                     })}
                 </div>

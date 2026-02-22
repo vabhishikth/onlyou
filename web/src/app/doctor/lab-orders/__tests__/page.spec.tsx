@@ -2,9 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MockedProvider, MockedResponse } from '@apollo/client/testing';
 import LabOrdersPage from '../page';
-import { DOCTOR_LAB_ORDERS } from '@/graphql/lab-order';
+import { DOCTOR_LAB_ORDERS, ACKNOWLEDGE_CRITICAL_VALUE } from '@/graphql/lab-order';
 
 // Spec: master spec Section 7 — Blood Work & Diagnostics
+// Spec: Phase 16 — Doctor acknowledge critical value
 
 jest.mock('framer-motion', () => ({
     motion: {
@@ -176,5 +177,56 @@ describe('LabOrdersPage', () => {
         // The Results Ready card should have a special highlight class or indicator
         const resultsReadyCards = screen.getAllByTestId('results-ready-highlight');
         expect(resultsReadyCards.length).toBe(1);
+    });
+
+    it('should show acknowledge button for critical value orders', async () => {
+        renderWithProvider([labOrdersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Rahul Sharma')).toBeDefined();
+        });
+
+        // lab-1 has criticalValues: true and status RESULTS_READY
+        const ackButton = screen.getByTestId('acknowledge-lab-1');
+        expect(ackButton).toBeDefined();
+    });
+
+    it('should not show acknowledge button for non-critical orders', async () => {
+        renderWithProvider([labOrdersMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Priya Patel')).toBeDefined();
+        });
+
+        // lab-2 has criticalValues: false
+        expect(screen.queryByTestId('acknowledge-lab-2')).toBeNull();
+    });
+
+    it('should show acknowledge form when button clicked', async () => {
+        const ackMock: MockedResponse = {
+            request: {
+                query: ACKNOWLEDGE_CRITICAL_VALUE,
+                variables: {
+                    labOrderId: 'lab-1',
+                    labResultId: 'lab-1',
+                    notes: 'Patient contacted',
+                },
+            },
+            result: {
+                data: { acknowledgeCriticalValue: { success: true } },
+            },
+        };
+
+        renderWithProvider([labOrdersMock, ackMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Rahul Sharma')).toBeDefined();
+        });
+
+        const ackButton = screen.getByTestId('acknowledge-lab-1');
+        fireEvent.click(ackButton);
+
+        expect(screen.getByTestId('acknowledge-notes-input')).toBeDefined();
+        expect(screen.getByTestId('confirm-acknowledge')).toBeDefined();
     });
 });

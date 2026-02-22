@@ -99,6 +99,28 @@ export const REVIEW_LAB_RESULTS = gql`
     }
 `;
 
+// Spec: Phase 16 — Doctor acknowledge critical value
+export const ACKNOWLEDGE_CRITICAL_VALUE = gql`
+    mutation AcknowledgeCriticalValue(
+        $labOrderId: String!
+        $labResultId: String!
+        $notes: String!
+    ) {
+        acknowledgeCriticalValue(
+            labOrderId: $labOrderId
+            labResultId: $labResultId
+            notes: $notes
+        )
+    }
+`;
+
+// Spec: Phase 16 — Lab order summary with structured results
+export const LAB_ORDER_SUMMARY = gql`
+    query LabOrderSummary($labOrderId: String!) {
+        labOrderSummary(labOrderId: $labOrderId)
+    }
+`;
+
 // Types
 export type LabOrderStatus =
     | 'ORDERED'
