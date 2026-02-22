@@ -19,6 +19,7 @@ import {
     LAB_INCOMING_SAMPLES,
     LAB_MARK_SAMPLE_RECEIVED,
     LAB_REPORT_SAMPLE_ISSUE,
+    LAB_MARK_RESULTS_READY,
     LabTodaySummaryResponse,
     LabIncomingSamplesResponse,
     LabSampleSummary,
@@ -62,6 +63,11 @@ export default function LabIncomingPage() {
             setIssueReason('');
             refetch();
         },
+    });
+
+    // Spec: Phase 16 — Mark Results Ready as distinct step
+    const [markResultsReady] = useMutation(LAB_MARK_RESULTS_READY, {
+        onCompleted: () => refetch(),
     });
 
     const summary = summaryData?.labTodaySummary;
@@ -175,6 +181,7 @@ export default function LabIncomingPage() {
                             sample={sample}
                             onMarkReceived={() => openReceiveDialog(sample)}
                             onReportIssue={() => openIssueDialog(sample)}
+                            onMarkReady={() => markResultsReady({ variables: { labOrderId: sample.id } })}
                         />
                     </motion.div>
                 ))}
@@ -334,10 +341,12 @@ function SampleCard({
     sample,
     onMarkReceived,
     onReportIssue,
+    onMarkReady,
 }: {
     sample: LabSampleSummary;
     onMarkReceived: () => void;
     onReportIssue: () => void;
+    onMarkReady: () => void;
 }) {
     const statusConfig = LAB_SAMPLE_STATUS_CONFIG[sample.status] || {
         label: sample.status,
@@ -403,6 +412,18 @@ function SampleCard({
                         </span>
                     )}
                 </div>
+            )}
+
+            {/* Phase 16: Mark Results Ready button for uploaded results */}
+            {sample.status === 'RESULTS_UPLOADED' && (
+                <button
+                    data-testid={`mark-ready-${sample.id}`}
+                    onClick={onMarkReady}
+                    className="w-full h-12 mb-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                    <CheckCircle className="w-5 h-5" />
+                    Mark Results Ready
+                </button>
             )}
 
             {/* Actions — Big buttons, 48px height minimum */}

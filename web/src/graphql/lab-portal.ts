@@ -123,9 +123,37 @@ export const LAB_UPLOAD_RESULTS = gql`
     }
 `;
 
+// Spec: Phase 16 — Enhanced lab processing operations
+
+export const LAB_MARK_RESULTS_READY = gql`
+    mutation LabMarkResultsReady($labOrderId: String!) {
+        markLabResultsReady(labOrderId: $labOrderId) {
+            id
+            status
+        }
+    }
+`;
+
+export const LAB_UPLOAD_STRUCTURED_RESULT = gql`
+    mutation LabUploadStructuredResult($input: StructuredResultInput!) {
+        uploadLabResult(input: $input) {
+            id
+            status
+        }
+    }
+`;
+
 // =============================================
 // TYPES
 // =============================================
+
+export interface StructuredTestResult {
+    testCode: string;
+    value: string;
+    unit: string;
+    normalRange: string;
+    flag: 'NORMAL' | 'LOW' | 'HIGH' | 'CRITICAL';
+}
 
 export interface LabInfo {
     id: string;

@@ -117,4 +117,25 @@ describe('Lab Upload Page', () => {
             expect(screen.getByText('SAMP-002')).toBeDefined();
         });
     });
+
+    // Phase 16: Structured result upload
+    it('should show structured result input button', async () => {
+        renderWithProvider([processingMock, completedMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Hair Loss Basic Panel')).toBeDefined();
+        });
+
+        expect(screen.getByTestId('structured-upload-s-1')).toBeDefined();
+    });
+
+    it('should show test codes from panel on upload card', async () => {
+        renderWithProvider([processingMock, completedMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('TSH')).toBeDefined();
+            expect(screen.getByText('CBC')).toBeDefined();
+            expect(screen.getByText('Ferritin')).toBeDefined();
+        });
+    });
 });

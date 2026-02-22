@@ -106,4 +106,25 @@ describe('Lab Dashboard — Incoming Samples', () => {
             expect(screen.getByText(/Amit Singh/)).toBeDefined();
         });
     });
+
+    // Phase 16: Mark Results Ready as distinct step
+    it('should show mark results ready button on received samples', async () => {
+        const receivedSamples = [
+            {
+                ...mockSamples[0],
+                status: 'RESULTS_UPLOADED',
+            },
+        ];
+        const receivedMock: MockedResponse = {
+            request: { query: LAB_INCOMING_SAMPLES },
+            result: { data: { labIncomingSamples: receivedSamples } },
+        };
+        renderWithProvider([summaryMock, receivedMock]);
+
+        await waitFor(() => {
+            expect(screen.getByText('SAMP-001')).toBeDefined();
+        });
+
+        expect(screen.getByTestId('mark-ready-s-1')).toBeDefined();
+    });
 });

@@ -342,8 +342,9 @@ function SampleCard({
                 </div>
             )}
 
-            {/* Action button */}
+            {/* Phase 16: Structured result input */}
             <button
+                data-testid={`structured-upload-${sample.id}`}
                 onClick={onAction}
                 className={cn(
                     'w-full h-12 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2',
