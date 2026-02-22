@@ -76,6 +76,10 @@ describe('PrescriptionService', () => {
     consultation: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
+    },
+    videoSession: {
+      findFirst: jest.fn(),
     },
     prescription: {
       create: jest.fn(),
@@ -109,6 +113,10 @@ describe('PrescriptionService', () => {
     prisma = module.get<PrismaService>(PrismaService);
 
     jest.clearAllMocks();
+
+    // Phase 13: Default to follow-up consultation (no video required)
+    // so existing createPrescription tests are not affected by video gating
+    mockPrismaService.consultation.count.mockResolvedValue(1);
   });
 
   describe('Hair Loss Prescription Templates', () => {

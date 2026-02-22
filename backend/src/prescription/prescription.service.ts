@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
-import { ConsultationStatus, UserRole } from '@prisma/client';
+import { ConsultationStatus, UserRole, VideoSessionStatus } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit');
 
@@ -449,6 +449,84 @@ export class PrescriptionService {
   }
 
   /**
+   * Check if a prescription can be created for a consultation
+   * Phase 13: TPG 2020 — First-time Schedule H prescriptions require completed video consultation
+   * Multi-vertical: a completed video for one vertical does NOT satisfy another
+   */
+  async canPrescribe(consultationId: string): Promise<{
+    allowed: boolean;
+    reason?: string;
+    isFirstConsultation: boolean;
+    videoRequired: boolean;
+    videoCompleted: boolean;
+  }> {
+    const consultation = await this.prisma.consultation.findUnique({
+      where: { id: consultationId },
+    });
+
+    if (!consultation) {
+      return {
+        allowed: false,
+        reason: 'Consultation not found',
+        isFirstConsultation: false,
+        videoRequired: false,
+        videoCompleted: false,
+      };
+    }
+
+    // Count previous APPROVED consultations for SAME patient + SAME vertical (excluding current)
+    const previousApprovedCount = await this.prisma.consultation.count({
+      where: {
+        patientId: consultation.patientId,
+        vertical: consultation.vertical,
+        status: ConsultationStatus.APPROVED,
+        id: { not: consultationId },
+      },
+    });
+
+    const isFirstConsultation = previousApprovedCount === 0;
+
+    if (!isFirstConsultation) {
+      // Follow-up consultation: no video required
+      return {
+        allowed: true,
+        isFirstConsultation: false,
+        videoRequired: false,
+        videoCompleted: false,
+      };
+    }
+
+    // First consultation: check for completed video session for THIS consultation
+    // Defense-in-depth: query for the consultation's video session, then verify status
+    const videoSession = await this.prisma.videoSession.findFirst({
+      where: {
+        consultationId,
+        status: VideoSessionStatus.COMPLETED,
+      },
+    });
+
+    // Double-check status in application layer (defense-in-depth)
+    const videoCompleted = !!videoSession && videoSession.status === VideoSessionStatus.COMPLETED;
+
+    if (!videoCompleted) {
+      return {
+        allowed: false,
+        reason: 'First-time prescriptions require a completed video consultation',
+        isFirstConsultation: true,
+        videoRequired: true,
+        videoCompleted: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      isFirstConsultation: true,
+      videoRequired: true,
+      videoCompleted: true,
+    };
+  }
+
+  /**
    * Create prescription for a consultation
    * Spec: master spec Section 5.4 — Prescription Builder
    */
@@ -476,6 +554,14 @@ export class PrescriptionService {
 
     if (consultation.doctorId !== input.doctorId) {
       throw new BadRequestException('Doctor is not assigned to this consultation');
+    }
+
+    // Phase 13: TPG 2020 video gating — must check before prescribing
+    const gating = await this.canPrescribe(input.consultationId);
+    if (!gating.allowed) {
+      throw new BadRequestException(
+        gating.reason || 'Cannot prescribe for this consultation',
+      );
     }
 
     // Get responses for contraindication check
