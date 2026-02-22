@@ -15,6 +15,7 @@ import {
     Pill,
     TestTube,
     Video,
+    ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
@@ -26,6 +27,7 @@ const navItems = [
     { href: '/doctor/prescriptions', icon: Pill, label: 'Prescriptions' },
     { href: '/doctor/lab-orders', icon: TestTube, label: 'Lab Orders' },
     { href: '/doctor/video', icon: Video, label: 'Video' },
+    { href: '/doctor/substitutions', icon: ArrowRightLeft, label: 'Substitutions' },
     { href: '/doctor/messages', icon: MessageSquare, label: 'Messages' },
     { href: '/doctor/templates', icon: FileText, label: 'Templates' },
 ];
