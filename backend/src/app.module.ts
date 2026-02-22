@@ -32,6 +32,7 @@ import { AIModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
+import { DoctorModule } from './doctor/doctor.module';
 
 @Module({
     imports: [
@@ -76,6 +77,7 @@ import { HealthModule } from './health/health.module';
         CacheModule,
         HealthModule,
         SentryModule,
+        DoctorModule,
     ],
 })
 export class AppModule { }
