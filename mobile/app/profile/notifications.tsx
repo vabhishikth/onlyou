@@ -52,7 +52,7 @@ export default function NotificationsScreen() {
     const [smsEnabled, setSmsEnabled] = useState(true);
     const [whatsappEnabled, setWhatsappEnabled] = useState(true);
     const [emailEnabled, setEmailEnabled] = useState(true);
-    const [marketingEnabled, setMarketingEnabled] = useState(false);
+    const [discreetMode, setDiscreetMode] = useState(false);
 
     const { data, loading } = useQuery<GetNotificationPreferencesResponse>(GET_NOTIFICATION_PREFERENCES);
 
@@ -69,12 +69,12 @@ export default function NotificationsScreen() {
             setSmsEnabled(data.notificationPreferences.smsEnabled);
             setWhatsappEnabled(data.notificationPreferences.whatsappEnabled);
             setEmailEnabled(data.notificationPreferences.emailEnabled);
-            setMarketingEnabled(data.notificationPreferences.marketingEnabled);
+            setDiscreetMode(data.notificationPreferences.discreetMode);
         }
     }, [data]);
 
     const handleToggle = (
-        key: 'pushEnabled' | 'smsEnabled' | 'whatsappEnabled' | 'emailEnabled' | 'marketingEnabled',
+        key: 'pushEnabled' | 'smsEnabled' | 'whatsappEnabled' | 'emailEnabled' | 'discreetMode',
         value: boolean
     ) => {
         // Update local state
@@ -91,8 +91,8 @@ export default function NotificationsScreen() {
             case 'emailEnabled':
                 setEmailEnabled(value);
                 break;
-            case 'marketingEnabled':
-                setMarketingEnabled(value);
+            case 'discreetMode':
+                setDiscreetMode(value);
                 break;
         }
 
@@ -104,7 +104,7 @@ export default function NotificationsScreen() {
                     smsEnabled: key === 'smsEnabled' ? value : smsEnabled,
                     whatsappEnabled: key === 'whatsappEnabled' ? value : whatsappEnabled,
                     emailEnabled: key === 'emailEnabled' ? value : emailEnabled,
-                    marketingEnabled: key === 'marketingEnabled' ? value : marketingEnabled,
+                    discreetMode: key === 'discreetMode' ? value : discreetMode,
                 },
             },
         });
@@ -186,20 +186,20 @@ export default function NotificationsScreen() {
                     </View>
                 </View>
 
-                {/* Marketing */}
+                {/* Privacy */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Marketing</Text>
+                    <Text style={styles.sectionTitle}>Privacy</Text>
                     <Text style={styles.sectionDescription}>
-                        Optional promotional content and health tips
+                        Control how sensitive information appears in notifications
                     </Text>
 
                     <View style={styles.card}>
                         <NotificationToggle
-                            icon="🎁"
-                            label="Promotional Offers"
-                            description="Discounts, new products, and health tips"
-                            value={marketingEnabled}
-                            onToggle={(v) => handleToggle('marketingEnabled', v)}
+                            icon="🔒"
+                            label="Discreet Mode"
+                            description="Hide health details in notifications — shows only 'You have an update'"
+                            value={discreetMode}
+                            onToggle={(v) => handleToggle('discreetMode', v)}
                         />
                     </View>
                 </View>

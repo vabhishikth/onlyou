@@ -3,6 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { NotificationResolver } from './notification.resolver';
 import { NotificationService } from './notification.service';
 import { NotificationPreferenceService } from './notification-preference.service';
+import { DeviceTokenService } from './device-token.service';
 
 // Spec: master spec Section 11 (Notification System)
 
@@ -78,6 +79,15 @@ describe('NotificationResolver', () => {
                     useValue: {
                         getPreferences: jest.fn(),
                         updatePreferences: jest.fn(),
+                    },
+                },
+                {
+                    provide: DeviceTokenService,
+                    useValue: {
+                        registerToken: jest.fn(),
+                        removeToken: jest.fn(),
+                        getActiveTokens: jest.fn(),
+                        deactivateAllTokens: jest.fn(),
                     },
                 },
             ],

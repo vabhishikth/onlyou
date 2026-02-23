@@ -28,7 +28,7 @@ const mockNotificationPrefs = {
         smsEnabled: true,
         whatsappEnabled: true,
         emailEnabled: true,
-        marketingEnabled: false,
+        discreetMode: false,
     },
 };
 
@@ -65,10 +65,10 @@ describe('NotificationsScreen', () => {
             expect(getByText('Email')).toBeTruthy();
         });
 
-        it('shows marketing section', () => {
+        it('shows privacy section', () => {
             const { getByText } = render(<NotificationsScreen />);
-            expect(getByText('Marketing')).toBeTruthy();
-            expect(getByText('Promotional Offers')).toBeTruthy();
+            expect(getByText('Privacy')).toBeTruthy();
+            expect(getByText('Discreet Mode')).toBeTruthy();
         });
 
         it('shows critical alerts info note', () => {

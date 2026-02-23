@@ -100,7 +100,7 @@ export interface NotificationPreferences {
     smsEnabled: boolean;
     whatsappEnabled: boolean;
     emailEnabled: boolean;
-    marketingEnabled: boolean;
+    discreetMode: boolean;
 }
 
 // Response types
@@ -220,7 +220,7 @@ export const GET_NOTIFICATION_PREFERENCES = gql`
             smsEnabled
             whatsappEnabled
             emailEnabled
-            marketingEnabled
+            discreetMode
         }
     }
 `;
@@ -271,7 +271,7 @@ export const UPDATE_NOTIFICATION_PREFERENCES = gql`
             smsEnabled
             whatsappEnabled
             emailEnabled
-            marketingEnabled
+            discreetMode
         }
     }
 `;

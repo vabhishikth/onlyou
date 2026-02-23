@@ -372,7 +372,7 @@ describe('AssignmentService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'user-doc-1',
-          eventType: 'CASE_ASSIGNED',
+          eventType: 'CONSULTATION_ASSIGNED',
         }),
       );
     });

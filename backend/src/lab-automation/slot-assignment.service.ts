@@ -155,7 +155,7 @@ export class SlotAssignmentService {
       recipientId: labOrder.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'PHLEBOTOMIST_ASSIGNED',
+      eventType: 'LAB_PHLEBOTOMIST_ASSIGNED',
       title: 'Phlebotomist Assigned',
       body: `${selected.name} has been assigned for your blood draw on ${bookedDate}.`,
     }).catch(err => {

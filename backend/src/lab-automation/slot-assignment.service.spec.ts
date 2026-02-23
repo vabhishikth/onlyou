@@ -305,7 +305,7 @@ describe('SlotAssignmentService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'PHLEBOTOMIST_ASSIGNED',
+          eventType: 'LAB_PHLEBOTOMIST_ASSIGNED',
         }),
       );
     });

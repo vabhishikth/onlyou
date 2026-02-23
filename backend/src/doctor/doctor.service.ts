@@ -187,7 +187,7 @@ export class DoctorService {
       recipientId: doctorProfile.userId,
       recipientRole: 'DOCTOR',
       channel: 'SMS',
-      eventType: 'DOCTOR_WELCOME',
+      eventType: 'WELCOME',
       title: 'Welcome to Onlyou',
       body: 'Welcome to Onlyou. Login at doctor.onlyou.life with your phone number. Use OTP to sign in.',
     }).catch(err => {

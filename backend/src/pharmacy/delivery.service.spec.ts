@@ -107,7 +107,7 @@ describe('DeliveryService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'ORDER_DISPATCHED',
+          eventType: 'DELIVERY_OUT_FOR_DELIVERY',
         }),
       );
     });

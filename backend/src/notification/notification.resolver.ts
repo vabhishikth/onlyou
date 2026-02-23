@@ -2,8 +2,10 @@ import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { NotificationPreferenceService } from './notification-preference.service';
+import { DeviceTokenService } from './device-token.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GraphQLJSON } from 'graphql-type-json';
 import {
     NotificationType,
     NotificationHistoryResponse,
@@ -20,6 +22,7 @@ export class NotificationResolver {
     constructor(
         private readonly notificationService: NotificationService,
         private readonly notificationPreferenceService: NotificationPreferenceService,
+        private readonly deviceTokenService: DeviceTokenService,
     ) {}
 
     // ============================================
@@ -95,5 +98,28 @@ export class NotificationResolver {
         @Args('input') input: UpdateNotificationPreferencesInput,
     ): Promise<NotificationPreferenceType> {
         return this.notificationPreferenceService.updatePreferences(user.id, input);
+    }
+
+    // ============================================
+    // DEVICE TOKEN MANAGEMENT
+    // ============================================
+
+    @Mutation(() => GraphQLJSON)
+    @UseGuards(JwtAuthGuard)
+    async registerDeviceToken(
+        @CurrentUser() user: any,
+        @Args('token') token: string,
+        @Args('platform') platform: string,
+    ) {
+        return this.deviceTokenService.registerToken(user.id, token, platform);
+    }
+
+    @Mutation(() => GraphQLJSON)
+    @UseGuards(JwtAuthGuard)
+    async removeDeviceToken(
+        @CurrentUser() user: any,
+        @Args('token') token: string,
+    ) {
+        return this.deviceTokenService.removeToken(user.id, token);
     }
 }

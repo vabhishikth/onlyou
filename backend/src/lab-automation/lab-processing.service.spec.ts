@@ -154,7 +154,7 @@ describe('LabProcessingService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'doctor-1',
-          eventType: 'CRITICAL_VALUE_ALERT',
+          eventType: 'LAB_CRITICAL_VALUES',
         }),
       );
     });
@@ -397,7 +397,7 @@ describe('LabProcessingService', () => {
       expect(result.sampleIssueType).toBe('hemolyzed');
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: 'SAMPLE_ISSUE_REPORTED',
+          eventType: 'LAB_SAMPLE_ISSUE',
         }),
       );
     });
@@ -516,7 +516,7 @@ describe('LabProcessingService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'LAB_RESULTS_REVIEWED',
+          eventType: 'LAB_DOCTOR_REVIEWED',
         }),
       );
     });

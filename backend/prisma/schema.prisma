@@ -1038,6 +1038,57 @@ enum NotificationEventType {
   WELCOME
   CONSULTATION_ASSIGNED
   MESSAGE_RECEIVED
+
+  // Video consultation events (Phase 13)
+  VIDEO_BOOKING_CONFIRMED
+  VIDEO_BOOKING_CANCELLED
+  VIDEO_RESCHEDULED
+  VIDEO_REMINDER_24HR
+  VIDEO_REMINDER_1HR
+  VIDEO_SESSION_STARTED
+  VIDEO_NO_SHOW_PATIENT
+  VIDEO_NO_SHOW_DOCTOR
+  VIDEO_COMPLETED
+  VIDEO_RECONNECT_NEEDED
+
+  // Lab automation events (Phase 16)
+  LAB_EN_ROUTE
+  LAB_FASTING_VERIFIED
+  LAB_SAMPLE_IN_TRANSIT
+  LAB_DELIVERED_TO_LAB
+  LAB_PROCESSING_STARTED
+  LAB_RESULTS_PARTIAL
+  LAB_RESULTS_UPLOADED
+  LAB_CREDENTIAL_EXPIRY
+  LAB_LICENSE_SUSPENDED
+  NO_PHLEBOTOMIST_AVAILABLE
+  LAB_FOLLOW_UP_DUE
+
+  // Pharmacy events (Phase 15)
+  PHARMACY_ORDER_CREATED
+  PHARMACY_ORDER_ACCEPTED
+  PHARMACY_ORDER_REJECTED
+  PHARMACY_PREPARING
+  PHARMACY_SUBSTITUTION_PROPOSED
+  PHARMACY_SUBSTITUTION_APPROVED
+  PHARMACY_SUBSTITUTION_REJECTED
+  PHARMACY_READY_FOR_PICKUP
+  PHARMACY_OUT_FOR_DELIVERY
+  PHARMACY_DELIVERED
+  PHARMACY_DELIVERY_FAILED
+  PHARMACY_DELIVERY_REATTEMPT
+  PHARMACY_COLD_CHAIN_BREACH
+  PHARMACY_RETURN_REQUESTED
+  PHARMACY_RETURN_APPROVED
+  PHARMACY_RETURN_REJECTED
+  PHARMACY_DAMAGE_REPORTED
+  PHARMACY_REPLACEMENT_CREATED
+  PHARMACY_SLA_BREACH
+  PHARMACY_AUTO_REFILL_CREATED
+  PHARMACY_AUTO_REFILL_CANCELLED
+
+  // Assignment events (Phase 12)
+  CASE_ASSIGNED
 }
 
 model Notification {
@@ -1095,6 +1146,20 @@ model NotificationPreference {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@index([userId])
+}
+
+// Spec: Notification audit — Device token storage for push delivery
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  platform  String   // "ios" | "android" | "web"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, token])
   @@index([userId])
 }
 

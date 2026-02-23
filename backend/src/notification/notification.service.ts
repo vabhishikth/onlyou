@@ -2,8 +2,10 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationEventType, NotificationChannel, UserRole } from '@prisma/client';
 
 // Spec: master spec Section 11 (Notification System)
 
@@ -53,6 +55,8 @@ const CRITICAL_EVENT_TYPES = [
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -84,9 +88,9 @@ export class NotificationService {
     const notification = await this.prisma.notification.create({
       data: {
         recipientId: payload.recipientId,
-        recipientRole: payload.recipientRole as any,
-        channel: payload.channel as any,
-        eventType: payload.eventType as any,
+        recipientRole: payload.recipientRole as UserRole,
+        channel: payload.channel as NotificationChannel,
+        eventType: payload.eventType as NotificationEventType,
         title,
         body,
         data: payload.data,
@@ -102,6 +106,7 @@ export class NotificationService {
 
     // In a real implementation, we'd send to FCM/MSG91/Email here
     // For now, we just mark as sent
+    this.logger.debug(`Notification created: ${payload.eventType} → ${payload.recipientId} via ${payload.channel}`);
 
     return notification;
   }

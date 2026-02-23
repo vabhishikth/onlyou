@@ -3,6 +3,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { LabOrderModule } from '../lab-order/lab-order.module';
 import { NotificationService } from './notification.service';
 import { NotificationPreferenceService } from './notification-preference.service';
+import { DeviceTokenService } from './device-token.service';
 import { NotificationResolver } from './notification.resolver';
 import { NotificationSchedulerService } from './notification-scheduler.service';
 
@@ -13,9 +14,10 @@ import { NotificationSchedulerService } from './notification-scheduler.service';
   providers: [
     NotificationService,
     NotificationPreferenceService,
+    DeviceTokenService,
     NotificationResolver,
     NotificationSchedulerService,
   ],
-  exports: [NotificationService, NotificationPreferenceService],
+  exports: [NotificationService, NotificationPreferenceService, DeviceTokenService],
 })
 export class NotificationModule {}

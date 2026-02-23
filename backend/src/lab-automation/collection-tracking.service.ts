@@ -241,7 +241,7 @@ export class CollectionTrackingService {
       recipientId: order.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'COLLECTION_FAILED',
+      eventType: 'LAB_COLLECTION_FAILED',
       title: 'Blood Collection Could Not Be Completed',
       body: `Your blood collection could not be completed: ${reason}. Please rebook a slot.`,
     }).catch(err => {

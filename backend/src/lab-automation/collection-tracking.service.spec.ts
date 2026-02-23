@@ -319,7 +319,7 @@ describe('CollectionTrackingService', () => {
       expect(notificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'COLLECTION_FAILED',
+          eventType: 'LAB_COLLECTION_FAILED',
         }),
       );
     });

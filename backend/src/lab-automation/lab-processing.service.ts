@@ -161,7 +161,7 @@ export class LabProcessingService {
           recipientId: order.doctorId,
           recipientRole: 'DOCTOR',
           channel: 'PUSH',
-          eventType: 'CRITICAL_VALUE_ALERT',
+          eventType: 'LAB_CRITICAL_VALUES',
           title: 'URGENT: Critical Lab Value',
           body: `Critical ${resultStatus} for ${input.testCode}: ${input.value} ${input.unit} (Patient order ${labOrderId}). Immediate review required.`,
         }).catch(err => {
@@ -179,7 +179,7 @@ export class LabProcessingService {
           recipientId: admin.id,
           recipientRole: 'ADMIN',
           channel: 'PUSH',
-          eventType: 'CRITICAL_VALUE_ALERT',
+          eventType: 'LAB_CRITICAL_VALUES',
           title: 'Critical Lab Value Detected',
           body: `${input.testCode}: ${input.value} ${input.unit} for order ${labOrderId}. Doctor has been notified.`,
         }).catch(err => {
@@ -284,7 +284,7 @@ export class LabProcessingService {
         recipientId: admin.id,
         recipientRole: 'ADMIN',
         channel: 'PUSH',
-        eventType: 'SAMPLE_ISSUE_REPORTED',
+        eventType: 'LAB_SAMPLE_ISSUE',
         title: 'Sample Issue Reported',
         body: `Lab order ${labOrderId}: ${issueType} sample. Free recollection needed.`,
       }).catch(err => {
@@ -365,7 +365,7 @@ export class LabProcessingService {
       recipientId: order.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'LAB_RESULTS_REVIEWED',
+      eventType: 'LAB_DOCTOR_REVIEWED',
       title: 'Lab Results Reviewed by Doctor',
       body: 'Your doctor has reviewed your lab results. Check your dashboard for details.',
     }).catch(err => {
