@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     },
     planCardSelected: {
         borderColor: colors.primary,
-        backgroundColor: colors.primaryLight || colors.surfaceElevated,
+        backgroundColor: colors.accentLight,
     },
     savingsBadge: {
         position: 'absolute',

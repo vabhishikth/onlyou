@@ -100,8 +100,18 @@ export const hairLossQuestionnaire = {
                 {
                     id: 'Q7',
                     type: 'single_choice',
-                    question: 'Which image best matches your hair loss? (Norwood-Hamilton Scale)',
-                    options: ['I', 'II', 'III', 'III Vertex', 'IV', 'V', 'VI', 'VII', 'None match'],
+                    question: 'Which best matches your hair loss pattern? (Norwood-Hamilton Scale)',
+                    options: [
+                        'Stage I — Minimal or no recession',
+                        'Stage II — Minor recession at temples',
+                        'Stage III — Deeper recession at temples',
+                        'Stage III Vertex — Crown thinning begins',
+                        'Stage IV — Further recession and crown thinning',
+                        'Stage V — Crown and hairline almost connected',
+                        'Stage VI — Large bald area on top',
+                        'Stage VII — Only hair on sides and back',
+                        'None of these match my pattern',
+                    ],
                     required: true,
                     // AI: Severity assessment. Cross-referenced with photos.
                 },
