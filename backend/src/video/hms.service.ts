@@ -125,7 +125,7 @@ export class HmsService {
         throw new BadRequestException('Failed to create video room');
       }
 
-      const data = await response.json();
+      const data = await response.json() as { id: string };
       roomId = data.id;
       this.logger.log(`100ms room created: ${roomId} for session ${videoSessionId}`);
     }

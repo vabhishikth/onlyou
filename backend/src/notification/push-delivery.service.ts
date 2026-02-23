@@ -83,8 +83,8 @@ export class PushDeliveryService {
         }
       } catch (error) {
         result.failed += chunk.length;
-        result.errors.push(error.message);
-        this.logger.error(`Expo push failed: ${error.message}`);
+        result.errors.push(error instanceof Error ? error.message : String(error));
+        this.logger.error(`Expo push failed: ${error instanceof Error ? error.message : error}`);
       }
     }
 
