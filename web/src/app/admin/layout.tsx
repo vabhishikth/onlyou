@@ -17,6 +17,7 @@ import {
     Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 
 // Spec: master spec Section 15 — Admin Dashboard (admin.onlyou.life)
 // Role: ADMIN only — Coordinator's command center
@@ -67,8 +68,8 @@ export default function AdminLayout({
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // TODO: Replace with actual auth context
-    const adminName = 'Abhishikth';
+    const { user } = useAuth();
+    const adminName = user?.name || 'Admin';
 
     return (
         <div className="min-h-screen bg-background">

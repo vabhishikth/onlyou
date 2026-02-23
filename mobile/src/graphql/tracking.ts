@@ -40,6 +40,8 @@ export interface LabOrder {
     bookedDate?: string;
     bookedTimeSlot?: string;
     collectionAddress?: string;
+    collectionCity?: string;
+    collectionPincode?: string;
     phlebotomistName?: string;
     phlebotomistPhone?: string;
     resultFileUrl?: string;
@@ -141,6 +143,8 @@ export const GET_LAB_ORDER = gql`
             bookedDate
             bookedTimeSlot
             collectionAddress
+            collectionCity
+            collectionPincode
             phlebotomistName
             phlebotomistPhone
             resultFileUrl

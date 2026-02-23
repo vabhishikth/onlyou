@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationEventType, NotificationChannel, UserRole } from '@prisma/client';
+import { PushDeliveryService } from './push-delivery.service';
 
 // Spec: master spec Section 11 (Notification System)
 
@@ -57,7 +58,10 @@ const CRITICAL_EVENT_TYPES = [
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pushDeliveryService: PushDeliveryService,
+  ) {}
 
   /**
    * Send a single notification
@@ -104,8 +108,13 @@ export class NotificationService {
       },
     });
 
-    // In a real implementation, we'd send to FCM/MSG91/Email here
-    // For now, we just mark as sent
+    // Deliver push notifications via Expo Push Service
+    if ((channelEnabled || isCritical) && payload.channel === 'PUSH') {
+      this.pushDeliveryService
+        .sendPush(payload.recipientId, title, body, payload.data || {})
+        .catch((err) => this.logger.error(`Push delivery failed: ${err.message}`));
+    }
+
     this.logger.debug(`Notification created: ${payload.eventType} → ${payload.recipientId} via ${payload.channel}`);
 
     return notification;

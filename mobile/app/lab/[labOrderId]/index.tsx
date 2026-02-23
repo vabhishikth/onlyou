@@ -88,8 +88,8 @@ export default function LabBookingScreen() {
         GET_AVAILABLE_SLOTS,
         {
             variables: {
-                city: labOrder?.collectionAddress?.split(',').pop()?.trim() || 'Mumbai',
-                pincode: '400001', // TODO: Get from user profile
+                city: labOrder?.collectionCity || 'Mumbai',
+                pincode: labOrder?.collectionPincode || '400001',
                 startDate: startDate.toISOString(),
                 endDate: endDate.toISOString(),
             },

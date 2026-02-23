@@ -11,5 +11,6 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^expo-server-sdk$': '<rootDir>/__mocks__/expo-server-sdk.ts',
   },
 };

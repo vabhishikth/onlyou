@@ -4,6 +4,7 @@ import { LabOrderModule } from '../lab-order/lab-order.module';
 import { NotificationService } from './notification.service';
 import { NotificationPreferenceService } from './notification-preference.service';
 import { DeviceTokenService } from './device-token.service';
+import { PushDeliveryService } from './push-delivery.service';
 import { NotificationResolver } from './notification.resolver';
 import { NotificationSchedulerService } from './notification-scheduler.service';
 
@@ -15,9 +16,10 @@ import { NotificationSchedulerService } from './notification-scheduler.service';
     NotificationService,
     NotificationPreferenceService,
     DeviceTokenService,
+    PushDeliveryService,
     NotificationResolver,
     NotificationSchedulerService,
   ],
-  exports: [NotificationService, NotificationPreferenceService, DeviceTokenService],
+  exports: [NotificationService, NotificationPreferenceService, DeviceTokenService, PushDeliveryService],
 })
 export class NotificationModule {}

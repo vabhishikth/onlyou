@@ -1,88 +1,78 @@
 # CHECKPOINT — Last Updated: 2026-02-23
 
-## Current Phase: Notification System Audit Fix (COMPLETE)
-## Current Task: All 5 Chunks Complete
+## Current Phase: E2E Readiness — Audit Fixes + Push Delivery
+## Current Task: All tasks complete
 ## Status: COMPLETE
 
 ## Completed Work:
 
 ### Phases 1-17 — ALL COMPLETE (see git log and BUILD-PLAN.md)
 
-### Notification Audit Fix (5 chunks):
-Audit-driven cleanup of 9 design issues found in notification system.
+### Notification Audit Fix (5 chunks) — COMPLETE
+See previous checkpoint for details. All 5 chunks committed.
 
-#### Chunk 1: Expand Prisma NotificationEventType Enum
-- [x] Added 42 new event type values (10 VIDEO_*, 11 LAB_*, 21 PHARMACY_*, 1 CASE_ASSIGNED)
-- [x] Enum now has 73 total values covering all Phases 12-16
+### Codebase Mapping — COMPLETE
+- [x] Generated 7 codebase analysis documents in `.planning/codebase/`
+- [x] STACK.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, INTEGRATIONS.md, CONCERNS.md
 
-#### Chunk 2: Rename 9 Mismatched Event Types
-- [x] CRITICAL_VALUE_ALERT → LAB_CRITICAL_VALUES (lab-processing.service.ts + spec)
-- [x] SAMPLE_ISSUE_REPORTED → LAB_SAMPLE_ISSUE (lab-processing.service.ts + spec)
-- [x] LAB_RESULTS_REVIEWED → LAB_DOCTOR_REVIEWED (lab-processing.service.ts + spec)
-- [x] COLLECTION_FAILED → LAB_COLLECTION_FAILED (collection-tracking.service.ts + spec)
-- [x] PHLEBOTOMIST_ASSIGNED → LAB_PHLEBOTOMIST_ASSIGNED (slot-assignment.service.ts + spec)
-- [x] CASE_ASSIGNED → CONSULTATION_ASSIGNED (assignment.service.ts + spec)
-- [x] ORDER_DISPATCHED → DELIVERY_OUT_FOR_DELIVERY (delivery.service.ts + spec)
-- [x] ORDER_DELIVERED → DELIVERY_DELIVERED (delivery.service.ts)
-- [x] DOCTOR_WELCOME → WELCOME (doctor.service.ts)
+### E2E Readiness — Audit Fixes + Push Delivery:
 
-#### Chunk 3: Remove `as any` Casts + Add Logger
-- [x] Replaced `as any` with proper Prisma enum casts (UserRole, NotificationChannel, NotificationEventType)
-- [x] Added NestJS Logger to NotificationService
-- [x] Imported Prisma enum types
+#### Package Installation
+- [x] Installed `expo-server-sdk` on backend (Expo Push Service — replaces need for firebase-admin)
+- [x] Installed `expo-device` on mobile (for device token registration)
+- [x] Installed `razorpay` on backend (payment processing)
+- [x] Configured Razorpay test keys in `.env` (rzp_test_SJT30nTBjdy6LC)
 
-#### Chunk 4: Fix Mobile marketingEnabled → discreetMode
-- [x] Updated NotificationPreferences interface in mobile/src/graphql/profile.ts
-- [x] Updated GET_NOTIFICATION_PREFERENCES and UPDATE_NOTIFICATION_PREFERENCES queries
-- [x] Updated notifications.tsx: state, handler, mutation input, UI section (Marketing → Privacy, Promotional Offers → Discreet Mode)
-- [x] Updated notifications.test.tsx: mock data and assertions
+#### Push Delivery Service (TDD)
+- [x] Created `push-delivery.service.spec.ts` — 6 tests written FIRST (RED)
+- [x] Created `push-delivery.service.ts` — implementation to pass tests (GREEN)
+- [x] Uses Expo Push Service (`expo-server-sdk`) to send real push notifications
+- [x] Handles chunking, invalid tokens, API errors, individual ticket errors
+- [x] Created `backend/__mocks__/expo-server-sdk.ts` — Jest manual mock for ESM compatibility
+- [x] Added `moduleNameMapper` in `jest.config.js` for expo-server-sdk
+- [x] Wired PushDeliveryService into NotificationService (fire-and-forget on PUSH channel)
+- [x] Updated notification.module.ts, notification.service.spec.ts, notification.resolver.spec.ts
 
-#### Chunk 5: Add DeviceToken Model + Registration Endpoints (TDD)
-- [x] Added DeviceToken Prisma model (userId, token, platform, isActive, @@unique([userId, token]))
-- [x] Created device-token.service.spec.ts (5 tests — written FIRST, RED)
-- [x] Created device-token.service.ts (registerToken, removeToken, getActiveTokens, deactivateAllTokens)
-- [x] Added registerDeviceToken and removeDeviceToken mutations to notification.resolver.ts
-- [x] Updated notification.module.ts to include DeviceTokenService
-- [x] Updated notification.resolver.spec.ts with DeviceTokenService mock
+#### Bug Fixes
+- [x] Fixed hardcoded pincode '400001' in mobile lab booking — now uses `labOrder.collectionPincode`
+- [x] Fixed hardcoded admin name 'Abhishikth' in admin layout — now uses `useAuth()` hook
+- [x] Updated `mobile/src/graphql/tracking.ts` — added `collectionCity`, `collectionPincode` to LabOrder interface + query
+
+#### Documentation
+- [x] Updated `.planning/codebase/CONCERNS.md` — removed 6 false claims, marked 2 bugs FIXED, corrected notification delivery status
 
 ## Test Counts:
-- Backend: 2,774 tests (86 test suites) — +5 new DeviceToken tests
+- Backend: 2,780 tests (87 test suites) — +6 new PushDelivery tests
 - Mobile: 601 tests (52 test suites)
 - Web: 267 tests (37 test suites)
-- **Total: 3,642 tests**
+- **Total: 3,648 tests**
 
-## Files Modified:
+## Files Modified/Created:
 ```
-# Schema
-backend/prisma/schema.prisma — +42 enum values, +DeviceToken model
-
-# Service renames (coordinated refactors — service + spec)
-backend/src/lab-automation/lab-processing.service.ts
-backend/src/lab-automation/lab-processing.service.spec.ts
-backend/src/lab-automation/collection-tracking.service.ts
-backend/src/lab-automation/collection-tracking.service.spec.ts
-backend/src/lab-automation/slot-assignment.service.ts
-backend/src/lab-automation/slot-assignment.service.spec.ts
-backend/src/assignment/assignment.service.ts
-backend/src/assignment/assignment.service.spec.ts
-backend/src/pharmacy/delivery.service.ts
-backend/src/pharmacy/delivery.service.spec.ts
-backend/src/doctor/doctor.service.ts
-
-# Notification module
-backend/src/notification/notification.service.ts — Logger + enum casts
-backend/src/notification/notification.resolver.ts — DeviceToken endpoints
-backend/src/notification/notification.resolver.spec.ts — DeviceToken mock
-backend/src/notification/notification.module.ts — DeviceTokenService
-
 # New files
-backend/src/notification/device-token.service.ts
-backend/src/notification/device-token.service.spec.ts
+backend/__mocks__/expo-server-sdk.ts
+backend/src/notification/push-delivery.service.ts
+backend/src/notification/push-delivery.service.spec.ts
 
-# Mobile
-mobile/src/graphql/profile.ts — marketingEnabled → discreetMode
-mobile/app/profile/notifications.tsx — Marketing → Privacy section
-mobile/app/profile/__tests__/notifications.test.tsx — updated assertions
+# Modified — backend
+backend/jest.config.js — moduleNameMapper for expo-server-sdk
+backend/package.json — +expo-server-sdk, +razorpay
+backend/src/notification/notification.module.ts — +PushDeliveryService
+backend/src/notification/notification.service.ts — inject PushDeliveryService, fire-and-forget push
+backend/src/notification/notification.service.spec.ts — +PushDeliveryService mock
+backend/src/schema.gql — auto-generated
+
+# Modified — mobile
+mobile/package.json — +expo-device
+mobile/src/graphql/tracking.ts — +collectionCity, +collectionPincode
+mobile/app/lab/[labOrderId]/index.tsx — use labOrder pincode instead of hardcoded
+
+# Modified — web
+web/src/app/admin/layout.tsx — useAuth() for admin name
+
+# Modified — docs
+.planning/codebase/CONCERNS.md — corrected false claims
+pnpm-lock.yaml — dependency updates
 ```
 
 ---
@@ -90,11 +80,14 @@ mobile/app/profile/__tests__/notifications.test.tsx — updated assertions
 ## Next Up:
 - Phase 18: Production readiness (Sentry, Redis caching, security audit)
 - CI/CD pipeline setup
+- Remaining external integrations: Firebase project, 100ms, Sentry, email provider
 - Delivery portal (delivery model TBD)
 
 ## Known Issues:
-- sendNotification() still DB-only (no FCM/MSG91/Email provider integration yet)
-- @100mslive/react-native-hms not actually installed — mock only for tests
+- SMS/WhatsApp/Email channels still DB-record-only (no MSG91/email provider integration yet)
+- @100mslive/react-native-hms not installed — video tests use mocks only
 - Redis connection warning on startup if Redis not available (by design)
+- RateLimitGuard exists but never applied to any endpoint
+- Firebase project not yet created (needed for google-services.json on mobile builds)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*

@@ -4,6 +4,7 @@ import {
   NotificationPayload,
 } from './notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushDeliveryService } from './push-delivery.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 // Spec: master spec Section 11 (Notification System)
@@ -152,6 +153,7 @@ describe('NotificationService', () => {
       providers: [
         NotificationService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PushDeliveryService, useValue: { sendPush: jest.fn().mockResolvedValue({ sent: 1, failed: 0, skipped: 0, errors: [] }) } },
       ],
     }).compile();
 
