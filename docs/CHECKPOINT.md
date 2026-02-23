@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-23
 
-## Current Phase: Phase 12 — Admin Portal E2E Fixes
-## Current Task: Doctor onboarding + admin portal fixes
+## Current Phase: E2E Testing — Doctor Dashboard Fixes
+## Current Task: Fix Hair Loss Q-mapping + Add Schedule Video Call button
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -136,15 +136,15 @@ See git log for details. All 5 chunks committed.
 ## Test Counts:
 - Backend: 2,785 tests (87 test suites)
 - Mobile: 635 tests (55 test suites)
-- Web: 267 tests (37 test suites)
-- **Total: 3,687 tests**
+- Web: 285 tests (38 test suites)
+- **Total: 3,705 tests**
 
 ## Recent Commits:
 ```
-<pending> fix(admin): doctor onboarding + admin portal E2E fixes
+<pending> fix(doctor): fix Hair Loss Q-mapping + add Schedule Video Call button
+a5c875a fix(admin): doctor onboarding + admin portal E2E fixes
 e257942 fix(mobile): move useAnimatedStyle before conditional return (Rules of Hooks)
 badc751 feat(mobile): add ActiveConsultationBanner to home screen (TDD)
-f5159a4 fix(mobile): align subscriptions screen with backend Prisma schema
 d0003a0 feat(intake): wire planId subscription creation + consultation tracking
 ```
 
@@ -179,8 +179,45 @@ Patient selects plan → plan-selection.tsx passes planId to payment.tsx
     → Stepper: Submitted → AI Reviewed → Doctor Reviewing → Video → Approved
 ```
 
+### Doctor Dashboard E2E Fixes — COMPLETE
+
+#### Fix 1: Dashboard Stats Out of Sync
+- [x] Remapped `DOCTOR_REVIEWING` → `NEW` (was `IN_REVIEW`) in `mapToDashboardStatus`, `buildStatusFilter`, `getQueueStats`
+- [x] `VIDEO_SCHEDULED`/`VIDEO_COMPLETED`/`AWAITING_LABS` → `IN_REVIEW`
+- [x] Updated dashboard UI labels: "In Review" → "In Consultation"
+- [x] Updated 63 dashboard service tests — all pass
+
+#### Fix 2: Hair Loss Q-Mapping Bug
+- [x] Fixed `condition-panels.tsx`: `Q3→Q7` for Norwood pattern, `Q5→Q8` for family history
+- [x] Source of truth: `backend/prisma/questionnaires/hair-loss.ts`
+
+#### Fix 3: Request Video Call Button + Patient Slot Booking Flow
+- [x] Added `videoRequested Boolean @default(false)` to Consultation schema + migrated
+- [x] Added `requestVideoConsultation` mutation: sets `videoRequested: true` (no status change)
+- [x] Added `requestVideo()` in consultation.service.ts — validates doctor, status, sets flag
+- [x] Doctor's "Request Video Call" button calls new mutation (not updateConsultationStatus)
+- [x] Button on desktop header + mobile action bar + QuickActions component
+- [x] `VIDEO_SCHEDULED` status only happens when patient books via `bookVideoSlot` mutation
+- [x] Patient Activity screen: "Book Video Slot" button shown when `videoRequested && DOCTOR_REVIEWING`
+- [x] Tapping navigates to existing `/video/slots/[consultationId]` (Phase 13)
+- [x] `videoRequested` field added to `ConsultationType` GraphQL type + mobile `Consultation` interface
+- [x] `GET_MY_CONSULTATIONS` query includes `videoRequested` field
+
+#### Fix 4: Assignment Workflow — Doctor Must Start Review
+- [x] Assignment service no longer transitions to `DOCTOR_REVIEWING` — only sets `doctorId`
+- [x] Status stays `AI_REVIEWED` after auto-assignment; doctor clicks "Start Review" to begin
+- [x] `AI_REVIEWED` added to ACTIVE_STATUSES for doctor load counting
+- [x] Dashboard mapping: `AI_REVIEWED` → NEW, `DOCTOR_REVIEWING` → IN_REVIEW
+- [x] Updated `buildStatusFilter` + `getQueueStats` to match new buckets
+
+#### Tests (22 new/updated)
+- [x] `condition-panels.spec.tsx`: 18 tests (Q-mapping, routing, QuickActions)
+- [x] `consultation.service.spec.ts`: 4 new tests for `requestVideo` (happy path, forbidden, bad status, not found)
+- [x] `assignment.service.spec.ts`: Updated 3 tests for new assignment behavior
+- [x] `dashboard.service.spec.ts`: Updated 4 tests for new status mapping
+
 ## Next Up:
-- E2E testing of full flow on device (signup → intake → payment → tracking)
+- Continue E2E testing: doctor requests video → patient books slot → video call
 - CI/CD pipeline setup
 - Phase 18: Production readiness (Sentry, Redis caching, security audit)
 

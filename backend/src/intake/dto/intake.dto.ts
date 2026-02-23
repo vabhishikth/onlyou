@@ -98,6 +98,9 @@ export class ConsultationType {
     status: string;
 
     @Field()
+    videoRequested: boolean;
+
+    @Field()
     createdAt: Date;
 }
 

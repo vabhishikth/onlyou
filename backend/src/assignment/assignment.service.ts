@@ -14,6 +14,7 @@ const SLA_HOURS: Record<string, number> = {
 
 // Active statuses — consultations in these states count toward doctor's load
 const ACTIVE_STATUSES = [
+  ConsultationStatus.AI_REVIEWED,
   ConsultationStatus.DOCTOR_REVIEWING,
   ConsultationStatus.NEEDS_INFO,
 ];
@@ -215,12 +216,12 @@ export class AssignmentService {
     const slaHours = SLA_HOURS[riskLevel] || SLA_HOURS.LOW;
     const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000);
 
-    // Update consultation
+    // Update consultation — assign doctor but keep AI_REVIEWED status
+    // Doctor will explicitly "Start Review" to transition to DOCTOR_REVIEWING
     await this.prisma.consultation.update({
       where: { id: consultationId },
       data: {
         doctorId: bestDoctor.userId,
-        status: ConsultationStatus.DOCTOR_REVIEWING,
         assignedAt: new Date(),
         slaDeadline,
       },

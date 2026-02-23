@@ -123,8 +123,23 @@ describe('DashboardService', () => {
       expect(result).toBe(DashboardStatus.NEW);
     });
 
-    it('should convert DOCTOR_REVIEWING to IN_REVIEW dashboard status', () => {
+    it('should convert DOCTOR_REVIEWING to IN_REVIEW dashboard status (doctor actively reviewing)', () => {
       const result = service.mapToDashboardStatus(ConsultationStatus.DOCTOR_REVIEWING);
+      expect(result).toBe(DashboardStatus.IN_REVIEW);
+    });
+
+    it('should convert VIDEO_SCHEDULED to IN_REVIEW dashboard status', () => {
+      const result = service.mapToDashboardStatus(ConsultationStatus.VIDEO_SCHEDULED);
+      expect(result).toBe(DashboardStatus.IN_REVIEW);
+    });
+
+    it('should convert VIDEO_COMPLETED to IN_REVIEW dashboard status', () => {
+      const result = service.mapToDashboardStatus(ConsultationStatus.VIDEO_COMPLETED);
+      expect(result).toBe(DashboardStatus.IN_REVIEW);
+    });
+
+    it('should convert AWAITING_LABS to IN_REVIEW dashboard status', () => {
+      const result = service.mapToDashboardStatus(ConsultationStatus.AWAITING_LABS);
       expect(result).toBe(DashboardStatus.IN_REVIEW);
     });
 
@@ -293,7 +308,7 @@ describe('DashboardService', () => {
   describe('Queue Filtering by Dashboard Status', () => {
     // Spec: master spec Section 5.1 — Status badges
 
-    it('should filter by NEW status (PENDING_ASSESSMENT or AI_REVIEWED)', async () => {
+    it('should filter by NEW status (PENDING_ASSESSMENT, AI_REVIEWED)', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findMany.mockResolvedValue([]);
 
@@ -310,7 +325,7 @@ describe('DashboardService', () => {
       );
     });
 
-    it('should filter by IN_REVIEW status (DOCTOR_REVIEWING)', async () => {
+    it('should filter by IN_REVIEW status (DOCTOR_REVIEWING, VIDEO_SCHEDULED, VIDEO_COMPLETED, AWAITING_LABS)', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findMany.mockResolvedValue([]);
 
@@ -319,7 +334,9 @@ describe('DashboardService', () => {
       expect(mockPrismaService.consultation.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: ConsultationStatus.DOCTOR_REVIEWING,
+            status: {
+              in: [ConsultationStatus.DOCTOR_REVIEWING, ConsultationStatus.VIDEO_SCHEDULED, ConsultationStatus.VIDEO_COMPLETED, ConsultationStatus.AWAITING_LABS],
+            },
           }),
         }),
       );
@@ -383,7 +400,9 @@ describe('DashboardService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             vertical: HealthVertical.HAIR_LOSS,
-            status: ConsultationStatus.DOCTOR_REVIEWING,
+            status: {
+              in: [ConsultationStatus.DOCTOR_REVIEWING, ConsultationStatus.VIDEO_SCHEDULED, ConsultationStatus.VIDEO_COMPLETED, ConsultationStatus.AWAITING_LABS],
+            },
           }),
         }),
       );

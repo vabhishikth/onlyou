@@ -48,6 +48,27 @@ export class ConsultationResolver {
     }
 
     /**
+     * Doctor requests a video consultation — sets videoRequested flag
+     * Patient then picks a time slot from the doctor's available slots
+     */
+    @Mutation(() => ConsultationStatusResponse)
+    @UseGuards(JwtAuthGuard)
+    async requestVideoConsultation(
+        @Args('consultationId') consultationId: string,
+        @CurrentUser() user: any,
+    ): Promise<ConsultationStatusResponse> {
+        const consultation = await this.consultationService.requestVideo(
+            consultationId,
+            user.id,
+        );
+
+        return {
+            id: consultation.id,
+            status: consultation.status,
+        };
+    }
+
+    /**
      * Assign an unassigned case to a doctor (admin action)
      */
     @Mutation(() => ConsultationStatusResponse)

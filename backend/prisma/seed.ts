@@ -64,36 +64,13 @@ async function main() {
     console.log('  - Weight Management questionnaire created');
 
     // ============================================
-    // SEED: Test Doctor
+    // Find any existing doctor for test consultations
+    // (Doctors are created manually via admin dashboard, not seeded)
     // ============================================
-    console.log('\nSeeding test doctor...');
-
-    const doctor = await prisma.user.upsert({
-        where: { phone: '+919999999999' },
-        update: { name: 'Dr. Arjun Mehta', role: 'DOCTOR', isVerified: true },
-        create: {
-            phone: '+919999999999',
-            name: 'Dr. Arjun Mehta',
-            role: 'DOCTOR',
-            isVerified: true,
-        },
+    const doctorProfile = await prisma.doctorProfile.findFirst({
+        where: { isActive: true },
+        select: { userId: true },
     });
-
-    await prisma.doctorProfile.upsert({
-        where: { userId: doctor.id },
-        update: {},
-        create: {
-            userId: doctor.id,
-            registrationNo: 'TEST/NMC/2024',
-            specialization: 'Dermatology',
-            qualifications: ['MBBS', 'MD Dermatology'],
-            yearsOfExperience: 8,
-            bio: 'Specialist in hair loss and skin conditions with 8 years of clinical experience.',
-            isAvailable: true,
-            consultationFee: 79900, // ₹799 in paise
-        },
-    });
-    console.log('  - Doctor created: Dr. Arjun Mehta (+919999999999)');
 
     // ============================================
     // SEED: Test Patient with completed intake
@@ -182,14 +159,14 @@ async function main() {
                 },
             });
 
-            // Create consultation assigned to the test doctor
+            // Create consultation assigned to an available doctor (if any)
             const consultation = await prisma.consultation.create({
                 data: {
                     patientId: patient.id,
-                    doctorId: doctor.id,
+                    ...(doctorProfile ? { doctorId: doctorProfile.userId } : {}),
                     intakeResponseId: intakeResponse.id,
                     vertical: HealthVertical.HAIR_LOSS,
-                    status: ConsultationStatus.DOCTOR_REVIEWING,
+                    status: doctorProfile ? ConsultationStatus.DOCTOR_REVIEWING : ConsultationStatus.AI_REVIEWED,
                 },
             });
 
@@ -313,7 +290,7 @@ async function main() {
             const consultation2 = await prisma.consultation.create({
                 data: {
                     patientId: patient2.id,
-                    doctorId: doctor.id,
+                    ...(doctorProfile ? { doctorId: doctorProfile.userId } : {}),
                     intakeResponseId: intakeResponse2.id,
                     vertical: HealthVertical.SEXUAL_HEALTH,
                     status: ConsultationStatus.AI_REVIEWED,

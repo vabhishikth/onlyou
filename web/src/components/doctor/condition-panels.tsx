@@ -10,6 +10,7 @@ import {
     TrendingDown,
     AlertTriangle,
     Info,
+    Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HealthVertical } from '@/graphql/dashboard';
@@ -60,8 +61,8 @@ export function ConditionSpecificPanel({ vertical, responses, className }: Condi
 
 function HairLossPanel({ responses, className }: { responses: Record<string, any>; className?: string | undefined }) {
     // Extract key indicators from responses
-    const pattern = responses?.Q3 || responses?.pattern; // Hamilton-Norwood grade
-    const familyHistory = responses?.Q5 || responses?.familyHistory;
+    const pattern = responses?.Q7 || responses?.pattern; // Q7 = Hamilton-Norwood grade
+    const familyHistory = responses?.Q8 || responses?.familyHistory; // Q8 = family history
     const onset = responses?.Q4 || responses?.onset;
     const previousTreatments = responses?.Q17 || responses?.previousTreatments || [];
     const finasterideSideEffects = responses?.Q19 || responses?.sideEffects || [];
@@ -433,12 +434,29 @@ interface QuickActionsProps {
     consultationId: string;
     vertical: HealthVertical;
     status: string;
+    onScheduleVideo?: () => void;
 }
 
-export function QuickActions({ consultationId, status }: QuickActionsProps) {
+export function QuickActions({ consultationId, status, onScheduleVideo }: QuickActionsProps) {
     const isReviewing = status === 'DOCTOR_REVIEWING';
 
-    const actions = [
+    const actions: Array<{
+        id: string;
+        label: string;
+        icon: React.ReactNode;
+        href?: string;
+        onClick?: () => void;
+        primary: boolean;
+        show: boolean;
+    }> = [
+        {
+            id: 'video',
+            label: 'Request Video Call',
+            icon: <Video className="w-4 h-4" />,
+            onClick: onScheduleVideo,
+            primary: false,
+            show: isReviewing && !!onScheduleVideo,
+        },
         {
             id: 'prescribe',
             label: 'Create Prescription',
@@ -472,21 +490,28 @@ export function QuickActions({ consultationId, status }: QuickActionsProps) {
                 Quick Actions
             </h3>
             <div className="flex flex-wrap gap-3">
-                {visibleActions.map((action) => (
-                    <a
-                        key={action.id}
-                        href={action.href}
-                        className={cn(
-                            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors',
-                            action.primary
-                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                : 'bg-muted text-foreground hover:bg-muted/80'
-                        )}
-                    >
-                        {action.icon}
-                        {action.label}
-                    </a>
-                ))}
+                {visibleActions.map((action) => {
+                    const classes = cn(
+                        'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer',
+                        action.primary
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            : 'bg-muted text-foreground hover:bg-muted/80'
+                    );
+                    if (action.onClick) {
+                        return (
+                            <button key={action.id} onClick={action.onClick} className={classes}>
+                                {action.icon}
+                                {action.label}
+                            </button>
+                        );
+                    }
+                    return (
+                        <a key={action.id} href={action.href} className={classes}>
+                            {action.icon}
+                            {action.label}
+                        </a>
+                    );
+                })}
             </div>
         </motion.div>
     );

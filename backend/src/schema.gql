@@ -534,6 +534,7 @@ type ConsultationType {
   id: String!
   status: String!
   vertical: HealthVertical!
+  videoRequested: Boolean!
 }
 
 type ContraindicationResultType {
@@ -1139,6 +1140,7 @@ type Mutation {
   reportStockIssue(missingItems: [String!]!, pharmacyOrderId: String!): JSON!
   requestMoreInfo(consultationId: String!, message: String!): RequestMoreInfoResponse!
   requestOtp(input: RequestOtpInput!): RequestOtpResponse!
+  requestVideoConsultation(consultationId: String!): ConsultationStatusResponse!
   rescheduleDelivery(input: RescheduleDeliveryInput!): OrderMutationResponse!
   rescheduleLabSlot(input: RescheduleLabInput!): TrackingMutationResponse!
   rescheduleVideoBooking(bookedSlotId: String!, newSlotDate: String!, newStartTime: String!): BookingResponse!

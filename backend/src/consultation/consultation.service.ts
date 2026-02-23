@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService, AIAssessment } from '../ai/ai.service';
 import { Consultation, ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
@@ -124,6 +124,36 @@ export class ConsultationService {
         },
       },
       include: { doctorProfile: true },
+    });
+  }
+
+  /**
+   * Doctor requests a video consultation — sets videoRequested flag
+   * Patient picks a time slot; bookVideoSlot mutation handles the actual scheduling
+   */
+  async requestVideo(
+    consultationId: string,
+    doctorId: string,
+  ): Promise<Consultation> {
+    const consultation = await this.prisma.consultation.findUnique({
+      where: { id: consultationId },
+    });
+
+    if (!consultation) {
+      throw new NotFoundException('Consultation not found');
+    }
+
+    if (consultation.doctorId !== doctorId) {
+      throw new ForbiddenException('Only the assigned doctor can request video');
+    }
+
+    if (consultation.status !== ConsultationStatus.DOCTOR_REVIEWING) {
+      throw new BadRequestException('Consultation must be in DOCTOR_REVIEWING status');
+    }
+
+    return this.prisma.consultation.update({
+      where: { id: consultationId },
+      data: { videoRequested: true },
     });
   }
 

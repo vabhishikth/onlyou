@@ -93,6 +93,7 @@ export interface Consultation {
     id: string;
     vertical: HealthVertical;
     status: string;
+    videoRequested: boolean;
     createdAt: string;
 }
 
@@ -204,6 +205,7 @@ export const GET_MY_CONSULTATIONS = gql`
             id
             vertical
             status
+            videoRequested
             createdAt
         }
     }

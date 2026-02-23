@@ -24,6 +24,7 @@ import {
     Flag,
     FlaskConical,
     Activity,
+    Video,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import Link from 'next/link';
@@ -63,6 +64,16 @@ const UPDATE_CONSULTATION_STATUS = gql`
     }
 `;
 
+// Request video consultation mutation
+const REQUEST_VIDEO_CONSULTATION = gql`
+    mutation RequestVideoConsultation($consultationId: String!) {
+        requestVideoConsultation(consultationId: $consultationId) {
+            id
+            status
+        }
+    }
+`;
+
 // Send message mutation
 const SEND_MESSAGE = gql`
     mutation SendMessage($consultationId: String!, $content: String!) {
@@ -96,6 +107,10 @@ export default function CaseDetailPage() {
         onCompleted: () => refetch(),
     });
 
+    const [requestVideo, { loading: requestingVideo }] = useMutation(REQUEST_VIDEO_CONSULTATION, {
+        onCompleted: () => refetch(),
+    });
+
     const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE, {
         onCompleted: () => {
             setMessageInput('');
@@ -117,6 +132,14 @@ export default function CaseDetailPage() {
             variables: {
                 consultationId,
                 status: 'NEEDS_INFO',
+            },
+        });
+    };
+
+    const handleScheduleVideo = async () => {
+        await requestVideo({
+            variables: {
+                consultationId,
             },
         });
     };
@@ -251,6 +274,14 @@ export default function CaseDetailPage() {
                             <div className="hidden lg:flex items-center gap-2">
                                 <Button
                                     variant="outline"
+                                    onClick={handleScheduleVideo}
+                                    disabled={updating}
+                                >
+                                    <Video className="w-4 h-4 mr-2" />
+                                    Request Video Call
+                                </Button>
+                                <Button
+                                    variant="outline"
                                     onClick={handleNeedsInfo}
                                     disabled={updating}
                                 >
@@ -266,6 +297,20 @@ export default function CaseDetailPage() {
                                     <XCircle className="w-4 h-4 mr-2" />
                                     Reject
                                 </Button>
+                                <Link href={`/doctor/case/${consultationId}/prescribe`}>
+                                    <Button disabled={updating}>
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Create Prescription
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+                        {consultation.status === 'VIDEO_SCHEDULED' && (
+                            <div className="hidden lg:flex items-center gap-2">
+                                <span className="text-sm text-accent font-medium flex items-center gap-1">
+                                    <Video className="w-4 h-4" />
+                                    Video Scheduled
+                                </span>
                                 <Link href={`/doctor/case/${consultationId}/prescribe`}>
                                     <Button disabled={updating}>
                                         <CheckCircle className="w-4 h-4 mr-2" />
@@ -323,6 +368,7 @@ export default function CaseDetailPage() {
                             labOrders={labOrders}
                             prescription={prescription}
                             messageCount={messages.length}
+                            onScheduleVideo={handleScheduleVideo}
                         />
                     )}
                     {activeTab === 'questionnaire' && (
@@ -365,9 +411,17 @@ export default function CaseDetailPage() {
                         <Button
                             variant="outline"
                             size="sm"
+                            onClick={handleScheduleVideo}
+                            disabled={updating}
+                        >
+                            <Video className="w-3 h-3 mr-1" />
+                            Video
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={handleNeedsInfo}
                             disabled={updating}
-                            className="flex-1"
                         >
                             Request Info
                         </Button>
@@ -380,6 +434,21 @@ export default function CaseDetailPage() {
                         >
                             Reject
                         </Button>
+                        <Link href={`/doctor/case/${consultationId}/prescribe`} className="flex-1">
+                            <Button size="sm" className="w-full" disabled={updating}>
+                                Prescribe
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            )}
+            {consultation.status === 'VIDEO_SCHEDULED' && (
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
+                    <div className="flex gap-2 items-center">
+                        <span className="text-sm text-accent font-medium flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            Video Scheduled
+                        </span>
                         <Link href={`/doctor/case/${consultationId}/prescribe`} className="flex-1">
                             <Button size="sm" className="w-full" disabled={updating}>
                                 Prescribe
@@ -453,6 +522,7 @@ function OverviewTab({
     labOrders,
     prescription,
     messageCount,
+    onScheduleVideo,
 }: {
     patient: CaseDetailResponse['caseDetail']['patient'];
     consultation: CaseDetailResponse['caseDetail']['consultation'];
@@ -462,6 +532,7 @@ function OverviewTab({
     labOrders: CaseDetailResponse['caseDetail']['labOrders'];
     prescription: CaseDetailResponse['caseDetail']['prescription'];
     messageCount: number;
+    onScheduleVideo: () => void;
 }) {
     const [aiExpanded, setAiExpanded] = useState(true);
 
@@ -603,6 +674,7 @@ function OverviewTab({
                     consultationId={consultationId}
                     vertical={consultation.vertical as HealthVertical}
                     status={consultation.status}
+                    onScheduleVideo={onScheduleVideo}
                 />
             </div>
 

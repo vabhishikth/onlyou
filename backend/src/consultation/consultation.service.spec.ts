@@ -648,4 +648,64 @@ describe('ConsultationService', () => {
       });
     });
   });
+
+  describe('requestVideo', () => {
+    it('should set videoRequested flag on consultation', async () => {
+      const reviewing = {
+        ...mockConsultation,
+        status: ConsultationStatus.DOCTOR_REVIEWING,
+        doctorId: 'doctor-123',
+      };
+
+      (prismaService.consultation.findUnique as jest.Mock).mockResolvedValue(reviewing);
+      (prismaService.consultation.update as jest.Mock).mockResolvedValue({
+        ...reviewing,
+        videoRequested: true,
+      });
+
+      const result = await service.requestVideo('consultation-123', 'doctor-123');
+
+      expect(prismaService.consultation.update).toHaveBeenCalledWith({
+        where: { id: 'consultation-123' },
+        data: { videoRequested: true },
+      });
+      expect(result.videoRequested).toBe(true);
+    });
+
+    it('should throw ForbiddenException if not assigned doctor', async () => {
+      const reviewing = {
+        ...mockConsultation,
+        status: ConsultationStatus.DOCTOR_REVIEWING,
+        doctorId: 'other-doctor',
+      };
+
+      (prismaService.consultation.findUnique as jest.Mock).mockResolvedValue(reviewing);
+
+      await expect(
+        service.requestVideo('consultation-123', 'doctor-123'),
+      ).rejects.toThrow('Only the assigned doctor can request video');
+    });
+
+    it('should throw BadRequestException if not in DOCTOR_REVIEWING status', async () => {
+      const aiReviewed = {
+        ...mockConsultation,
+        status: ConsultationStatus.AI_REVIEWED,
+        doctorId: 'doctor-123',
+      };
+
+      (prismaService.consultation.findUnique as jest.Mock).mockResolvedValue(aiReviewed);
+
+      await expect(
+        service.requestVideo('consultation-123', 'doctor-123'),
+      ).rejects.toThrow('Consultation must be in DOCTOR_REVIEWING status');
+    });
+
+    it('should throw NotFoundException if consultation not found', async () => {
+      (prismaService.consultation.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.requestVideo('nonexistent', 'doctor-123'),
+      ).rejects.toThrow('Consultation not found');
+    });
+  });
 });

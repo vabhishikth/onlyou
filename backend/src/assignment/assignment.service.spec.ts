@@ -112,7 +112,8 @@ describe('AssignmentService', () => {
       prisma.consultation.update.mockResolvedValue({
         ...mockConsultation,
         doctorId: 'user-doc-1',
-        status: ConsultationStatus.DOCTOR_REVIEWING,
+        assignedAt: new Date(),
+        slaDeadline: new Date(),
       });
       prisma.doctorProfile.update.mockResolvedValue(doctor);
 
@@ -136,7 +137,8 @@ describe('AssignmentService', () => {
       prisma.consultation.update.mockResolvedValue({
         ...mockConsultation,
         doctorId: 'doc-2',
-        status: ConsultationStatus.DOCTOR_REVIEWING,
+        assignedAt: new Date(),
+        slaDeadline: new Date(),
       });
       prisma.doctorProfile.update.mockResolvedValue(doctor2);
 
@@ -295,7 +297,7 @@ describe('AssignmentService', () => {
       );
     });
 
-    it('should update consultation status to DOCTOR_REVIEWING', async () => {
+    it('should NOT transition status to DOCTOR_REVIEWING (only set doctorId, assignedAt, slaDeadline)', async () => {
       const doctor = makeDoctorProfile();
       prisma.consultation.findUnique.mockResolvedValue(mockConsultation);
       prisma.doctorProfile.findMany.mockResolvedValue([doctor]);
@@ -303,19 +305,18 @@ describe('AssignmentService', () => {
       prisma.consultation.update.mockResolvedValue({
         ...mockConsultation,
         doctorId: 'user-doc-1',
-        status: ConsultationStatus.DOCTOR_REVIEWING,
+        assignedAt: new Date(),
+        slaDeadline: new Date(),
       });
       prisma.doctorProfile.update.mockResolvedValue(doctor);
 
       await service.assignDoctor('consult-1');
 
-      expect(prisma.consultation.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: ConsultationStatus.DOCTOR_REVIEWING,
-          }),
-        }),
-      );
+      const updateCall = prisma.consultation.update.mock.calls[0][0];
+      expect(updateCall.data).not.toHaveProperty('status');
+      expect(updateCall.data).toHaveProperty('doctorId');
+      expect(updateCall.data).toHaveProperty('assignedAt');
+      expect(updateCall.data).toHaveProperty('slaDeadline');
     });
 
     it('should set consultation.assignedAt', async () => {

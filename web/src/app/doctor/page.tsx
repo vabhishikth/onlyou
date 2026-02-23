@@ -24,7 +24,7 @@ export default function DoctorDashboard() {
             bgColor: 'bg-warm/10',
         },
         {
-            label: 'In Review',
+            label: 'In Consultation',
             value: queueStats?.inReview ?? 0,
             icon: Clock,
             color: 'text-accent',
@@ -103,7 +103,7 @@ export default function DoctorDashboard() {
                     <QuickAction
                         href="/doctor/queue"
                         title="Review Cases"
-                        description={`${queueStats?.new ?? 0} cases waiting for review`}
+                        description={`${(queueStats?.new ?? 0) + (queueStats?.inReview ?? 0)} cases need attention`}
                         color="primary"
                     />
                     <QuickAction

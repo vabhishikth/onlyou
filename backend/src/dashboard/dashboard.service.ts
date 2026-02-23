@@ -120,8 +120,13 @@ export class DashboardService {
     switch (status) {
       case ConsultationStatus.PENDING_ASSESSMENT:
       case ConsultationStatus.AI_REVIEWED:
+        // Assigned but doctor hasn't started review yet
         return DashboardStatus.NEW;
       case ConsultationStatus.DOCTOR_REVIEWING:
+      case ConsultationStatus.VIDEO_SCHEDULED:
+      case ConsultationStatus.VIDEO_COMPLETED:
+      case ConsultationStatus.AWAITING_LABS:
+        // Doctor is actively working on this case
         return DashboardStatus.IN_REVIEW;
       case ConsultationStatus.NEEDS_INFO:
         return DashboardStatus.AWAITING_RESPONSE;
@@ -225,7 +230,11 @@ export class DashboardService {
           },
         };
       case DashboardStatus.IN_REVIEW:
-        return { status: ConsultationStatus.DOCTOR_REVIEWING };
+        return {
+          status: {
+            in: [ConsultationStatus.DOCTOR_REVIEWING, ConsultationStatus.VIDEO_SCHEDULED, ConsultationStatus.VIDEO_COMPLETED, ConsultationStatus.AWAITING_LABS],
+          },
+        };
       case DashboardStatus.AWAITING_RESPONSE:
         return { status: ConsultationStatus.NEEDS_INFO };
       case DashboardStatus.COMPLETED:
@@ -514,7 +523,10 @@ export class DashboardService {
         },
       }),
       this.prisma.consultation.count({
-        where: { ...baseWhere, status: ConsultationStatus.DOCTOR_REVIEWING },
+        where: {
+          ...baseWhere,
+          status: { in: [ConsultationStatus.DOCTOR_REVIEWING, ConsultationStatus.VIDEO_SCHEDULED, ConsultationStatus.VIDEO_COMPLETED, ConsultationStatus.AWAITING_LABS] },
+        },
       }),
       this.prisma.consultation.count({
         where: { ...baseWhere, status: ConsultationStatus.NEEDS_INFO },

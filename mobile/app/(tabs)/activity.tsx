@@ -26,6 +26,7 @@ import {
     Flower2,
     Scale,
     Stethoscope,
+    Video,
 } from 'lucide-react-native';
 
 import { colors } from '@/theme/colors';
@@ -478,10 +479,12 @@ interface ConsultationCardProps {
 }
 
 function ConsultationCard({ consultation, delay = 0 }: ConsultationCardProps) {
+    const router = useRouter();
     const treatment = TREATMENT_CONFIG[consultation.vertical] || TREATMENT_CONFIG.HAIR_LOSS;
     const steps = CONSULTATION_STEPS;
     const currentStepIndex = getStepIndex(consultation.status, steps);
     const statusLabel = CONSULTATION_STATUS_LABELS[consultation.status] || consultation.status;
+    const showBookVideo = consultation.videoRequested && consultation.status === 'DOCTOR_REVIEWING';
 
     return (
         <Animated.View entering={FadeInUp.delay(delay).duration(300)}>
@@ -553,6 +556,19 @@ function ConsultationCard({ consultation, delay = 0 }: ConsultationCardProps) {
                         })}
                     </View>
                 </View>
+
+                {/* Book Video Slot CTA — shown when doctor requested video */}
+                {showBookVideo && (
+                    <Pressable
+                        testID={`book-video-${consultation.id}`}
+                        style={styles.bookVideoButton}
+                        onPress={() => router.push(`/video/slots/${consultation.id}`)}
+                    >
+                        <Video size={16} color="#fff" />
+                        <Text style={styles.bookVideoText}>Book Video Slot</Text>
+                        <ChevronRight size={16} color="#fff" />
+                    </Pressable>
+                )}
             </View>
         </Animated.View>
     );
@@ -836,5 +852,22 @@ const styles = StyleSheet.create({
         height: 2,
         backgroundColor: colors.border,
         marginHorizontal: spacing.sm,
+    },
+    bookVideoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.xs,
+        backgroundColor: colors.accent,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        marginTop: spacing.md,
+    },
+    bookVideoText: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.body,
+        color: '#fff',
+        flex: 1,
     },
 });
