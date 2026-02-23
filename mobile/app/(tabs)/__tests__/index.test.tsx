@@ -163,6 +163,63 @@ describe('HomeScreen', () => {
         });
     });
 
+    describe('Active Consultation Banner', () => {
+        it('does not render when there are no consultations', () => {
+            const { queryByTestId } = render(<HomeScreen />);
+            expect(queryByTestId('active-consultation-banner')).toBeNull();
+        });
+
+        it('renders consultation banner when there is an active consultation', () => {
+            (useQuery as jest.Mock).mockImplementation((query) => {
+                if (query === require('@/graphql/intake').GET_MY_CONSULTATIONS) {
+                    return {
+                        data: {
+                            myConsultations: [{
+                                id: 'c1',
+                                vertical: 'HAIR_LOSS',
+                                status: 'DOCTOR_REVIEWING',
+                                createdAt: new Date().toISOString(),
+                            }],
+                        },
+                        loading: false,
+                        error: null,
+                        refetch: mockRefetch,
+                    };
+                }
+                return { data: null, loading: false, error: null, refetch: mockRefetch };
+            });
+
+            const { getByTestId, getByText } = render(<HomeScreen />);
+            expect(getByTestId('active-consultation-banner')).toBeTruthy();
+            expect(getByText('Consultation')).toBeTruthy();
+            expect(getByText('A doctor is reviewing your case')).toBeTruthy();
+        });
+
+        it('does not render consultation banner when all consultations are terminal', () => {
+            (useQuery as jest.Mock).mockImplementation((query) => {
+                if (query === require('@/graphql/intake').GET_MY_CONSULTATIONS) {
+                    return {
+                        data: {
+                            myConsultations: [{
+                                id: 'c1',
+                                vertical: 'HAIR_LOSS',
+                                status: 'APPROVED',
+                                createdAt: new Date().toISOString(),
+                            }],
+                        },
+                        loading: false,
+                        error: null,
+                        refetch: mockRefetch,
+                    };
+                }
+                return { data: null, loading: false, error: null, refetch: mockRefetch };
+            });
+
+            const { queryByTestId } = render(<HomeScreen />);
+            expect(queryByTestId('active-consultation-banner')).toBeNull();
+        });
+    });
+
     describe('Why Onlyou Section', () => {
         it('renders the why section', () => {
             const { getByTestId } = render(<HomeScreen />);

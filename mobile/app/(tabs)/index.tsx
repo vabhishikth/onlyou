@@ -21,10 +21,11 @@ import { colors } from '@/theme/colors';
 import { fontFamilies, fontSizes } from '@/theme/typography';
 import { spacing, borderRadius, screenSpacing } from '@/theme/spacing';
 import { useAuth } from '@/lib/auth';
-import { GET_AVAILABLE_VERTICALS, VerticalInfo } from '@/graphql/intake';
+import { GET_AVAILABLE_VERTICALS, VerticalInfo, GET_MY_CONSULTATIONS, Consultation } from '@/graphql/intake';
 import { GET_ACTIVE_TRACKING, ActiveTrackingResponse } from '@/graphql/tracking';
 import TreatmentCard from '@/components/TreatmentCard';
 import ActiveOrderBanner from '@/components/ActiveOrderBanner';
+import ActiveConsultationBanner from '@/components/ActiveConsultationBanner';
 
 // Map vertical ID to icon name
 const verticalIcons = {
@@ -126,14 +127,23 @@ export default function HomeScreen() {
         fetchPolicy: 'cache-and-network',
     });
 
+    // Fetch active consultations
+    const {
+        data: consultData,
+        refetch: refetchConsultations,
+    } = useQuery<{ myConsultations: Consultation[] }>(GET_MY_CONSULTATIONS, {
+        fetchPolicy: 'cache-and-network',
+    });
+
     const verticals = verticalsData?.availableVerticals || DEFAULT_VERTICALS;
     const labOrders = trackingData?.activeTracking?.labOrders || [];
     const deliveryOrders = trackingData?.activeTracking?.deliveryOrders || [];
+    const consultations = consultData?.myConsultations || [];
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
         try {
-            await Promise.all([refetchVerticals(), refetchTracking()]);
+            await Promise.all([refetchVerticals(), refetchTracking(), refetchConsultations()]);
         } finally {
             setRefreshing(false);
         }
@@ -174,6 +184,11 @@ export default function HomeScreen() {
                         labOrders={labOrders}
                         deliveryOrders={deliveryOrders}
                     />
+                </Animated.View>
+
+                {/* Active Consultation Banner */}
+                <Animated.View entering={FadeInUp.delay(150).duration(400)}>
+                    <ActiveConsultationBanner consultations={consultations} />
                 </Animated.View>
 
                 {/* Treatment Cards */}
