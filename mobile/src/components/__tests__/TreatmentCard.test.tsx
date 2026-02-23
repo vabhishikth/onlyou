@@ -20,7 +20,7 @@ describe('TreatmentCard', () => {
         name: 'Hair Loss',
         tagline: 'Thicker, fuller hair with personalised treatments',
         icon: 'Sparkles' as const,
-        pricePerMonth: 999,
+        pricePerMonth: 99900, // ₹999 in paise
     };
 
     it('renders the card', () => {

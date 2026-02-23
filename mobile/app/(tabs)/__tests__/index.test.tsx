@@ -67,11 +67,11 @@ describe('HomeScreen', () => {
 
         it('displays pricing for each treatment', () => {
             const { getByText } = render(<HomeScreen />);
-            // Should show starting prices
+            // Should show starting prices (converted from paise to rupees)
             expect(getByText(/₹999/)).toBeTruthy();
-            expect(getByText(/₹1,499/)).toBeTruthy();
-            expect(getByText(/₹1,299/)).toBeTruthy();
-            expect(getByText(/₹1,999/)).toBeTruthy();
+            expect(getByText(/₹799/)).toBeTruthy();
+            expect(getByText(/₹1,199/)).toBeTruthy();
+            expect(getByText(/₹2,499/)).toBeTruthy();
         });
     });
 

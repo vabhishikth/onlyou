@@ -104,7 +104,7 @@ export default function TreatmentCard({
                     {tagline}
                 </Text>
                 <Text style={styles.price}>
-                    From ₹{pricePerMonth.toLocaleString('en-IN')}/mo
+                    From ₹{(pricePerMonth / 100).toLocaleString('en-IN')}/mo
                 </Text>
             </View>
 

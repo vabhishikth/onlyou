@@ -41,7 +41,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         name: 'Hair Loss',
         description: 'Clinically-proven treatments for hair thinning and loss',
         tagline: 'Thicker, fuller hair with personalised treatments',
-        pricePerMonth: 999,
+        pricePerMonth: 99900, // ₹999 in paise
         icon: '💇',
         color: '#B8A472',
     },
@@ -50,7 +50,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         name: 'Sexual Health',
         description: 'Private consultations for intimate health concerns',
         tagline: 'Discreet care for ED and performance concerns',
-        pricePerMonth: 1499,
+        pricePerMonth: 79900, // ₹799 in paise
         icon: '❤️',
         color: '#7E86AD',
     },
@@ -59,7 +59,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         name: 'PCOS',
         description: 'Comprehensive care for polycystic ovary syndrome',
         tagline: 'Manage symptoms and restore hormonal balance',
-        pricePerMonth: 1299,
+        pricePerMonth: 119900, // ₹1,199 in paise
         icon: '🌸',
         color: '#AD7E8E',
     },
@@ -68,7 +68,7 @@ const DEFAULT_VERTICALS: VerticalInfo[] = [
         name: 'Weight Management',
         description: 'Medically-supervised weight loss programs',
         tagline: 'Science-backed plans that work for your body',
-        pricePerMonth: 1999,
+        pricePerMonth: 249900, // ₹2,499 in paise
         icon: '⚖️',
         color: '#6E9E7E',
     },
