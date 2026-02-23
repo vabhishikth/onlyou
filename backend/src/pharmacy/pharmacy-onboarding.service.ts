@@ -88,10 +88,13 @@ export class PharmacyOnboardingService {
       throw new BadRequestException('Pincode is required');
     }
 
-    // Validate phone format
-    if (!input.contactPhone || !/^\+91\d{10}$/.test(input.contactPhone)) {
+    // Normalize and validate phone format
+    const contactDigits = (input.contactPhone || '').replace(/\D/g, '');
+    const contactLast10 = contactDigits.slice(-10);
+    if (contactLast10.length !== 10) {
       throw new BadRequestException('Contact phone must be valid Indian mobile (+91 followed by 10 digits)');
     }
+    input.contactPhone = `+91${contactLast10}`;
 
     // Check drug license uniqueness
     const existingLicense = await this.prisma.pharmacy.findFirst({
@@ -297,10 +300,13 @@ export class PharmacyOnboardingService {
       throw new BadRequestException('Pharmacist registration number is required for PHARMACIST role');
     }
 
-    // Validate phone format
-    if (!input.phone || !/^\+91\d{10}$/.test(input.phone)) {
+    // Normalize and validate phone format
+    const staffDigits = (input.phone || '').replace(/\D/g, '');
+    const staffLast10 = staffDigits.slice(-10);
+    if (staffLast10.length !== 10) {
       throw new BadRequestException('Phone must be valid Indian mobile (+91 followed by 10 digits)');
     }
+    input.phone = `+91${staffLast10}`;
 
     // Check phone uniqueness
     const existingPhone = await this.prisma.user.findFirst({

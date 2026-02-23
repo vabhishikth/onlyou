@@ -15,9 +15,22 @@ type Step = 'phone' | 'otp';
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const returnUrl = searchParams.get('returnUrl') || '/doctor';
+    const returnUrl = searchParams.get('returnUrl') || '/';
 
     const { requestOTP, verifyOTP, requestingOTP, verifyingOTP, isAuthenticated } = useAuth();
+
+    // Detect portal from returnUrl
+    const portalName = returnUrl.startsWith('/admin')
+        ? 'Admin Portal'
+        : returnUrl.startsWith('/doctor')
+            ? 'Doctor Portal'
+            : returnUrl.startsWith('/lab')
+                ? 'Lab Portal'
+                : returnUrl.startsWith('/pharmacy')
+                    ? 'Pharmacy Portal'
+                    : returnUrl.startsWith('/collect')
+                        ? 'Phlebotomist Portal'
+                        : 'Portal';
 
     const [step, setStep] = useState<Step>('phone');
     const [phone, setPhone] = useState('');
@@ -122,7 +135,7 @@ function LoginForm() {
                 >
                     <h1 className="text-3xl font-bold text-primary">onlyou</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Doctor Portal
+                        {portalName}
                     </p>
                 </motion.div>
             </div>

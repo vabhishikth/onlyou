@@ -9,6 +9,9 @@ export const ADMIN_DOCTORS = gql`
         doctors(vertical: $vertical, isAvailable: $isAvailable) {
             id
             userId
+            name
+            phone
+            email
             registrationNo
             specialization
             specializations
@@ -35,6 +38,9 @@ export const DOCTOR_BY_ID = gql`
         doctorById(id: $id) {
             id
             userId
+            name
+            phone
+            email
             registrationNo
             specialization
             specializations
@@ -123,6 +129,9 @@ export const DEACTIVATE_DOCTOR = gql`
 export interface DoctorProfile {
     id: string;
     userId: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
     registrationNo: string;
     specialization: string;
     specializations: string[];

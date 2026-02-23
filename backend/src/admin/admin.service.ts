@@ -2220,8 +2220,8 @@ export class AdminService {
         const pageSize = params.pageSize || 20;
         const skip = (page - 1) * pageSize;
 
-        // Build where clause
-        const where: Record<string, unknown> = {};
+        // Build where clause — only show PATIENT role users
+        const where: Record<string, unknown> = { role: 'PATIENT' };
 
         if (params.search) {
             where.OR = [

@@ -88,9 +88,12 @@ export class LabOnboardingService {
     if (!input.pincode || input.pincode.trim() === '') {
       throw new BadRequestException('Pincode is required');
     }
-    if (!input.contactPhone || !/^\+91\d{10}$/.test(input.contactPhone)) {
+    const labDigits = (input.contactPhone || '').replace(/\D/g, '');
+    const labLast10 = labDigits.slice(-10);
+    if (labLast10.length !== 10) {
       throw new BadRequestException('Contact phone must be valid Indian mobile (+91 followed by 10 digits)');
     }
+    input.contactPhone = `+91${labLast10}`;
 
     // Check license uniqueness
     const existingLicense = await this.prisma.partnerLab.findFirst({

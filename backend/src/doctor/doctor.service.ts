@@ -97,10 +97,13 @@ export class DoctorService {
    * Spec: Phase 12 — Creates User (role=DOCTOR) + DoctorProfile in transaction
    */
   async createDoctor(input: CreateDoctorServiceInput): Promise<DoctorProfile> {
-    // Validate phone format (+91, 10 digits)
-    if (!input.phone || !/^\+91\d{10}$/.test(input.phone)) {
+    // Normalize and validate phone format
+    const digits = (input.phone || '').replace(/\D/g, '');
+    const last10 = digits.slice(-10);
+    if (last10.length !== 10) {
       throw new BadRequestException('Phone must be valid Indian mobile (+91 followed by 10 digits)');
     }
+    input.phone = `+91${last10}`;
 
     // Check phone uniqueness
     const existingPhone = await this.prisma.user.findFirst({

@@ -573,7 +573,7 @@ input CreateDoctorInput {
   bio: String
   consultationFee: Int!
   dailyCaseLimit: Int! = 15
-  email: String!
+  email: String
   name: String!
   phone: String!
   qualifications: [String!]!
@@ -766,10 +766,13 @@ type DoctorProfileType {
   consultationFee: Int!
   createdAt: DateTime!
   dailyCaseLimit: Int!
+  email: String
   id: ID!
   isActive: Boolean!
   isAvailable: Boolean!
   lastAssignedAt: DateTime
+  name: String
+  phone: String
   qualifications: [String!]!
   registrationNo: String!
   seniorDoctor: Boolean!

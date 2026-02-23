@@ -917,7 +917,7 @@ function AddPartnerModal({
                             city: formData.city,
                             state: formData.state,
                             pincode: formData.pincode,
-                            phone: formData.phone,
+                            phone: `+91${formData.phone.replace(/\D/g, '').slice(-10)}`,
                             email: formData.email || undefined,
                             contactPerson: formData.contactPerson || undefined,
                             testsOffered: formData.testsOffered.split(',').map((t) => t.trim()).filter(Boolean),
@@ -931,7 +931,7 @@ function AddPartnerModal({
                     variables: {
                         input: {
                             name: formData.name,
-                            phone: formData.phone,
+                            phone: `+91${formData.phone.replace(/\D/g, '').slice(-10)}`,
                             email: formData.email || undefined,
                             certification: formData.certification || undefined,
                             availableDays: formData.availableDays.split(',').map((d) => d.trim()),
@@ -953,7 +953,7 @@ function AddPartnerModal({
                             city: formData.city,
                             state: formData.state,
                             pincode: formData.pincode,
-                            phone: formData.phone,
+                            phone: `+91${formData.phone.replace(/\D/g, '').slice(-10)}`,
                             email: formData.email || undefined,
                             contactPerson: formData.contactPerson || undefined,
                             drugLicenseNumber: formData.drugLicenseNumber,
@@ -1018,13 +1018,23 @@ function AddPartnerModal({
 
                         <div>
                             <label className="block text-sm font-medium mb-1">Phone *</label>
-                            <input
-                                type="tel"
-                                required
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full px-3 py-2 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            />
+                            <div className="flex">
+                                <div className="flex items-center justify-center px-3 rounded-l-lg border border-r-0 bg-muted text-muted-foreground text-sm font-medium">
+                                    +91
+                                </div>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    required
+                                    value={formData.phone}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                        setFormData({ ...formData, phone: value });
+                                    }}
+                                    placeholder="9876543210"
+                                    className="w-full px-3 py-2 rounded-r-lg bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
                         </div>
 
                         <div>

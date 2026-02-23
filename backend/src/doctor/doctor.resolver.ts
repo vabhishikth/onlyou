@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ObjectType, Field, ID, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ObjectType, Field, ID, Int, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { DoctorService, CreateDoctorServiceInput, UpdateDoctorServiceInput } from './doctor.service';
 import { CreateDoctorInput } from './dto/create-doctor.input';
@@ -25,6 +25,16 @@ class DoctorProfileType {
 
   @Field()
   specialization: string;
+
+  // Resolved from the related User model via @ResolveField
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  phone?: string;
+
+  @Field({ nullable: true })
+  email?: string;
 
   @Field(() => [String])
   specializations: string[];
@@ -72,11 +82,27 @@ class DoctorProfileType {
   updatedAt: Date;
 }
 
-@Resolver()
+@Resolver(() => DoctorProfileType)
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class DoctorResolver {
   constructor(private readonly doctorService: DoctorService) {}
+
+  // Resolve user fields from the included user relation
+  @ResolveField(() => String, { nullable: true })
+  name(@Parent() doctor: any): string | null {
+    return doctor.user?.name ?? doctor.name ?? null;
+  }
+
+  @ResolveField(() => String, { nullable: true })
+  phone(@Parent() doctor: any): string | null {
+    return doctor.user?.phone ?? doctor.phone ?? null;
+  }
+
+  @ResolveField(() => String, { nullable: true })
+  email(@Parent() doctor: any): string | null {
+    return doctor.user?.email ?? doctor.email ?? null;
+  }
 
   // ========================================
   // Mutations

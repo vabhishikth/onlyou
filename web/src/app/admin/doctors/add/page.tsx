@@ -78,7 +78,7 @@ export default function AddDoctorPage() {
         const newErrors: Record<string, string> = {};
 
         if (!form.name.trim()) newErrors.name = 'Name is required';
-        if (!form.phone.trim()) newErrors.phone = 'Phone is required';
+        if (!form.phone.trim() || form.phone.replace(/\D/g, '').length !== 10) newErrors.phone = 'Enter 10-digit mobile number';
         if (!form.registrationNo.trim()) newErrors.registrationNo = 'NMC registration is required';
         if (form.specializations.length === 0) newErrors.specializations = 'Select at least one';
         if (form.verticals.length === 0) newErrors.verticals = 'Select at least one';
@@ -114,8 +114,8 @@ export default function AddDoctorPage() {
                 variables: {
                     input: {
                         name: form.name,
-                        phone: form.phone,
-                        email: form.email || undefined,
+                        phone: `+91${form.phone.replace(/\D/g, '').slice(-10)}`,
+                        ...(form.email ? { email: form.email } : {}),
                         registrationNo: form.registrationNo,
                         specializations: form.specializations,
                         verticals: form.verticals,
@@ -123,7 +123,7 @@ export default function AddDoctorPage() {
                         yearsOfExperience: parseInt(form.yearsOfExperience) || 0,
                         dailyCaseLimit: parseInt(form.dailyCaseLimit),
                         consultationFee: parseInt(form.consultationFee),
-                        bio: form.bio || undefined,
+                        ...(form.bio ? { bio: form.bio } : {}),
                         seniorDoctor: form.seniorDoctor,
                     },
                 },
@@ -164,13 +164,22 @@ export default function AddDoctorPage() {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Phone *</label>
-                        <input
-                            type="tel"
-                            value={form.phone}
-                            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                            placeholder="+919876543210"
-                        />
+                        <div className="flex">
+                            <div className="flex items-center justify-center px-3 rounded-l-lg border border-r-0 bg-muted text-muted-foreground text-sm font-medium">
+                                +91
+                            </div>
+                            <input
+                                type="tel"
+                                inputMode="numeric"
+                                value={form.phone}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setForm((p) => ({ ...p, phone: value }));
+                                }}
+                                className="w-full px-3 py-2 rounded-r-lg border bg-background text-sm"
+                                placeholder="9876543210"
+                            />
+                        </div>
                         {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                     </div>
                     <div>

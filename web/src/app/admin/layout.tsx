@@ -71,6 +71,16 @@ export default function AdminLayout({
     const { user } = useAuth();
     const adminName = user?.name || 'Admin';
 
+    const handleLogout = () => {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('refreshToken');
+            document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            window.location.href = '/login?returnUrl=/admin';
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background">
             {/* Mobile header */}
@@ -170,7 +180,7 @@ export default function AdminLayout({
                                 </p>
                                 <p className="text-xs text-muted-foreground">Coordinator</p>
                             </div>
-                            <button className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground">
+                            <button onClick={handleLogout} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground">
                                 <LogOut className="w-4 h-4" />
                             </button>
                         </div>

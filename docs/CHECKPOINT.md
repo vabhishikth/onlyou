@@ -1,7 +1,7 @@
 # CHECKPOINT — Last Updated: 2026-02-23
 
-## Current Phase: E2E Readiness — Post-Payment Intake + Consultation Tracking
-## Current Task: All tasks complete
+## Current Phase: Phase 12 — Admin Portal E2E Fixes
+## Current Task: Doctor onboarding + admin portal fixes
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -88,36 +88,63 @@ See git log for details. All 5 chunks committed.
 - [x] `activity.test.tsx`: "does not show approved consultations in active section" — verifies APPROVED filtered out + empty state shown
 - [x] `complete.test.tsx`: 5 tests (new file) — renders success message, shows vertical name, shows timeline, Track Progress → /(tabs)/activity, Go Home → /(tabs)
 
+### Home Screen Consultation Banner (TDD) — COMPLETE
+- [x] `ActiveConsultationBanner.test.tsx`: 17 tests written FIRST (RED)
+- [x] `ActiveConsultationBanner.tsx`: Component shows most recent active consultation status
+- [x] Sorts by createdAt desc, filters APPROVED/REJECTED terminal statuses
+- [x] Patient-facing labels (e.g., "A doctor is reviewing your case")
+- [x] Navigates to /(tabs)/activity on tap, uses info-blue color scheme
+- [x] Wired into home screen below ActiveOrderBanner
+- [x] Home screen queries myConsultations, pull-to-refresh includes consultations
+- [x] `index.test.tsx`: +3 home screen integration tests (renders, filters terminal, empty)
+
+### Subscriptions Schema Alignment — COMPLETE
+- [x] Updated Subscription interface to match backend Prisma schema (nested plan object)
+- [x] Split TOGGLE_SUBSCRIPTION into PAUSE_SUBSCRIPTION + RESUME_SUBSCRIPTION
+- [x] Updated CANCEL_SUBSCRIPTION to use CancelSubscriptionInput
+- [x] Mock test data aligned — 7 tests passing
+
+### Admin Portal E2E Fixes — COMPLETE
+
+#### Root Cause: Doctor Creation Failing (ValidationPipe whitelist)
+- [x] **ROOT CAUSE FOUND**: `ValidationPipe({ whitelist: true })` in `main.ts` strips all input properties that lack `class-validator` decorators. Doctor DTOs only had `@Field()` (GraphQL) decorators but no `class-validator` decorators, so ALL fields (including `phone`) were stripped to `undefined`.
+- [x] Added `class-validator` decorators to `CreateDoctorInput` DTO (`@IsString`, `@IsNotEmpty`, `@IsOptional`, `@IsArray`, `@IsInt`, `@Min`, `@Max`, `@ArrayMinSize`, `@IsBoolean`)
+- [x] Added `class-validator` decorators to `UpdateDoctorInput` DTO (same pattern with `@IsOptional` on all fields)
+
+#### Backend Fixes
+- [x] Made `email` field nullable in `CreateDoctorInput` DTO — was `@Field()` (String!), now `@Field({ nullable: true })` with `@IsOptional()`
+- [x] Added phone normalization in `doctor.service.ts` — extracts last 10 digits, prepends +91 (tolerant of various input formats)
+- [x] Added phone normalization in `pharmacy-onboarding.service.ts` (contactPhone + staff phone)
+- [x] Added phone normalization in `lab-onboarding.service.ts` (contactPhone)
+- [x] Fixed patient list showing admin users — added `role: 'PATIENT'` filter to `admin.service.ts` `getPatients()` query
+- [x] Added `name`, `phone`, `email` fields to `DoctorProfileType` GraphQL output type via `@ResolveField` — resolves from related User model
+- [x] Changed resolver to `@Resolver(() => DoctorProfileType)` with `@ResolveField` for user fields
+
+#### Web Frontend Fixes
+- [x] Login page: Dynamic portal name detection from returnUrl (Admin/Doctor/Lab/Pharmacy/Phlebotomist Portal)
+- [x] Login page: Default returnUrl changed from `/doctor` to `/`
+- [x] Admin layout: Added working logout handler (clears tokens, redirects to `/login?returnUrl=/admin`)
+- [x] Add Doctor form: Phone input with +91 prefix label + 10-digit numeric-only input
+- [x] Add Doctor form: Optional fields (email, bio) use spread operator instead of `undefined` values
+- [x] Partners modal: Phone input with +91 prefix label + consistent formatting
+- [x] Doctor list page: Shows doctor name (not just registration number), search includes name
+- [x] Doctor detail page: Shows name as heading, registration number in subtitle, phone/email in details
+- [x] Doctor detail page: Fixed `avgResponseTimeHours.toFixed(1)` crash when value is null (added `?? 0` fallback)
+- [x] GraphQL queries updated to request `name`, `phone`, `email` fields
+- [x] `DoctorProfile` TypeScript interface updated with `name`, `phone`, `email` fields
+
 ## Test Counts:
-- Backend: 2,785 tests (87 test suites) — +5 new intake tests
-- Mobile: 620 tests (54 test suites) — +14 new tests (1 payment + 3 activity + 5 complete + 5 from batch 2)
+- Backend: 2,785 tests (87 test suites)
+- Mobile: 635 tests (55 test suites)
 - Web: 267 tests (37 test suites)
-- **Total: 3,672 tests**
+- **Total: 3,687 tests**
 
-## Files Modified/Created (Batch 3):
+## Recent Commits:
 ```
-# New files
-mobile/app/intake/[vertical]/__tests__/complete.test.tsx — 5 complete screen tests
-
-# Modified — backend
-backend/src/intake/dto/intake.dto.ts — +planId field on SubmitIntakeInput
-backend/src/intake/intake.resolver.ts — +myConsultations query
-backend/src/intake/intake.resolver.spec.ts — +2 myConsultations tests
-backend/src/intake/intake.service.ts — +subscription creation in submitIntake
-backend/src/intake/intake.service.spec.ts — +3 planId/subscription tests
-backend/src/schema.gql — +myConsultations query, +planId on SubmitIntakeInput
-
-# Modified — mobile
-mobile/app/intake/[vertical]/payment.tsx — passes planId to submitIntake
-mobile/app/intake/[vertical]/payment.test.tsx — +1 planId assertion test
-mobile/app/intake/[vertical]/complete.tsx — fixed Track Progress route
-mobile/app/(tabs)/activity.tsx — +consultations query, +ConsultationCard, +stepper
-mobile/app/(tabs)/__tests__/activity.test.tsx — +3 consultation tests
-mobile/src/graphql/intake.ts — +planId on SubmitIntakeInput, +GET_MY_CONSULTATIONS query
-```
-
-## Commit:
-```
+<pending> fix(admin): doctor onboarding + admin portal E2E fixes
+e257942 fix(mobile): move useAnimatedStyle before conditional return (Rules of Hooks)
+badc751 feat(mobile): add ActiveConsultationBanner to home screen (TDD)
+f5159a4 fix(mobile): align subscriptions screen with backend Prisma schema
 d0003a0 feat(intake): wire planId subscription creation + consultation tracking
 ```
 
@@ -154,7 +181,6 @@ Patient selects plan → plan-selection.tsx passes planId to payment.tsx
 
 ## Next Up:
 - E2E testing of full flow on device (signup → intake → payment → tracking)
-- Home screen: add consultation banner (like ActiveOrderBanner but for consultations)
 - CI/CD pipeline setup
 - Phase 18: Production readiness (Sentry, Redis caching, security audit)
 
