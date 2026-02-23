@@ -26,23 +26,33 @@ const mockSubscriptions = {
     mySubscriptions: [
         {
             id: 'sub-1',
-            vertical: 'HAIR_LOSS',
-            plan: 'Basic Plan',
+            planId: 'plan-1',
             status: 'ACTIVE',
-            startDate: '2025-01-15',
-            nextBillingDate: '2025-02-15',
-            amount: 99900, // 999 rupees in paise
-            autoRenew: true,
+            currentPeriodStart: '2025-01-15T00:00:00Z',
+            currentPeriodEnd: '2025-02-15T00:00:00Z',
+            cancelledAt: null,
+            plan: {
+                id: 'plan-1',
+                vertical: 'HAIR_LOSS',
+                name: 'Basic Plan',
+                priceInPaise: 99900,
+                durationMonths: 1,
+            },
         },
         {
             id: 'sub-2',
-            vertical: 'WEIGHT_MANAGEMENT',
-            plan: 'Premium Plan',
+            planId: 'plan-2',
             status: 'PAUSED',
-            startDate: '2024-12-01',
-            nextBillingDate: null,
-            amount: 149900, // 1499 rupees
-            autoRenew: true,
+            currentPeriodStart: '2024-12-01T00:00:00Z',
+            currentPeriodEnd: '2025-03-01T00:00:00Z',
+            cancelledAt: null,
+            plan: {
+                id: 'plan-2',
+                vertical: 'WEIGHT_MANAGEMENT',
+                name: 'Premium Plan',
+                priceInPaise: 149900,
+                durationMonths: 3,
+            },
         },
     ],
 };

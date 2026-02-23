@@ -14,7 +14,8 @@ import { useQuery, useMutation } from '@apollo/client';
 import { colors, spacing, borderRadius, typography } from '@/theme';
 import {
     GET_SUBSCRIPTIONS,
-    TOGGLE_SUBSCRIPTION,
+    PAUSE_SUBSCRIPTION,
+    RESUME_SUBSCRIPTION,
     CANCEL_SUBSCRIPTION,
     GetSubscriptionsResponse,
     Subscription,
@@ -28,7 +29,12 @@ export default function SubscriptionsScreen() {
 
     const { data, loading, refetch } = useQuery<GetSubscriptionsResponse>(GET_SUBSCRIPTIONS);
 
-    const [toggleSubscription] = useMutation(TOGGLE_SUBSCRIPTION, {
+    const [pauseSubscription] = useMutation(PAUSE_SUBSCRIPTION, {
+        onCompleted: () => refetch(),
+        onError: (error) => Alert.alert('Error', error.message),
+    });
+
+    const [resumeSubscription] = useMutation(RESUME_SUBSCRIPTION, {
         onCompleted: () => refetch(),
         onError: (error) => Alert.alert('Error', error.message),
     });
@@ -44,19 +50,27 @@ export default function SubscriptionsScreen() {
     const subscriptions = data?.mySubscriptions || [];
 
     const handleToggle = (subscription: Subscription) => {
-        const newPauseState = subscription.status !== 'PAUSED';
+        const isPaused = subscription.status === 'PAUSED';
         Alert.alert(
-            newPauseState ? 'Pause Subscription' : 'Resume Subscription',
-            newPauseState
-                ? 'Your subscription will be paused. No charges until you resume.'
-                : 'Your subscription will be resumed and billing will continue.',
+            isPaused ? 'Resume Subscription' : 'Pause Subscription',
+            isPaused
+                ? 'Your subscription will be resumed and billing will continue.'
+                : 'Your subscription will be paused. No charges until you resume.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: newPauseState ? 'Pause' : 'Resume',
-                    onPress: () => toggleSubscription({
-                        variables: { id: subscription.id, pause: newPauseState },
-                    }),
+                    text: isPaused ? 'Resume' : 'Pause',
+                    onPress: () => {
+                        if (isPaused) {
+                            resumeSubscription({
+                                variables: { subscriptionId: subscription.id },
+                            });
+                        } else {
+                            pauseSubscription({
+                                variables: { subscriptionId: subscription.id },
+                            });
+                        }
+                    },
                 },
             ]
         );
@@ -74,8 +88,10 @@ export default function SubscriptionsScreen() {
                     onPress: () => {
                         cancelSubscription({
                             variables: {
-                                id: subscription.id,
-                                reason: 'User cancelled from app',
+                                input: {
+                                    subscriptionId: subscription.id,
+                                    reason: 'User cancelled from app',
+                                },
                             },
                         });
                     },
@@ -87,15 +103,18 @@ export default function SubscriptionsScreen() {
     const renderSubscription = (subscription: Subscription) => {
         const statusInfo = SUBSCRIPTION_STATUS_LABELS[subscription.status];
         const statusColor = colors[statusInfo.color as keyof typeof colors] || colors.textSecondary;
+        const vertical = subscription.plan?.vertical || '';
+        const planName = subscription.plan?.name || 'Treatment Plan';
+        const amount = subscription.plan?.priceInPaise || 0;
 
         return (
             <View key={subscription.id} style={styles.subscriptionCard}>
                 <View style={styles.subscriptionHeader}>
                     <View>
                         <Text style={styles.verticalName}>
-                            {VERTICAL_NAMES[subscription.vertical] || subscription.vertical}
+                            {VERTICAL_NAMES[vertical] || vertical}
                         </Text>
-                        <Text style={styles.planName}>{subscription.plan}</Text>
+                        <Text style={styles.planName}>{planName}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
                         <Text style={[styles.statusText, { color: statusColor }]}>
@@ -108,14 +127,14 @@ export default function SubscriptionsScreen() {
                     <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Amount</Text>
                         <Text style={styles.detailValue}>
-                            {formatAmount(subscription.amount)}/month
+                            {formatAmount(amount)}/month
                         </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Started</Text>
                         <Text style={styles.detailValue}>
-                            {new Date(subscription.startDate).toLocaleDateString('en-IN', {
+                            {new Date(subscription.currentPeriodStart).toLocaleDateString('en-IN', {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric',
@@ -123,11 +142,11 @@ export default function SubscriptionsScreen() {
                         </Text>
                     </View>
 
-                    {subscription.nextBillingDate && subscription.status === 'ACTIVE' && (
+                    {subscription.currentPeriodEnd && subscription.status === 'ACTIVE' && (
                         <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Next billing</Text>
+                            <Text style={styles.detailLabel}>Renews on</Text>
                             <Text style={styles.detailValue}>
-                                {new Date(subscription.nextBillingDate).toLocaleDateString('en-IN', {
+                                {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', {
                                     month: 'short',
                                     day: 'numeric',
                                     year: 'numeric',

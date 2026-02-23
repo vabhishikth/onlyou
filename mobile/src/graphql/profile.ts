@@ -27,15 +27,22 @@ export interface UserProfile {
 // Subscription types
 export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'EXPIRED';
 
-export interface Subscription {
+export interface SubscriptionPlan {
     id: string;
     vertical: string;
-    plan: string;
+    name: string;
+    priceInPaise: number;
+    durationMonths: number;
+}
+
+export interface Subscription {
+    id: string;
+    planId: string;
     status: SubscriptionStatus;
-    startDate: string;
-    nextBillingDate?: string;
-    amount: number; // in paise
-    autoRenew: boolean;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    cancelledAt?: string;
+    plan?: SubscriptionPlan;
 }
 
 // Wallet types
@@ -148,13 +155,18 @@ export const GET_SUBSCRIPTIONS = gql`
     query GetSubscriptions {
         mySubscriptions {
             id
-            vertical
-            plan
+            planId
             status
-            startDate
-            nextBillingDate
-            amount
-            autoRenew
+            currentPeriodStart
+            currentPeriodEnd
+            cancelledAt
+            plan {
+                id
+                vertical
+                name
+                priceInPaise
+                durationMonths
+            }
         }
     }
 `;
@@ -249,20 +261,29 @@ export const UPDATE_PROFILE = gql`
     }
 `;
 
-export const TOGGLE_SUBSCRIPTION = gql`
-    mutation ToggleSubscription($id: ID!, $pause: Boolean!) {
-        toggleSubscription(id: $id, pause: $pause) {
-            id
-            status
+export const PAUSE_SUBSCRIPTION = gql`
+    mutation PauseSubscription($subscriptionId: String!) {
+        pauseSubscription(subscriptionId: $subscriptionId) {
+            success
+            message
+        }
+    }
+`;
+
+export const RESUME_SUBSCRIPTION = gql`
+    mutation ResumeSubscription($subscriptionId: String!) {
+        resumeSubscription(subscriptionId: $subscriptionId) {
+            success
+            message
         }
     }
 `;
 
 export const CANCEL_SUBSCRIPTION = gql`
-    mutation CancelSubscription($id: ID!, $reason: String!) {
-        cancelSubscription(id: $id, reason: $reason) {
-            id
-            status
+    mutation CancelSubscription($input: CancelSubscriptionInput!) {
+        cancelSubscription(input: $input) {
+            success
+            message
         }
     }
 `;
