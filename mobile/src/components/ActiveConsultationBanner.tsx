@@ -42,6 +42,11 @@ export default function ActiveConsultationBanner({
     const router = useRouter();
     const scale = useSharedValue(1);
 
+    // All hooks must be called before any conditional return (Rules of Hooks)
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
     // Find the most recent active consultation — sort by createdAt desc, then pick first active
     const activeConsultation = [...consultations]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -52,10 +57,6 @@ export default function ActiveConsultationBanner({
     }
 
     const statusLabel = STATUS_LABELS[activeConsultation.status] || activeConsultation.status;
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
 
     const handlePressIn = () => {
         scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
