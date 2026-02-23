@@ -70,8 +70,8 @@ export const VERIFY_OTP = gql`
 `;
 
 export const REFRESH_TOKEN = gql`
-    mutation RefreshToken($refreshToken: String!) {
-        refreshToken(refreshToken: $refreshToken) {
+    mutation RefreshToken($input: RefreshTokenInput!) {
+        refreshToken(input: $input) {
             success
             accessToken
             refreshToken

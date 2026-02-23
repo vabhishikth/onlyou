@@ -3,17 +3,15 @@ import { gql } from '@apollo/client';
 // User profile types
 export interface PatientProfile {
     id: string;
-    userId: string;
     dateOfBirth?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    height?: number;
+    weight?: number;
     addressLine1?: string;
     addressLine2?: string;
     city?: string;
     state?: string;
     pincode?: string;
-    governmentIdType?: string;
-    governmentIdNumber?: string;
-    governmentIdFileUrl?: string;
 }
 
 export interface UserProfile {
@@ -133,14 +131,13 @@ export const GET_PROFILE = gql`
                 id
                 dateOfBirth
                 gender
+                height
+                weight
                 addressLine1
                 addressLine2
                 city
                 state
                 pincode
-                governmentIdType
-                governmentIdNumber
-                governmentIdFileUrl
             }
             createdAt
         }
@@ -229,18 +226,24 @@ export const GET_NOTIFICATION_PREFERENCES = gql`
 export const UPDATE_PROFILE = gql`
     mutation UpdateProfile($input: UpdateProfileInput!) {
         updateProfile(input: $input) {
-            id
-            name
-            email
-            isProfileComplete
-            patientProfile {
-                dateOfBirth
-                gender
-                addressLine1
-                addressLine2
-                city
-                state
-                pincode
+            success
+            message
+            user {
+                id
+                name
+                email
+                isProfileComplete
+                patientProfile {
+                    dateOfBirth
+                    gender
+                    height
+                    weight
+                    addressLine1
+                    addressLine2
+                    city
+                    state
+                    pincode
+                }
             }
         }
     }

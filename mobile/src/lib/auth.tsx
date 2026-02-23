@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             const { data } = await refreshTokenMutation({
-                variables: { refreshToken: storedRefreshToken },
+                variables: { input: { refreshToken: storedRefreshToken } },
             });
 
             if (data?.refreshToken.success && data.refreshToken.accessToken) {

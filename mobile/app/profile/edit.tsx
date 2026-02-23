@@ -23,18 +23,26 @@ export default function EditProfileScreen() {
     const [email, setEmail] = useState('');
     const [dateOfBirth, setDateOfBirth] = useState('');
     const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | ''>('');
+    const [height, setHeight] = useState('');
+    const [weight, setWeight] = useState('');
     const [addressLine1, setAddressLine1] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
     const [pincode, setPincode] = useState('');
 
-    const { data, loading } = useQuery<GetProfileResponse>(GET_PROFILE);
+    const { data, loading } = useQuery<GetProfileResponse>(GET_PROFILE, {
+        fetchPolicy: 'network-only',
+    });
 
     const [updateProfile, { loading: updating }] = useMutation(UPDATE_PROFILE, {
-        onCompleted: () => {
-            Alert.alert('Success', 'Profile updated successfully', [
-                { text: 'OK', onPress: () => router.back() },
-            ]);
+        onCompleted: (result) => {
+            if (result?.updateProfile?.success) {
+                Alert.alert('Success', 'Profile updated successfully', [
+                    { text: 'OK', onPress: () => router.back() },
+                ]);
+            } else {
+                Alert.alert('Error', result?.updateProfile?.message || 'Failed to update profile');
+            }
         },
         onError: (error) => {
             Alert.alert('Error', error.message);
@@ -47,8 +55,24 @@ export default function EditProfileScreen() {
             setName(data.me.name || '');
             setEmail(data.me.email || '');
             if (data.me.patientProfile) {
-                setDateOfBirth(data.me.patientProfile.dateOfBirth || '');
+                // Convert ISO date to DD/MM/YYYY for display
+                const dob = data.me.patientProfile.dateOfBirth;
+                if (dob) {
+                    const d = new Date(dob);
+                    if (!isNaN(d.getTime())) {
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const yyyy = d.getFullYear();
+                        setDateOfBirth(`${dd}/${mm}/${yyyy}`);
+                    } else {
+                        setDateOfBirth(dob);
+                    }
+                } else {
+                    setDateOfBirth('');
+                }
                 setGender(data.me.patientProfile.gender || '');
+                setHeight(data.me.patientProfile.height?.toString() || '');
+                setWeight(data.me.patientProfile.weight?.toString() || '');
                 setAddressLine1(data.me.patientProfile.addressLine1 || '');
                 setCity(data.me.patientProfile.city || '');
                 setState(data.me.patientProfile.state || '');
@@ -63,22 +87,34 @@ export default function EditProfileScreen() {
             return;
         }
 
+        // Convert DD/MM/YYYY to ISO date string for the backend
+        let dobIso: string | undefined;
+        if (dateOfBirth) {
+            const ddmmyyyy = dateOfBirth.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (ddmmyyyy) {
+                dobIso = `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+            } else {
+                dobIso = dateOfBirth; // Already ISO or other format
+            }
+        }
+
         await updateProfile({
             variables: {
                 input: {
                     name: name.trim(),
                     email: email.trim() || undefined,
-                    patientProfile: {
-                        dateOfBirth: dateOfBirth || undefined,
-                        gender: gender || undefined,
-                        addressLine1: addressLine1.trim() || undefined,
-                        city: city.trim() || undefined,
-                        state: state.trim() || undefined,
-                        pincode: pincode.trim() || undefined,
-                    },
+                    dateOfBirth: dobIso || undefined,
+                    gender: gender || undefined,
+                    height: height ? parseFloat(height) : undefined,
+                    weight: weight ? parseFloat(weight) : undefined,
+                    addressLine1: addressLine1.trim() || undefined,
+                    city: city.trim() || undefined,
+                    state: state.trim() || undefined,
+                    pincode: pincode.trim() || undefined,
                 },
             },
             refetchQueries: ['GetProfile'],
+            awaitRefetchQueries: true,
         });
     };
 
@@ -171,6 +207,31 @@ export default function EditProfileScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
+                            </View>
+                        </View>
+                        <View style={styles.row}>
+                            <View style={[styles.inputGroup, styles.halfWidth]}>
+                                <Text style={styles.label}>Height (cm)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={height}
+                                    onChangeText={setHeight}
+                                    placeholder="e.g. 170"
+                                    placeholderTextColor={colors.textTertiary}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            <View style={[styles.inputGroup, styles.halfWidth]}>
+                                <Text style={styles.label}>Weight (kg)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={weight}
+                                    onChangeText={setWeight}
+                                    placeholder="e.g. 72"
+                                    placeholderTextColor={colors.textTertiary}
+                                    keyboardType="numeric"
+                                />
                             </View>
                         </View>
                     </View>
