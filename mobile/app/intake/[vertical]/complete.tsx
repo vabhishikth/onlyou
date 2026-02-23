@@ -31,9 +31,9 @@ export default function CompleteScreen() {
     };
 
     const handleViewActivity = () => {
-        // Navigate to activity tab
+        // Navigate to activity tab within tab navigator
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/activity' as any);
+        router.replace('/(tabs)/activity' as any);
     };
 
     return (

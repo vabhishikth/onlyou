@@ -25,6 +25,7 @@ import {
     Heart,
     Flower2,
     Scale,
+    Stethoscope,
 } from 'lucide-react-native';
 
 import { colors } from '@/theme/colors';
@@ -37,6 +38,7 @@ import {
     LabOrder,
     Order,
 } from '@/graphql/tracking';
+import { GET_MY_CONSULTATIONS, Consultation } from '@/graphql/intake';
 
 // Treatment vertical config
 const TREATMENT_CONFIG: Record<string, { label: string; tint: string; iconColor: string; Icon: React.FC<{ size: number; color: string }> }> = {
@@ -65,6 +67,33 @@ const DELIVERY_ORDER_STEPS = [
     { key: 'DELIVERED', label: 'Delivered' },
 ];
 
+// Consultation status steps (patient-facing)
+const CONSULTATION_STEPS = [
+    { key: 'PENDING_ASSESSMENT', label: 'Submitted' },
+    { key: 'AI_REVIEWED', label: 'AI Reviewed' },
+    { key: 'DOCTOR_REVIEWING', label: 'Doctor Reviewing' },
+    { key: 'VIDEO_SCHEDULED', label: 'Video Scheduled' },
+    { key: 'VIDEO_COMPLETED', label: 'Video Complete' },
+    { key: 'APPROVED', label: 'Approved' },
+];
+
+// Consultation status label for patient
+const CONSULTATION_STATUS_LABELS: Record<string, string> = {
+    PENDING_ASSESSMENT: 'Your assessment is being reviewed',
+    AI_REVIEWED: 'AI review complete, awaiting doctor',
+    DOCTOR_REVIEWING: 'A doctor is reviewing your case',
+    VIDEO_SCHEDULED: 'Video consultation scheduled',
+    VIDEO_COMPLETED: 'Video complete, awaiting prescription',
+    AWAITING_LABS: 'Lab tests required before prescription',
+    APPROVED: 'Treatment plan approved',
+    NEEDS_INFO: 'Doctor needs additional information',
+    REJECTED: 'Consultation closed',
+};
+
+function isActiveConsultation(c: Consultation): boolean {
+    return !['APPROVED', 'REJECTED'].includes(c.status);
+}
+
 // Filter helpers
 function isActiveLabOrder(order: LabOrder): boolean {
     return !['CLOSED', 'CANCELLED', 'EXPIRED', 'DOCTOR_REVIEWED'].includes(order.status);
@@ -87,14 +116,18 @@ export default function ActivityScreen() {
         fetchPolicy: 'cache-and-network',
     });
 
+    const { data: consultData, refetch: refetchConsultations } = useQuery<{ myConsultations: Consultation[] }>(GET_MY_CONSULTATIONS, {
+        fetchPolicy: 'cache-and-network',
+    });
+
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         try {
-            await refetch();
+            await Promise.all([refetch(), refetchConsultations()]);
         } finally {
             setRefreshing(false);
         }
-    }, [refetch]);
+    }, [refetch, refetchConsultations]);
 
     const toggleExpand = (id: string) => {
         setExpandedCards(prev => {
@@ -110,13 +143,15 @@ export default function ActivityScreen() {
 
     const labOrders = data?.activeTracking?.labOrders || [];
     const deliveryOrders = data?.activeTracking?.deliveryOrders || [];
+    const consultations = consultData?.myConsultations || [];
 
+    const activeConsultations = consultations.filter(isActiveConsultation);
     const activeLabOrders = labOrders.filter(isActiveLabOrder);
     const completedLabOrders = labOrders.filter(o => !isActiveLabOrder(o));
     const activeDeliveryOrders = deliveryOrders.filter(isActiveDeliveryOrder);
     const completedDeliveryOrders = deliveryOrders.filter(o => !isActiveDeliveryOrder(o));
 
-    const hasActiveItems = activeLabOrders.length > 0 || activeDeliveryOrders.length > 0;
+    const hasActiveItems = activeConsultations.length > 0 || activeLabOrders.length > 0 || activeDeliveryOrders.length > 0;
     const hasCompletedItems = completedLabOrders.length > 0 || completedDeliveryOrders.length > 0;
     const isEmpty = !hasActiveItems && !hasCompletedItems;
 
@@ -189,6 +224,15 @@ export default function ActivityScreen() {
                         testID="active-section"
                     >
                         <Text style={styles.sectionTitle}>Active</Text>
+
+                        {/* Active Consultations */}
+                        {activeConsultations.map((consultation, index) => (
+                            <ConsultationCard
+                                key={consultation.id}
+                                consultation={consultation}
+                                delay={index * 50}
+                            />
+                        ))}
 
                         {/* Active Lab Orders */}
                         {activeLabOrders.map((order, index) => (
@@ -424,6 +468,93 @@ function CompletedCard({ order, type, expanded, onToggle }: CompletedCardProps) 
                 style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}
             />
         </Pressable>
+    );
+}
+
+// Consultation Card Component
+interface ConsultationCardProps {
+    consultation: Consultation;
+    delay?: number;
+}
+
+function ConsultationCard({ consultation, delay = 0 }: ConsultationCardProps) {
+    const treatment = TREATMENT_CONFIG[consultation.vertical] || TREATMENT_CONFIG.HAIR_LOSS;
+    const steps = CONSULTATION_STEPS;
+    const currentStepIndex = getStepIndex(consultation.status, steps);
+    const statusLabel = CONSULTATION_STATUS_LABELS[consultation.status] || consultation.status;
+
+    return (
+        <Animated.View entering={FadeInUp.delay(delay).duration(300)}>
+            <View
+                testID={`consultation-card-${consultation.id}`}
+                style={styles.trackingCard}
+            >
+                {/* Treatment Badge */}
+                <View
+                    style={[styles.treatmentBadge, { backgroundColor: treatment.tint }]}
+                >
+                    <treatment.Icon size={12} color={treatment.iconColor} />
+                    <Text style={[styles.treatmentBadgeText, { color: treatment.iconColor }]}>
+                        {treatment.label}
+                    </Text>
+                </View>
+
+                {/* Card Header */}
+                <View style={styles.cardHeader}>
+                    <View style={styles.cardIconContainer}>
+                        <Stethoscope size={22} color={colors.textSecondary} />
+                    </View>
+                    <View style={styles.cardHeaderContent}>
+                        <Text style={styles.cardTitle}>Consultation</Text>
+                        <Text style={styles.cardSubtitle}>{statusLabel}</Text>
+                    </View>
+                </View>
+
+                {/* Status Stepper */}
+                <View testID={`consultation-stepper-${consultation.id}`} style={styles.statusStepper}>
+                    <View style={styles.stepperTimeline}>
+                        {steps.map((step, index) => {
+                            const isCompleted = index < currentStepIndex;
+                            const isCurrent = index === currentStepIndex;
+                            const isUpcoming = index > currentStepIndex;
+
+                            return (
+                                <View key={step.key} style={styles.stepRow}>
+                                    {index > 0 && (
+                                        <View style={[
+                                            styles.stepLineAbove,
+                                            isCompleted || isCurrent ? styles.stepLineCompleted : styles.stepLineUpcoming,
+                                        ]} />
+                                    )}
+                                    <View style={[
+                                        styles.stepDot,
+                                        isCompleted && styles.stepDotCompleted,
+                                        isCurrent && styles.stepDotCurrent,
+                                        isUpcoming && styles.stepDotUpcoming,
+                                    ]}>
+                                        {isCurrent && <View style={styles.stepDotPulse} />}
+                                    </View>
+                                    <View style={styles.stepContent}>
+                                        <Text style={[
+                                            styles.stepLabel,
+                                            isCurrent && styles.stepLabelCurrent,
+                                            isUpcoming && styles.stepLabelUpcoming,
+                                        ]}>
+                                            {step.label}
+                                        </Text>
+                                        {isCurrent && (
+                                            <Text style={styles.stepTimestamp}>
+                                                In progress
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
+            </View>
+        </Animated.View>
     );
 }
 

@@ -289,7 +289,30 @@ export class IntakeService {
                 },
             });
 
-            return { intakeResponse, consultation };
+            // Create subscription if planId provided (post-payment flow)
+            let subscription = null;
+            if (input.planId) {
+                const plan = await tx.subscriptionPlan.findUnique({
+                    where: { id: input.planId },
+                });
+                if (plan) {
+                    const now = new Date();
+                    const periodEnd = new Date(now);
+                    periodEnd.setMonth(periodEnd.getMonth() + plan.durationMonths);
+
+                    subscription = await tx.subscription.create({
+                        data: {
+                            userId,
+                            planId: plan.id,
+                            status: 'ACTIVE',
+                            currentPeriodStart: now,
+                            currentPeriodEnd: periodEnd,
+                        },
+                    });
+                }
+            }
+
+            return { intakeResponse, consultation, subscription };
         });
 
         return {

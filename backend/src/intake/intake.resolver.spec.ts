@@ -102,6 +102,37 @@ describe('IntakeResolver', () => {
   });
 
   // ========================================
+  // myConsultations query
+  // ========================================
+
+  describe('myConsultations', () => {
+    it('should return consultations for the current user', async () => {
+      const mockConsultations = [
+        { id: 'c1', patientId: 'user-1', vertical: HealthVertical.HAIR_LOSS, status: 'PENDING_ASSESSMENT', createdAt: new Date() },
+        { id: 'c2', patientId: 'user-1', vertical: HealthVertical.SEXUAL_HEALTH, status: 'DOCTOR_ASSIGNED', createdAt: new Date() },
+      ];
+      prisma.consultation = { findMany: jest.fn().mockResolvedValue(mockConsultations) };
+
+      const result = await resolver.getMyConsultations(mockUser);
+
+      expect(prisma.consultation.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'user-1' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('c1');
+    });
+
+    it('should return empty array when user has no consultations', async () => {
+      prisma.consultation = { findMany: jest.fn().mockResolvedValue([]) };
+
+      const result = await resolver.getMyConsultations(mockUser);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ========================================
   // AI auto-trigger + auto-assignment chain
   // ========================================
 

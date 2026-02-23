@@ -407,6 +407,145 @@ describe('IntakeService', () => {
       });
     });
 
+    it('should create subscription when planId is provided', async () => {
+      prismaService.patientProfile.findUnique.mockResolvedValue(mockPatientProfile);
+      prismaService.questionnaireTemplate.findFirst.mockResolvedValue(mockQuestionnaireTemplate);
+      prismaService.intakeResponse.findFirst.mockResolvedValue(null);
+
+      const mockPlan = {
+        id: 'plan-123',
+        name: 'Hair Loss Monthly',
+        durationMonths: 3,
+        priceInPaise: 99900,
+      };
+
+      const mockSubscription = {
+        id: 'sub-123',
+        userId: 'user-123',
+        planId: 'plan-123',
+        status: 'ACTIVE',
+        currentPeriodStart: expect.any(Date),
+        currentPeriodEnd: expect.any(Date),
+      };
+
+      const mockTx = {
+        intakeResponse: {
+          create: jest.fn().mockResolvedValue({ ...mockIntakeResponse, isDraft: false }),
+        },
+        patientPhoto: {
+          createMany: jest.fn(),
+        },
+        consultation: {
+          create: jest.fn().mockResolvedValue({
+            id: 'consultation-123',
+            status: ConsultationStatus.PENDING_ASSESSMENT,
+          }),
+        },
+        subscriptionPlan: {
+          findUnique: jest.fn().mockResolvedValue(mockPlan),
+        },
+        subscription: {
+          create: jest.fn().mockResolvedValue(mockSubscription),
+        },
+      };
+      prismaService.$transaction.mockImplementation(async (callback) => callback(mockTx));
+
+      await service.submitIntake('user-123', {
+        vertical: HealthVertical.HAIR_LOSS,
+        responses: { Q1: 25, Q2: 'Male' },
+        planId: 'plan-123',
+      });
+
+      expect(mockTx.subscriptionPlan.findUnique).toHaveBeenCalledWith({
+        where: { id: 'plan-123' },
+      });
+      expect(mockTx.subscription.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-123',
+          planId: 'plan-123',
+          status: 'ACTIVE',
+          currentPeriodStart: expect.any(Date),
+          currentPeriodEnd: expect.any(Date),
+        },
+      });
+    });
+
+    it('should not create subscription when planId is not provided', async () => {
+      prismaService.patientProfile.findUnique.mockResolvedValue(mockPatientProfile);
+      prismaService.questionnaireTemplate.findFirst.mockResolvedValue(mockQuestionnaireTemplate);
+      prismaService.intakeResponse.findFirst.mockResolvedValue(null);
+
+      const mockTx = {
+        intakeResponse: {
+          create: jest.fn().mockResolvedValue({ ...mockIntakeResponse, isDraft: false }),
+        },
+        patientPhoto: {
+          createMany: jest.fn(),
+        },
+        consultation: {
+          create: jest.fn().mockResolvedValue({
+            id: 'consultation-123',
+            status: ConsultationStatus.PENDING_ASSESSMENT,
+          }),
+        },
+        subscriptionPlan: {
+          findUnique: jest.fn(),
+        },
+        subscription: {
+          create: jest.fn(),
+        },
+      };
+      prismaService.$transaction.mockImplementation(async (callback) => callback(mockTx));
+
+      await service.submitIntake('user-123', {
+        vertical: HealthVertical.HAIR_LOSS,
+        responses: { Q1: 25, Q2: 'Male' },
+      });
+
+      expect(mockTx.subscriptionPlan.findUnique).not.toHaveBeenCalled();
+      expect(mockTx.subscription.create).not.toHaveBeenCalled();
+    });
+
+    it('should skip subscription creation when planId does not match any plan', async () => {
+      prismaService.patientProfile.findUnique.mockResolvedValue(mockPatientProfile);
+      prismaService.questionnaireTemplate.findFirst.mockResolvedValue(mockQuestionnaireTemplate);
+      prismaService.intakeResponse.findFirst.mockResolvedValue(null);
+
+      const mockTx = {
+        intakeResponse: {
+          create: jest.fn().mockResolvedValue({ ...mockIntakeResponse, isDraft: false }),
+        },
+        patientPhoto: {
+          createMany: jest.fn(),
+        },
+        consultation: {
+          create: jest.fn().mockResolvedValue({
+            id: 'consultation-123',
+            status: ConsultationStatus.PENDING_ASSESSMENT,
+          }),
+        },
+        subscriptionPlan: {
+          findUnique: jest.fn().mockResolvedValue(null), // plan not found
+        },
+        subscription: {
+          create: jest.fn(),
+        },
+      };
+      prismaService.$transaction.mockImplementation(async (callback) => callback(mockTx));
+
+      const result = await service.submitIntake('user-123', {
+        vertical: HealthVertical.HAIR_LOSS,
+        responses: { Q1: 25, Q2: 'Male' },
+        planId: 'non-existent-plan',
+      });
+
+      expect(mockTx.subscriptionPlan.findUnique).toHaveBeenCalledWith({
+        where: { id: 'non-existent-plan' },
+      });
+      expect(mockTx.subscription.create).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
     it('should convert existing draft to submitted intake', async () => {
       prismaService.patientProfile.findUnique.mockResolvedValue(mockPatientProfile);
       prismaService.questionnaireTemplate.findFirst.mockResolvedValue(mockQuestionnaireTemplate);

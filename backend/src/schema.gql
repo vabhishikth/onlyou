@@ -1707,6 +1707,7 @@ type Query {
   myAvailability: [AvailabilitySlotType!]!
   myBiomarkerHistory: JSON!
   myBiomarkerTrend(testCode: String!): JSON!
+  myConsultations: [ConsultationType!]!
   myCriticalValues: JSON!
   myDailyRoster(date: String!): JSON!
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
@@ -1941,6 +1942,7 @@ input SetAvailabilitySlotInput {
 
 input SubmitIntakeInput {
   photos: [PhotoInput!]
+  planId: String
   responses: JSON!
   vertical: HealthVertical!
 }

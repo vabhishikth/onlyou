@@ -159,6 +159,11 @@ export class SubmitIntakeInput {
     @ValidateNested({ each: true })
     @Type(() => PhotoInput)
     photos?: PhotoInput[];
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsString()
+    planId?: string;
 }
 
 @InputType()

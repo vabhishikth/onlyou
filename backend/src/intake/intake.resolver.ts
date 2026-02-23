@@ -13,6 +13,7 @@ import {
     VerticalInfo,
     QuestionnaireTemplateType,
     IntakeResponseType,
+    ConsultationType,
     SubmitIntakeResponse,
     SaveDraftResponse,
     SubmitIntakeInput,
@@ -93,6 +94,21 @@ export class IntakeResolver {
     ): Promise<SaveDraftResponse> {
         const result = await this.intakeService.saveIntakeDraft(user.id, input);
         return result as SaveDraftResponse;
+    }
+
+    /**
+     * Get current user's consultations (patient-facing)
+     * Shows consultation status so patient can track progress after intake
+     */
+    @Query(() => [ConsultationType], { name: 'myConsultations' })
+    @UseGuards(JwtAuthGuard)
+    async getMyConsultations(
+        @CurrentUser() user: User,
+    ): Promise<ConsultationType[]> {
+        return this.prisma.consultation.findMany({
+            where: { patientId: user.id },
+            orderBy: { createdAt: 'desc' },
+        }) as unknown as ConsultationType[];
     }
 
     /**

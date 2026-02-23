@@ -258,6 +258,53 @@ describe('PaymentScreen', () => {
             });
         });
 
+        it('passes planId to submitIntake after payment', async () => {
+            mockCreatePaymentOrder.mockResolvedValue({
+                data: {
+                    createPaymentOrder: {
+                        success: true,
+                        paymentId: 'pay-123',
+                        razorpayOrderId: 'order_abc123',
+                        amountPaise: 99900,
+                        currency: 'INR',
+                    },
+                },
+            });
+
+            mockRazorpayOpen.mockResolvedValue({
+                razorpay_payment_id: 'rpay_123',
+                razorpay_order_id: 'order_abc123',
+                razorpay_signature: 'sig_abc',
+            });
+
+            mockVerifyPayment.mockResolvedValue({
+                data: { verifyPayment: { success: true, message: 'Verified' } },
+            });
+
+            mockSubmitIntake.mockResolvedValue({
+                data: {
+                    submitIntake: {
+                        success: true,
+                        consultation: { id: 'consult-1', vertical: 'HAIR_LOSS', status: 'PENDING' },
+                    },
+                },
+            });
+
+            const { getByTestId } = render(<PaymentScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByTestId('pay-button'));
+            });
+
+            expect(mockSubmitIntake).toHaveBeenCalledWith({
+                variables: {
+                    input: expect.objectContaining({
+                        planId: 'plan-hl-1',
+                    }),
+                },
+            });
+        });
+
         it('navigates to complete screen after full flow', async () => {
             mockCreatePaymentOrder.mockResolvedValue({
                 data: {

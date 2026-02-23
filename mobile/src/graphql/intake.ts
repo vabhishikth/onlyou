@@ -69,6 +69,7 @@ export interface SubmitIntakeInput {
     vertical: HealthVertical;
     responses: Record<string, unknown>;
     photos?: PhotoInput[];
+    planId?: string;
 }
 
 export interface SaveDraftInput {
@@ -196,6 +197,17 @@ export interface PresignedUrlResponse {
     fileUrl: string;
     key: string;
 }
+
+export const GET_MY_CONSULTATIONS = gql`
+    query GetMyConsultations {
+        myConsultations {
+            id
+            vertical
+            status
+            createdAt
+        }
+    }
+`;
 
 export const GET_PRESIGNED_UPLOAD_URL = gql`
     mutation GetPresignedUploadUrl($input: GetPresignedUrlInput!) {

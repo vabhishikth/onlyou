@@ -139,6 +139,7 @@ export default function PaymentScreen() {
                         vertical: dbVertical,
                         responses: parsedResponses,
                         photos: parsedPhotos.length > 0 ? parsedPhotos : undefined,
+                        planId: planId || undefined,
                     },
                 },
             });

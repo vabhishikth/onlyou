@@ -242,6 +242,103 @@ describe('ActivityScreen', () => {
         });
     });
 
+    describe('Consultations section', () => {
+        it('renders consultation cards when consultations exist', () => {
+            let callIndex = 0;
+            (useQuery as jest.Mock).mockImplementation(() => {
+                callIndex++;
+                if (callIndex === 1) {
+                    // GET_ACTIVE_TRACKING
+                    return {
+                        data: {
+                            activeTracking: {
+                                labOrders: [],
+                                deliveryOrders: [],
+                            },
+                        },
+                        loading: false,
+                        error: null,
+                        refetch: jest.fn(),
+                    };
+                }
+                // GET_MY_CONSULTATIONS
+                return {
+                    data: {
+                        myConsultations: [
+                            { id: 'consult-1', vertical: 'HAIR_LOSS', status: 'DOCTOR_REVIEWING', createdAt: '2026-02-20T10:00:00Z' },
+                        ],
+                    },
+                    loading: false,
+                    error: null,
+                    refetch: jest.fn(),
+                };
+            });
+
+            const { getByTestId } = render(<ActivityScreen />);
+            expect(getByTestId('consultation-card-consult-1')).toBeTruthy();
+        });
+
+        it('shows consultation stepper with correct status', () => {
+            let callIndex = 0;
+            (useQuery as jest.Mock).mockImplementation(() => {
+                callIndex++;
+                if (callIndex === 1) {
+                    return {
+                        data: { activeTracking: { labOrders: [], deliveryOrders: [] } },
+                        loading: false,
+                        error: null,
+                        refetch: jest.fn(),
+                    };
+                }
+                return {
+                    data: {
+                        myConsultations: [
+                            { id: 'consult-2', vertical: 'SEXUAL_HEALTH', status: 'PENDING_ASSESSMENT', createdAt: '2026-02-21T10:00:00Z' },
+                        ],
+                    },
+                    loading: false,
+                    error: null,
+                    refetch: jest.fn(),
+                };
+            });
+
+            const { getByTestId, getByText } = render(<ActivityScreen />);
+            expect(getByTestId('consultation-stepper-consult-2')).toBeTruthy();
+            expect(getByText(/assessment is being reviewed/i)).toBeTruthy();
+        });
+
+        it('does not show approved consultations in active section', () => {
+            let callIndex = 0;
+            (useQuery as jest.Mock).mockImplementation(() => {
+                callIndex++;
+                if (callIndex === 1) {
+                    return {
+                        data: { activeTracking: { labOrders: [], deliveryOrders: [] } },
+                        loading: false,
+                        error: null,
+                        refetch: jest.fn(),
+                    };
+                }
+                return {
+                    data: {
+                        myConsultations: [
+                            { id: 'consult-3', vertical: 'HAIR_LOSS', status: 'APPROVED', createdAt: '2026-02-19T10:00:00Z' },
+                        ],
+                    },
+                    loading: false,
+                    error: null,
+                    refetch: jest.fn(),
+                };
+            });
+
+            const { queryByTestId, getByTestId } = render(<ActivityScreen />);
+            // Approved consultation should not appear as active
+            expect(queryByTestId('consultation-card-consult-3')).toBeNull();
+            // Should show empty state since no active items
+            expect(getByTestId('empty-state')).toBeTruthy();
+        });
+    });
+
     describe('Design system compliance', () => {
         it('uses 20px card padding', () => {
             const { getByTestId } = render(<ActivityScreen />);
