@@ -5,6 +5,7 @@ import { ApolloProvider } from '@apollo/client';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { apolloClient } from '@/lib/apollo';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useNotifications } from '@/hooks/useNotifications';
 
 // Auth-based navigation guard
 function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
@@ -40,9 +41,24 @@ function AuthNavigationGuard({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+// Auto-register push notifications when user is authenticated
+function PushNotificationRegistrar() {
+    const { isAuthenticated } = useAuth();
+    const { registerForPushNotifications } = useNotifications();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            registerForPushNotifications();
+        }
+    }, [isAuthenticated]);
+
+    return null;
+}
+
 function RootLayoutContent() {
     return (
         <AuthNavigationGuard>
+            <PushNotificationRegistrar />
             <Slot />
         </AuthNavigationGuard>
     );

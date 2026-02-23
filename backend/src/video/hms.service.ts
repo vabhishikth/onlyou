@@ -3,9 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { VideoSessionStatus } from '@prisma/client';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
 
 // Spec: Phase 13 — 100ms Video Integration Service
 // Mock mode when HMS_ACCESS_KEY is empty (dev/test)
+// Real mode: calls 100ms REST API with management token authentication
 
 export interface WebhookInput {
   payload: any;
@@ -21,6 +23,8 @@ export interface DisconnectResult {
 export class HmsService {
   private readonly logger = new Logger(HmsService.name);
   private readonly accessKey: string;
+  private readonly appSecret: string;
+  private readonly templateId: string;
   private readonly webhookSecret: string;
   private readonly isMockMode: boolean;
 
@@ -29,16 +33,69 @@ export class HmsService {
     private readonly configService: ConfigService,
   ) {
     this.accessKey = this.configService.get<string>('HMS_ACCESS_KEY') || '';
+    this.appSecret = this.configService.get<string>('HMS_APP_SECRET') || '';
+    this.templateId = this.configService.get<string>('HMS_TEMPLATE_ID') || '';
     this.webhookSecret = this.configService.get<string>('HMS_WEBHOOK_SECRET') || '';
     this.isMockMode = !this.accessKey;
+
+    if (this.isMockMode) {
+      this.logger.warn('100ms running in MOCK mode — set HMS_ACCESS_KEY for real API');
+    } else {
+      this.logger.log('100ms configured with real API credentials');
+    }
+  }
+
+  /**
+   * Generate a 100ms management token (JWT signed with HS256)
+   * Used to authenticate server-side REST API calls
+   * Ref: https://www.100ms.live/docs/server-side/v2/foundation/authentication-and-tokens
+   */
+  private generateManagementToken(): string {
+    const now = Math.floor(Date.now() / 1000);
+
+    const payload = {
+      access_key: this.accessKey,
+      type: 'management',
+      version: 2,
+      iat: now,
+      nbf: now,
+      exp: now + 86400, // 24 hours
+      jti: crypto.randomUUID(),
+    };
+
+    return jwt.sign(payload, this.appSecret, { algorithm: 'HS256' });
+  }
+
+  /**
+   * Generate a 100ms auth token for a participant to join a room
+   * Ref: https://www.100ms.live/docs/server-side/v2/foundation/authentication-and-tokens
+   */
+  private generateAuthToken(roomId: string, userId: string, role: string): string {
+    const now = Math.floor(Date.now() / 1000);
+
+    const payload = {
+      access_key: this.accessKey,
+      type: 'app',
+      version: 2,
+      room_id: roomId,
+      user_id: userId,
+      role,
+      iat: now,
+      nbf: now,
+      exp: now + 86400, // 24 hours
+      jti: crypto.randomUUID(),
+    };
+
+    return jwt.sign(payload, this.appSecret, { algorithm: 'HS256' });
   }
 
   /**
    * Create a 100ms room for a video session
-   * In mock mode: returns deterministic mock room ID
+   * Mock mode: returns deterministic mock room ID
+   * Real mode: calls POST https://api.100ms.live/v2/rooms
    */
   async createRoom(videoSessionId: string): Promise<{ roomId: string }> {
-    // Validate session exists (used for future real API context)
+    // Validate session exists
     await this.prisma.videoSession.findUnique({
       where: { id: videoSessionId },
     });
@@ -48,9 +105,29 @@ export class HmsService {
     if (this.isMockMode) {
       roomId = `mock-room-${videoSessionId}`;
     } else {
-      // Real 100ms API call would go here
-      // const response = await fetch('https://api.100ms.live/v2/rooms', { ... });
-      roomId = `onlyou-${videoSessionId}`;
+      const managementToken = this.generateManagementToken();
+
+      const response = await fetch('https://api.100ms.live/v2/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${managementToken}`,
+        },
+        body: JSON.stringify({
+          name: `onlyou-${videoSessionId}`,
+          template_id: this.templateId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.error(`100ms createRoom failed: ${response.status} ${errorBody}`);
+        throw new BadRequestException('Failed to create video room');
+      }
+
+      const data = await response.json();
+      roomId = data.id;
+      this.logger.log(`100ms room created: ${roomId} for session ${videoSessionId}`);
     }
 
     await this.prisma.videoSession.update({
@@ -63,7 +140,8 @@ export class HmsService {
 
   /**
    * Generate an auth token for a participant to join a room
-   * In mock mode: returns a deterministic mock token
+   * Mock mode: returns a deterministic mock token
+   * Real mode: signs a JWT auth token with app secret
    */
   async generateToken(
     roomId: string,
@@ -71,13 +149,10 @@ export class HmsService {
     role: 'doctor' | 'patient',
   ): Promise<string> {
     if (this.isMockMode) {
-      // Mock token includes room, peer, and role for uniqueness
       return `mock-token-${roomId}-${peerId}-${role}`;
     }
 
-    // Real 100ms management token generation would go here using JWT
-    // with accessKey and appSecret
-    return `token-${roomId}-${peerId}-${role}`;
+    return this.generateAuthToken(roomId, peerId, role);
   }
 
   /**
@@ -276,6 +351,7 @@ export class HmsService {
   /**
    * Find video session ID by 100ms room ID
    * In mock mode, extracts session ID from room name pattern "mock-room-{sessionId}"
+   * In real mode, looks up by roomId in the database
    */
   private async findSessionByRoomId(roomId: string): Promise<string> {
     // In mock mode, parse the session ID from the room name

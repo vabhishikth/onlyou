@@ -1,6 +1,6 @@
 # CHECKPOINT — Last Updated: 2026-02-23
 
-## Current Phase: E2E Readiness — Audit Fixes + Push Delivery
+## Current Phase: E2E Readiness — Push Registration + Real 100ms API
 ## Current Task: All tasks complete
 ## Status: COMPLETE
 
@@ -9,85 +9,88 @@
 ### Phases 1-17 — ALL COMPLETE (see git log and BUILD-PLAN.md)
 
 ### Notification Audit Fix (5 chunks) — COMPLETE
-See previous checkpoint for details. All 5 chunks committed.
+See git log for details. All 5 chunks committed.
 
 ### Codebase Mapping — COMPLETE
 - [x] Generated 7 codebase analysis documents in `.planning/codebase/`
-- [x] STACK.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, INTEGRATIONS.md, CONCERNS.md
 
-### E2E Readiness — Audit Fixes + Push Delivery:
+### E2E Readiness — Batch 1 (Audit Fixes + Push Delivery) — COMPLETE
+- [x] Installed `expo-server-sdk`, `expo-device`, `razorpay`
+- [x] PushDeliveryService (TDD, 6 tests) using Expo Push Service
+- [x] Fixed hardcoded pincode + admin name bugs
+- [x] Corrected CONCERNS.md (6 false claims removed)
 
-#### Package Installation
-- [x] Installed `expo-server-sdk` on backend (Expo Push Service — replaces need for firebase-admin)
-- [x] Installed `expo-device` on mobile (for device token registration)
-- [x] Installed `razorpay` on backend (payment processing)
-- [x] Configured Razorpay test keys in `.env` (rzp_test_SJT30nTBjdy6LC)
+### E2E Readiness — Batch 2 (Push Registration + Real 100ms) — COMPLETE
 
-#### Push Delivery Service (TDD)
-- [x] Created `push-delivery.service.spec.ts` — 6 tests written FIRST (RED)
-- [x] Created `push-delivery.service.ts` — implementation to pass tests (GREEN)
-- [x] Uses Expo Push Service (`expo-server-sdk`) to send real push notifications
-- [x] Handles chunking, invalid tokens, API errors, individual ticket errors
-- [x] Created `backend/__mocks__/expo-server-sdk.ts` — Jest manual mock for ESM compatibility
-- [x] Added `moduleNameMapper` in `jest.config.js` for expo-server-sdk
-- [x] Wired PushDeliveryService into NotificationService (fire-and-forget on PUSH channel)
-- [x] Updated notification.module.ts, notification.service.spec.ts, notification.resolver.spec.ts
+#### Mobile Push Token Registration (TDD)
+- [x] Created `useNotifications.test.ts` — 5 tests written FIRST (RED)
+- [x] Created `useNotifications.ts` hook — request permission, get Expo token, call `registerDeviceToken` mutation
+- [x] GraphQL mutations: `REGISTER_DEVICE_TOKEN`, `REMOVE_DEVICE_TOKEN` (inline in hook)
+- [x] Wired into `_layout.tsx` via `PushNotificationRegistrar` component — auto-registers when authenticated
+- [x] Handles: permission denied, already granted, error graceful handling, unregister on logout
 
-#### Bug Fixes
-- [x] Fixed hardcoded pincode '400001' in mobile lab booking — now uses `labOrder.collectionPincode`
-- [x] Fixed hardcoded admin name 'Abhishikth' in admin layout — now uses `useAuth()` hook
-- [x] Updated `mobile/src/graphql/tracking.ts` — added `collectionCity`, `collectionPincode` to LabOrder interface + query
-
-#### Documentation
-- [x] Updated `.planning/codebase/CONCERNS.md` — removed 6 false claims, marked 2 bugs FIXED, corrected notification delivery status
+#### 100ms Real API Integration
+- [x] Installed `jsonwebtoken` + `@types/jsonwebtoken` on backend
+- [x] Configured 100ms keys in `.env`: `HMS_ACCESS_KEY`, `HMS_APP_SECRET`, `HMS_TEMPLATE_ID`
+- [x] `createRoom()` — real mode calls `POST https://api.100ms.live/v2/rooms` with management token
+- [x] `generateToken()` — real mode signs JWT auth token (HS256) with room_id, user_id, role claims
+- [x] Added `generateManagementToken()` private method (JWT type=management, version=2)
+- [x] Added `generateAuthToken()` private method (JWT type=app, room_id, user_id, role)
+- [x] Mock mode preserved for dev/test (when HMS_ACCESS_KEY is empty)
+- [x] All 18 existing HmsService tests still pass
 
 ## Test Counts:
-- Backend: 2,780 tests (87 test suites) — +6 new PushDelivery tests
-- Mobile: 601 tests (52 test suites)
+- Backend: 2,780 tests (87 test suites)
+- Mobile: 606 tests (53 test suites) — +5 new useNotifications tests
 - Web: 267 tests (37 test suites)
-- **Total: 3,648 tests**
+- **Total: 3,653 tests**
 
-## Files Modified/Created:
+## Files Modified/Created (Batch 2):
 ```
 # New files
-backend/__mocks__/expo-server-sdk.ts
-backend/src/notification/push-delivery.service.ts
-backend/src/notification/push-delivery.service.spec.ts
+mobile/src/hooks/useNotifications.ts — push token registration hook
+mobile/src/hooks/__tests__/useNotifications.test.ts — 5 TDD tests
 
 # Modified — backend
-backend/jest.config.js — moduleNameMapper for expo-server-sdk
-backend/package.json — +expo-server-sdk, +razorpay
-backend/src/notification/notification.module.ts — +PushDeliveryService
-backend/src/notification/notification.service.ts — inject PushDeliveryService, fire-and-forget push
-backend/src/notification/notification.service.spec.ts — +PushDeliveryService mock
-backend/src/schema.gql — auto-generated
+backend/src/video/hms.service.ts — real 100ms API (createRoom, generateToken, JWT signing)
+backend/package.json — +jsonwebtoken, +@types/jsonwebtoken
 
 # Modified — mobile
-mobile/package.json — +expo-device
-mobile/src/graphql/tracking.ts — +collectionCity, +collectionPincode
-mobile/app/lab/[labOrderId]/index.tsx — use labOrder pincode instead of hardcoded
+mobile/app/_layout.tsx — PushNotificationRegistrar component (auto-register on auth)
 
-# Modified — web
-web/src/app/admin/layout.tsx — useAuth() for admin name
-
-# Modified — docs
-.planning/codebase/CONCERNS.md — corrected false claims
+# Modified — config
+backend/.env — +HMS_ACCESS_KEY, +HMS_APP_SECRET, +HMS_TEMPLATE_ID, +HMS_WEBHOOK_SECRET
+.env — +HMS_ACCESS_KEY, +HMS_APP_SECRET, +HMS_TEMPLATE_ID, +HMS_WEBHOOK_SECRET
 pnpm-lock.yaml — dependency updates
 ```
 
 ---
 
+## All External Services — Status:
+| Service | Status | Notes |
+|---|---|---|
+| PostgreSQL (Neon) | Ready | DATABASE_URL configured |
+| JWT Auth | Ready | Access + refresh secrets |
+| MSG91 (SMS) | Ready | Dev mode (123456) |
+| AWS S3 | Ready | ap-south-1, onlyou-uploads |
+| Claude AI | Ready | Anthropic API key |
+| Razorpay | Ready | Test mode keys |
+| Expo Push | Ready | No key needed, backend + mobile wired |
+| Redis | Ready | Local, no key |
+| 100ms Video | Ready | Real API keys + JWT token generation |
+| Sentry | Skipped | Optional for now |
+| Email | Skipped | Not blocking E2E |
+
 ## Next Up:
-- Phase 18: Production readiness (Sentry, Redis caching, security audit)
+- E2E testing of core flows (signup → intake → AI → doctor → video → prescription → payment → lab → delivery)
 - CI/CD pipeline setup
-- Remaining external integrations: Firebase project, 100ms, Sentry, email provider
-- Delivery portal (delivery model TBD)
+- Phase 18: Production readiness (Sentry, Redis caching, security audit)
 
 ## Known Issues:
 - SMS/WhatsApp/Email channels still DB-record-only (no MSG91/email provider integration yet)
-- @100mslive/react-native-hms not installed — video tests use mocks only
+- @100mslive/react-native-hms not installed on mobile — video hook uses mocks
 - Redis connection warning on startup if Redis not available (by design)
 - RateLimitGuard exists but never applied to any endpoint
-- Firebase project not yet created (needed for google-services.json on mobile builds)
+- HMS_WEBHOOK_SECRET empty — set when configuring webhooks in 100ms dashboard
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
