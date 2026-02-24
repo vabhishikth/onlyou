@@ -72,6 +72,14 @@ export const CASE_DETAIL = gql`
                 vertical
                 createdAt
                 doctorNotes
+                videoRequested
+                bookedSlot {
+                    id
+                    slotDate
+                    startTime
+                    endTime
+                    status
+                }
             }
             patient {
                 name
@@ -237,12 +245,22 @@ export interface CasePrescription {
     issuedAt: string;
 }
 
+export interface CaseBookedSlot {
+    id: string;
+    slotDate: string;
+    startTime: string;
+    endTime: string;
+    status: string;
+}
+
 export interface CaseConsultation {
     id: string;
     status: string;
     vertical: HealthVertical;
     createdAt: string;
     doctorNotes: string | null;
+    videoRequested: boolean;
+    bookedSlot: CaseBookedSlot | null;
 }
 
 export interface CaseQuestionnaire {

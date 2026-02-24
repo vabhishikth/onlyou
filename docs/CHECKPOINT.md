@@ -1,7 +1,7 @@
-# CHECKPOINT — Last Updated: 2026-02-23
+# CHECKPOINT — Last Updated: 2026-02-24
 
-## Current Phase: E2E Testing — Doctor Dashboard Fixes
-## Current Task: Fix Hair Loss Q-mapping + Add Schedule Video Call button
+## Current Phase: E2E Testing — Video Flow + AI Resilience Fixes
+## Current Task: AI JSON parsing fix + Auto-assignment on retry + Video UX improvements
 ## Status: COMPLETE
 
 ## Completed Work:
@@ -133,52 +133,6 @@ See git log for details. All 5 chunks committed.
 - [x] GraphQL queries updated to request `name`, `phone`, `email` fields
 - [x] `DoctorProfile` TypeScript interface updated with `name`, `phone`, `email` fields
 
-## Test Counts:
-- Backend: 2,785 tests (87 test suites)
-- Mobile: 635 tests (55 test suites)
-- Web: 285 tests (38 test suites)
-- **Total: 3,705 tests**
-
-## Recent Commits:
-```
-<pending> fix(doctor): fix Hair Loss Q-mapping + add Schedule Video Call button
-a5c875a fix(admin): doctor onboarding + admin portal E2E fixes
-e257942 fix(mobile): move useAnimatedStyle before conditional return (Rules of Hooks)
-badc751 feat(mobile): add ActiveConsultationBanner to home screen (TDD)
-d0003a0 feat(intake): wire planId subscription creation + consultation tracking
-```
-
----
-
-## All External Services — Status:
-| Service | Status | Notes |
-|---|---|---|
-| PostgreSQL (Neon) | Ready | DATABASE_URL configured |
-| JWT Auth | Ready | Access + refresh secrets |
-| MSG91 (SMS) | Ready | Dev mode (123456) |
-| AWS S3 | Ready | ap-south-1, onlyou-uploads |
-| Claude AI | Ready | Anthropic API key |
-| Razorpay | Ready | Test mode keys |
-| Expo Push | Ready | No key needed, backend + mobile wired |
-| Redis | Ready | Local, no key |
-| 100ms Video | Ready | Real API keys + JWT token generation |
-| Sentry | Skipped | Optional for now |
-| Email | Skipped | Not blocking E2E |
-
-## E2E Flow Status (Post-Payment → Tracking):
-```
-Patient selects plan → plan-selection.tsx passes planId to payment.tsx
-  → Payment creates Razorpay order (with planId + vertical)
-  → Razorpay checkout opens → payment verified
-  → submitIntake called WITH planId
-    → Backend creates intakeResponse + consultation + subscription (atomic)
-    → AI assessment fires async (non-blocking)
-    → Auto-assignment fires after AI completes
-  → Navigate to complete.tsx → "Track Progress" → /(tabs)/activity
-  → Activity tab shows ConsultationCard with status stepper
-    → Stepper: Submitted → AI Reviewed → Doctor Reviewing → Video → Approved
-```
-
 ### Doctor Dashboard E2E Fixes — COMPLETE
 
 #### Fix 1: Dashboard Stats Out of Sync
@@ -216,8 +170,97 @@ Patient selects plan → plan-selection.tsx passes planId to payment.tsx
 - [x] `assignment.service.spec.ts`: Updated 3 tests for new assignment behavior
 - [x] `dashboard.service.spec.ts`: Updated 4 tests for new status mapping
 
+### E2E Fixes — Session 2 (2026-02-24) — COMPLETE
+
+#### Fix 5: AI Assessment JSON Parsing — Markdown Fence Stripping
+- [x] Claude API sometimes wraps JSON response in markdown code fences (```json ... ```)
+- [x] `parseAIResponse()` in `ai.service.ts` now strips ```` ```json ``` ```` before `JSON.parse()`
+- [x] Prevents "Invalid JSON response from AI" errors that leave consultations stuck at PENDING_ASSESSMENT
+- [x] File: `backend/src/ai/ai.service.ts:523-530`
+
+#### Fix 6: Auto-Assignment on AI Retry
+- [x] `runAssessment` and `retryAssessment` mutations now trigger `assignmentService.assignDoctor()` after storing AI assessment
+- [x] Previously, if original AI assessment failed in intake chain, retry would store assessment but never assign a doctor
+- [x] Added `AssignmentModule` import to `AIModule` (`backend/src/ai/ai.module.ts`)
+- [x] Injected `AssignmentService` into `AIResolver` (`backend/src/ai/ai.resolver.ts`)
+- [x] Auto-assignment fires async (non-blocking) with error logging on failure
+
+#### Fix 7: Doctor Dashboard — Video Slot Date/Time Display
+- [x] Added `CaseBookedSlotType` GraphQL type (id, slotDate, startTime, endTime, status)
+- [x] Added `videoRequested: Boolean` and `bookedSlot: CaseBookedSlotType` to `CaseConsultationType`
+- [x] `getCaseDetail()` now includes `bookedSlots` (filtered by BOOKED, first upcoming) in Prisma query
+- [x] `CASE_DETAIL` GraphQL query updated to request `videoRequested` + `bookedSlot { slotDate startTime endTime }`
+- [x] Doctor case page: VIDEO_SCHEDULED header now shows "Video Scheduled — Feb 24 at 10:30 AM" with date-fns format
+- [x] Works on both desktop header and mobile action bar
+- [x] Files: `backend/src/dashboard/dto/dashboard.dto.ts`, `backend/src/dashboard/dashboard.service.ts`, `backend/src/dashboard/dashboard.resolver.ts`, `web/src/graphql/dashboard.ts`, `web/src/app/doctor/case/[id]/page.tsx`
+
+#### Fix 8: Mobile — Video Session Navigation from Activity Tab
+- [x] Added "View Video Session" button on consultation card when status is `VIDEO_SCHEDULED`
+- [x] Styled as outlined accent button (border + accent text) — distinct from solid "Book Video Slot" CTA
+- [x] Navigates to `/video/upcoming` — existing screen with Join/Reschedule/Cancel actions
+- [x] Patient can now always get back to their video session from the Activity tab
+- [x] File: `mobile/app/(tabs)/activity.tsx`
+
+#### Fix 9: Mobile API URL Updated
+- [x] Changed dev IP from `192.168.0.105` to `192.168.0.104` in `mobile/src/lib/apollo.ts`
+
+## Test Counts:
+- Backend: 2,785 tests (87 test suites)
+- Mobile: 635 tests (55 test suites)
+- Web: 285 tests (38 test suites)
+- **Total: 3,705 tests**
+
+## Recent Commits:
+```
+<pending> fix(e2e): AI JSON parsing, auto-assignment retry, video UX improvements
+38855df feat(doctor): video request flow + Q-mapping fix + dashboard workflow improvements
+a5c875a fix(admin): doctor onboarding + admin portal E2E fixes
+e257942 fix(mobile): move useAnimatedStyle before conditional return (Rules of Hooks)
+badc751 feat(mobile): add ActiveConsultationBanner to home screen (TDD)
+```
+
+---
+
+## All External Services — Status:
+| Service | Status | Notes |
+|---|---|---|
+| PostgreSQL (Neon) | Ready | DATABASE_URL configured |
+| JWT Auth | Ready | Access + refresh secrets |
+| MSG91 (SMS) | Ready | Dev mode (123456) |
+| AWS S3 | Ready | ap-south-1, onlyou-uploads |
+| Claude AI | Ready | Anthropic API key |
+| Razorpay | Ready | Test mode keys |
+| Expo Push | Ready | No key needed, backend + mobile wired |
+| Redis | Ready | Local, no key |
+| 100ms Video | Ready | Real API keys + JWT token generation |
+| Sentry | Skipped | Optional for now |
+| Email | Skipped | Not blocking E2E |
+
+## E2E Flow Status (Full Pipeline):
+```
+Patient selects plan → plan-selection.tsx passes planId to payment.tsx
+  → Payment creates Razorpay order (with planId + vertical)
+  → Razorpay checkout opens → payment verified
+  → submitIntake called WITH planId
+    → Backend creates intakeResponse + consultation + subscription (atomic)
+    → AI assessment fires async (non-blocking)
+      → JSON fence stripping handles ```json wrapped responses
+    → Auto-assignment fires after AI completes (also fires on retry)
+      → Sets doctorId only — status stays AI_REVIEWED
+  → Navigate to complete.tsx → "Track Progress" → /(tabs)/activity
+  → Activity tab shows ConsultationCard with status stepper
+    → Stepper: Submitted → AI Reviewed → Doctor Reviewing → Video → Approved
+  → Doctor logs into portal → sees case in "New" queue
+    → Clicks "Start Review" → status moves to DOCTOR_REVIEWING
+    → Clicks "Request Video Call" → sets videoRequested flag (no status change)
+  → Patient sees "Book Video Slot" button → picks time → VIDEO_SCHEDULED
+    → Doctor dashboard shows slot date/time in header
+    → Patient Activity tab shows "View Video Session" → /video/upcoming
+    → Video session screen: Join / Reschedule / Cancel
+```
+
 ## Next Up:
-- Continue E2E testing: doctor requests video → patient books slot → video call
+- Test full video call flow (join room, complete session)
 - CI/CD pipeline setup
 - Phase 18: Production readiness (Sentry, Redis caching, security audit)
 

@@ -13,7 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 // For physical device: http://YOUR_IP:4000/graphql
 // For simulator: http://localhost:4000/graphql
 const API_URL = process.env.EXPO_PUBLIC_API_URL
-    || (__DEV__ ? 'http://192.168.0.105:4000/graphql' : 'https://api.onlyou.life/graphql');
+    || (__DEV__ ? 'http://192.168.0.104:4000/graphql' : 'https://api.onlyou.life/graphql');
 
 const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';

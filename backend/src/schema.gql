@@ -404,6 +404,14 @@ type CaseAIAssessmentType {
   summary: String!
 }
 
+type CaseBookedSlotType {
+  endTime: DateTime!
+  id: String!
+  slotDate: DateTime!
+  startTime: DateTime!
+  status: String!
+}
+
 type CaseCardType {
   aiAttentionLevel: String
   createdAt: DateTime!
@@ -418,11 +426,13 @@ type CaseCardType {
 }
 
 type CaseConsultationType {
+  bookedSlot: CaseBookedSlotType
   createdAt: DateTime!
   doctorNotes: String
   id: String!
   status: String!
   vertical: HealthVertical!
+  videoRequested: Boolean!
 }
 
 type CaseDetailType {

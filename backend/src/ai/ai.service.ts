@@ -523,7 +523,12 @@ Respond ONLY with valid JSON matching this schema:
   parseAIResponse(rawResponse: string, vertical?: HealthVertical): AIAssessment {
     let parsed: any;
     try {
-      parsed = JSON.parse(rawResponse);
+      // Strip markdown code fences if present (Claude sometimes wraps JSON in ```json ... ```)
+      let cleaned = rawResponse.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+      parsed = JSON.parse(cleaned);
     } catch {
       throw new BadRequestException('Invalid JSON response from AI');
     }

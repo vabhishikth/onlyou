@@ -1,7 +1,8 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, Logger } from '@nestjs/common';
 import { AIService } from './ai.service';
 import { ConsultationService } from '../consultation/consultation.service';
+import { AssignmentService } from '../assignment/assignment.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -15,9 +16,12 @@ import {
 
 @Resolver()
 export class AIResolver {
+  private readonly logger = new Logger(AIResolver.name);
+
   constructor(
     private readonly aiService: AIService,
     private readonly consultationService: ConsultationService,
+    private readonly assignmentService: AssignmentService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -67,6 +71,11 @@ export class AIResolver {
         input.consultationId,
         assessment,
       );
+
+      // Trigger auto-assignment after successful AI assessment
+      this.assignmentService.assignDoctor(input.consultationId).catch(err => {
+        this.logger.error(`Auto-assignment failed for ${input.consultationId}: ${err?.message}`);
+      });
 
       return {
         success: true,
@@ -122,6 +131,11 @@ export class AIResolver {
         consultationId,
         assessment,
       );
+
+      // Trigger auto-assignment after successful retry
+      this.assignmentService.assignDoctor(consultationId).catch(err => {
+        this.logger.error(`Auto-assignment failed for ${consultationId}: ${err?.message}`);
+      });
 
       return {
         success: true,

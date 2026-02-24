@@ -569,6 +569,19 @@ function ConsultationCard({ consultation, delay = 0 }: ConsultationCardProps) {
                         <ChevronRight size={16} color="#fff" />
                     </Pressable>
                 )}
+
+                {/* View Video Sessions — shown when VIDEO_SCHEDULED */}
+                {consultation.status === 'VIDEO_SCHEDULED' && (
+                    <Pressable
+                        testID={`view-video-${consultation.id}`}
+                        style={styles.viewVideoButton}
+                        onPress={() => router.push('/video/upcoming')}
+                    >
+                        <Video size={16} color={colors.accent} />
+                        <Text style={styles.viewVideoText}>View Video Session</Text>
+                        <ChevronRight size={16} color={colors.accent} />
+                    </Pressable>
+                )}
             </View>
         </Animated.View>
     );
@@ -868,6 +881,25 @@ const styles = StyleSheet.create({
         fontFamily: fontFamilies.sansMedium,
         fontSize: fontSizes.body,
         color: '#fff',
+        flex: 1,
+    },
+    viewVideoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.xs,
+        backgroundColor: colors.accentLight || '#EEF2FF',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        marginTop: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.accent,
+    },
+    viewVideoText: {
+        fontFamily: fontFamilies.sansMedium,
+        fontSize: fontSizes.body,
+        color: colors.accent,
         flex: 1,
     },
 });

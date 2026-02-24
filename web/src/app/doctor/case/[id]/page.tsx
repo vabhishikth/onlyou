@@ -307,10 +307,18 @@ export default function CaseDetailPage() {
                         )}
                         {consultation.status === 'VIDEO_SCHEDULED' && (
                             <div className="hidden lg:flex items-center gap-2">
-                                <span className="text-sm text-accent font-medium flex items-center gap-1">
-                                    <Video className="w-4 h-4" />
-                                    Video Scheduled
-                                </span>
+                                <div className="flex items-center gap-2 bg-accent/10 px-3 py-1.5 rounded-lg">
+                                    <Video className="w-4 h-4 text-accent" />
+                                    <div className="text-sm">
+                                        <span className="font-medium text-accent">Video Scheduled</span>
+                                        {consultation.bookedSlot && (
+                                            <span className="text-muted-foreground ml-2">
+                                                {format(new Date(consultation.bookedSlot.slotDate), 'MMM d')} at{' '}
+                                                {format(new Date(consultation.bookedSlot.startTime), 'h:mm a')}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                                 <Link href={`/doctor/case/${consultationId}/prescribe`}>
                                     <Button disabled={updating}>
                                         <CheckCircle className="w-4 h-4 mr-2" />
@@ -444,12 +452,20 @@ export default function CaseDetailPage() {
             )}
             {consultation.status === 'VIDEO_SCHEDULED' && (
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
-                    <div className="flex gap-2 items-center">
-                        <span className="text-sm text-accent font-medium flex items-center gap-1">
-                            <Video className="w-3 h-3" />
-                            Video Scheduled
-                        </span>
-                        <Link href={`/doctor/case/${consultationId}/prescribe`} className="flex-1">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 bg-accent/10 px-3 py-2 rounded-lg">
+                            <Video className="w-4 h-4 text-accent" />
+                            <div className="text-sm">
+                                <span className="font-medium text-accent">Video Scheduled</span>
+                                {consultation.bookedSlot && (
+                                    <span className="text-muted-foreground ml-1">
+                                        — {format(new Date(consultation.bookedSlot.slotDate), 'MMM d')} at{' '}
+                                        {format(new Date(consultation.bookedSlot.startTime), 'h:mm a')}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <Link href={`/doctor/case/${consultationId}/prescribe`}>
                             <Button size="sm" className="w-full" disabled={updating}>
                                 Prescribe
                             </Button>

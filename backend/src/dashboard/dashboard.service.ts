@@ -55,6 +55,14 @@ export interface CaseDetail {
     vertical: HealthVertical;
     createdAt: Date;
     doctorNotes: string | null;
+    videoRequested: boolean;
+    bookedSlot?: {
+      id: string;
+      slotDate: Date;
+      startTime: Date;
+      endTime: Date;
+      status: string;
+    };
   };
   patient: {
     name: string | null;
@@ -428,6 +436,11 @@ export class DashboardService {
           orderBy: { orderedAt: 'desc' },
         },
         followUps: true,
+        bookedSlots: {
+          where: { status: 'BOOKED' },
+          orderBy: { slotDate: 'asc' },
+          take: 1,
+        },
       },
     });
 
@@ -452,6 +465,8 @@ export class DashboardService {
       },
     });
 
+    const bookedSlot = (consultation as any).bookedSlots?.[0] || null;
+
     return {
       consultation: {
         id: consultation.id,
@@ -459,6 +474,14 @@ export class DashboardService {
         vertical: consultation.vertical,
         createdAt: consultation.createdAt,
         doctorNotes: consultation.doctorNotes,
+        videoRequested: (consultation as any).videoRequested ?? false,
+        bookedSlot: bookedSlot ? {
+          id: bookedSlot.id,
+          slotDate: bookedSlot.slotDate,
+          startTime: bookedSlot.startTime,
+          endTime: bookedSlot.endTime,
+          status: bookedSlot.status,
+        } : undefined,
       },
       patient: {
         name: consultation.patient.name,

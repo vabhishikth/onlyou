@@ -122,6 +122,8 @@ export class DashboardResolver {
         status: result.consultation.status,
         vertical: result.consultation.vertical,
         createdAt: result.consultation.createdAt,
+        videoRequested: result.consultation.videoRequested,
+        bookedSlot: result.consultation.bookedSlot,
       },
       patient: {
         phone: result.patient.phone,

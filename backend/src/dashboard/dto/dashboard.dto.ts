@@ -180,6 +180,25 @@ export class CaseQuestionnaireType {
   template: any;
 }
 
+// Booked video slot info for case detail
+@ObjectType()
+export class CaseBookedSlotType {
+  @Field(() => String)
+  id: string;
+
+  @Field(() => Date)
+  slotDate: Date;
+
+  @Field(() => Date)
+  startTime: Date;
+
+  @Field(() => Date)
+  endTime: Date;
+
+  @Field(() => String)
+  status: string;
+}
+
 // Consultation info for case detail
 @ObjectType()
 export class CaseConsultationType {
@@ -197,6 +216,12 @@ export class CaseConsultationType {
 
   @Field(() => String, { nullable: true })
   doctorNotes?: string | undefined;
+
+  @Field(() => Boolean)
+  videoRequested: boolean;
+
+  @Field(() => CaseBookedSlotType, { nullable: true })
+  bookedSlot?: CaseBookedSlotType | undefined;
 }
 
 // Prescription for case detail
