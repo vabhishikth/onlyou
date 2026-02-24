@@ -771,14 +771,14 @@ function OverviewTab({
                         <StatusLine completed={consultation.status !== 'PENDING_ASSESSMENT'} />
                         <StatusStep
                             label="AI Reviewed"
-                            completed={['AI_REVIEWED', 'DOCTOR_REVIEWING', 'APPROVED', 'REJECTED', 'NEEDS_INFO'].includes(consultation.status)}
+                            completed={['AI_REVIEWED', 'DOCTOR_REVIEWING', 'VIDEO_SCHEDULED', 'VIDEO_COMPLETED', 'AWAITING_LABS', 'APPROVED', 'REJECTED', 'NEEDS_INFO'].includes(consultation.status)}
                             active={consultation.status === 'AI_REVIEWED'}
                         />
-                        <StatusLine completed={['DOCTOR_REVIEWING', 'APPROVED', 'REJECTED', 'NEEDS_INFO'].includes(consultation.status)} />
+                        <StatusLine completed={['DOCTOR_REVIEWING', 'VIDEO_SCHEDULED', 'VIDEO_COMPLETED', 'AWAITING_LABS', 'APPROVED', 'REJECTED', 'NEEDS_INFO'].includes(consultation.status)} />
                         <StatusStep
-                            label="Doctor Review"
+                            label={consultation.status === 'VIDEO_SCHEDULED' ? 'Video Scheduled' : consultation.status === 'VIDEO_COMPLETED' ? 'Video Complete' : 'In Consultation'}
                             completed={['APPROVED', 'REJECTED'].includes(consultation.status)}
-                            active={['DOCTOR_REVIEWING', 'NEEDS_INFO'].includes(consultation.status)}
+                            active={['DOCTOR_REVIEWING', 'VIDEO_SCHEDULED', 'VIDEO_COMPLETED', 'AWAITING_LABS', 'NEEDS_INFO'].includes(consultation.status)}
                         />
                         <StatusLine completed={['APPROVED', 'REJECTED'].includes(consultation.status)} />
                         <StatusStep
