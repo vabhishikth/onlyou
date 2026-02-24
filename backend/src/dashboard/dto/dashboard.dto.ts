@@ -186,6 +186,9 @@ export class CaseBookedSlotType {
   @Field(() => String)
   id: string;
 
+  @Field(() => String)
+  videoSessionId: string;
+
   @Field(() => Date)
   slotDate: Date;
 

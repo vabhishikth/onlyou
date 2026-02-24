@@ -75,6 +75,7 @@ export const CASE_DETAIL = gql`
                 videoRequested
                 bookedSlot {
                     id
+                    videoSessionId
                     slotDate
                     startTime
                     endTime
@@ -247,6 +248,7 @@ export interface CasePrescription {
 
 export interface CaseBookedSlot {
     id: string;
+    videoSessionId: string;
     slotDate: string;
     startTime: string;
     endTime: string;

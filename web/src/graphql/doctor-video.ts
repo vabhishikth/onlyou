@@ -79,6 +79,26 @@ export const MARK_AWAITING_LABS = gql`
     }
 `;
 
+// Join a video session (returns 100ms room ID + token)
+export const JOIN_VIDEO_SESSION = gql`
+    mutation JoinVideoSession($videoSessionId: String!) {
+        joinVideoSession(videoSessionId: $videoSessionId) {
+            roomId
+            token
+        }
+    }
+`;
+
+// Give recording consent (doctor-side)
+export const GIVE_RECORDING_CONSENT = gql`
+    mutation GiveRecordingConsent($videoSessionId: String!) {
+        giveRecordingConsent(videoSessionId: $videoSessionId) {
+            id
+            recordingConsentGiven
+        }
+    }
+`;
+
 // Types
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 

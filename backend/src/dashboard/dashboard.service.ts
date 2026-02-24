@@ -58,6 +58,7 @@ export interface CaseDetail {
     videoRequested: boolean;
     bookedSlot?: {
       id: string;
+      videoSessionId: string;
       slotDate: Date;
       startTime: Date;
       endTime: Date;
@@ -477,6 +478,7 @@ export class DashboardService {
         videoRequested: (consultation as any).videoRequested ?? false,
         bookedSlot: bookedSlot ? {
           id: bookedSlot.id,
+          videoSessionId: bookedSlot.videoSessionId,
           slotDate: bookedSlot.slotDate,
           startTime: bookedSlot.startTime,
           endTime: bookedSlot.endTime,

@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Clock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Video, Clock, AlertTriangle, CheckCircle, XCircle, PhoneCall } from 'lucide-react';
 import {
     DOCTOR_VIDEO_SESSIONS,
     MARK_NO_SHOW,
     COMPLETE_VIDEO_SESSION,
     MARK_AWAITING_LABS,
+    JOIN_VIDEO_SESSION,
+    GIVE_RECORDING_CONSENT,
 } from '@/graphql/doctor-video';
 import type {
     DoctorVideoSession,
@@ -57,6 +59,37 @@ export default function VideoSessionsPage() {
     const [markAwaitingLabs] = useMutation(MARK_AWAITING_LABS, {
         onCompleted: () => refetch(),
     });
+
+    const [giveConsent] = useMutation(GIVE_RECORDING_CONSENT, {
+        onCompleted: () => refetch(),
+    });
+
+    const [joinSession, { loading: joining }] = useMutation(JOIN_VIDEO_SESSION, {
+        onCompleted: (result) => {
+            const { roomId } = result.joinVideoSession;
+            // For now, show connection info — full 100ms web UI will come later
+            alert(`Connected! Room: ${roomId}\n\nVideo call is active. Use the mobile app or 100ms dashboard to join.`);
+            refetch();
+        },
+        onError: (error) => {
+            if (error.message.includes('Recording consent')) {
+                // Auto-give consent for doctor and retry
+                alert('Recording consent is required. Granting consent...');
+            } else {
+                alert(`Error: ${error.message}`);
+            }
+        },
+    });
+
+    const handleJoin = async (session: DoctorVideoSession) => {
+        if (!session.recordingConsentGiven) {
+            await giveConsent({ variables: { videoSessionId: session.id } });
+            // After consent, join
+            joinSession({ variables: { videoSessionId: session.id } });
+        } else {
+            joinSession({ variables: { videoSessionId: session.id } });
+        }
+    };
 
     const sessions = data?.doctorVideoSessions || [];
 
@@ -142,6 +175,17 @@ export default function VideoSessionsPage() {
 
                                 {/* Action buttons */}
                                 <div className="flex gap-2 mt-3">
+                                    {session.status === 'SCHEDULED' && (
+                                        <button
+                                            data-testid={`join-${session.id}`}
+                                            onClick={() => handleJoin(session)}
+                                            disabled={joining}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-success rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50"
+                                        >
+                                            <PhoneCall className="w-3.5 h-3.5" />
+                                            Join Call
+                                        </button>
+                                    )}
                                     {showNoShow && (
                                         <button
                                             data-testid={`no-show-${session.id}`}

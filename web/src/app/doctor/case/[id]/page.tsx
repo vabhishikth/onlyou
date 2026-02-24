@@ -319,8 +319,14 @@ export default function CaseDetailPage() {
                                         )}
                                     </div>
                                 </div>
+                                <Link href="/doctor/video/sessions">
+                                    <Button>
+                                        <Video className="w-4 h-4 mr-2" />
+                                        Join Video Call
+                                    </Button>
+                                </Link>
                                 <Link href={`/doctor/case/${consultationId}/prescribe`}>
-                                    <Button disabled={updating}>
+                                    <Button variant="outline" disabled={updating}>
                                         <CheckCircle className="w-4 h-4 mr-2" />
                                         Create Prescription
                                     </Button>
@@ -465,11 +471,19 @@ export default function CaseDetailPage() {
                                 )}
                             </div>
                         </div>
-                        <Link href={`/doctor/case/${consultationId}/prescribe`}>
-                            <Button size="sm" className="w-full" disabled={updating}>
-                                Prescribe
-                            </Button>
-                        </Link>
+                        <div className="flex gap-2">
+                            <Link href="/doctor/video/sessions" className="flex-1">
+                                <Button size="sm" className="w-full">
+                                    <Video className="w-3 h-3 mr-1" />
+                                    Join Call
+                                </Button>
+                            </Link>
+                            <Link href={`/doctor/case/${consultationId}/prescribe`} className="flex-1">
+                                <Button size="sm" variant="outline" className="w-full" disabled={updating}>
+                                    Prescribe
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
             )}

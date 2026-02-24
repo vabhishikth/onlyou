@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery, useMutation } from '@apollo/client';
+import { gql, useQuery, useMutation } from '@apollo/client';
 import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import { useHMS } from '@/hooks/useHMS';
 import {
@@ -25,7 +25,7 @@ import RecordingConsentModal from '@/components/video/RecordingConsentModal';
 type ScreenState = 'PRE_CALL' | 'CONSENT' | 'WAITING' | 'IN_CALL' | 'POST_CALL';
 
 // Simple query to get session info (reuses the same data shape)
-const GET_VIDEO_SESSION_QUERY = `
+const GET_VIDEO_SESSION_QUERY = gql`
     query GetVideoSession($videoSessionId: String!) {
         videoSession(videoSessionId: $videoSessionId) {
             id
@@ -50,7 +50,7 @@ export default function VideoSessionScreen() {
 
     const hms = useHMS();
 
-    const { data, loading, refetch } = useQuery(GET_VIDEO_SESSION_QUERY as any, {
+    const { data, loading, refetch } = useQuery(GET_VIDEO_SESSION_QUERY, {
         variables: { videoSessionId },
         skip: !videoSessionId,
         pollInterval: screenState === 'WAITING' ? 3000 : 0,
