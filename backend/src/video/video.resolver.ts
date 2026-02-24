@@ -156,10 +156,15 @@ export class VideoResolver {
     }
 
     // Use reconnect room if available, otherwise original room
-    const roomId = session.reconnectRoomId || session.roomId;
+    // Lazy room creation: if no room exists yet, create one now
+    let roomId = session.reconnectRoomId || session.roomId;
+    if (!roomId) {
+      const created = await this.hmsService.createRoom(videoSessionId);
+      roomId = created.roomId;
+    }
     const role = user.role === 'DOCTOR' ? 'doctor' : 'patient';
 
-    const token = await this.hmsService.generateToken(roomId!, user.id, role);
+    const token = await this.hmsService.generateToken(roomId, user.id, role);
 
     return { roomId, token };
   }

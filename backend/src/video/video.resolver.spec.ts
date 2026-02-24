@@ -32,6 +32,7 @@ const mockSlotBookingService = {
 
 const mockHmsService = {
   generateToken: jest.fn(),
+  createRoom: jest.fn(),
   handleWebhook: jest.fn(),
   verifyWebhookSignature: jest.fn(),
 };
@@ -214,6 +215,26 @@ describe('VideoResolver', () => {
       const result = await resolver.joinVideoSession(user, 'vs-1');
 
       expect(result.roomId).toBe('room-1');
+    });
+
+    it('should create room lazily when roomId is null', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        recordingConsentGiven: true,
+        roomId: null,
+        reconnectRoomId: null,
+      });
+      mockHmsService.createRoom.mockResolvedValue({ roomId: 'new-room-1' });
+      mockHmsService.generateToken.mockResolvedValue('mock-token');
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      const result = await resolver.joinVideoSession(user, 'vs-1');
+
+      expect(mockHmsService.createRoom).toHaveBeenCalledWith('vs-1');
+      expect(result.roomId).toBe('new-room-1');
+      expect(result.token).toBe('mock-token');
     });
 
     it('should not allow patient to access another patients session', async () => {

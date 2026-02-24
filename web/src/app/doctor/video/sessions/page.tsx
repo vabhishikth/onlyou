@@ -10,7 +10,6 @@ import {
     COMPLETE_VIDEO_SESSION,
     MARK_AWAITING_LABS,
     JOIN_VIDEO_SESSION,
-    GIVE_RECORDING_CONSENT,
 } from '@/graphql/doctor-video';
 import type {
     DoctorVideoSession,
@@ -60,10 +59,6 @@ export default function VideoSessionsPage() {
         onCompleted: () => refetch(),
     });
 
-    const [giveConsent] = useMutation(GIVE_RECORDING_CONSENT, {
-        onCompleted: () => refetch(),
-    });
-
     const [joinSession, { loading: joining }] = useMutation(JOIN_VIDEO_SESSION, {
         onCompleted: (result) => {
             const { roomId } = result.joinVideoSession;
@@ -72,23 +67,16 @@ export default function VideoSessionsPage() {
             refetch();
         },
         onError: (error) => {
-            if (error.message.includes('Recording consent')) {
-                // Auto-give consent for doctor and retry
-                alert('Recording consent is required. Granting consent...');
-            } else {
-                alert(`Error: ${error.message}`);
-            }
+            alert(`Error: ${error.message}`);
         },
     });
 
     const handleJoin = async (session: DoctorVideoSession) => {
         if (!session.recordingConsentGiven) {
-            await giveConsent({ variables: { videoSessionId: session.id } });
-            // After consent, join
-            joinSession({ variables: { videoSessionId: session.id } });
-        } else {
-            joinSession({ variables: { videoSessionId: session.id } });
+            alert('Waiting for the patient to give recording consent before you can join.');
+            return;
         }
+        joinSession({ variables: { videoSessionId: session.id } });
     };
 
     const sessions = data?.doctorVideoSessions || [];
