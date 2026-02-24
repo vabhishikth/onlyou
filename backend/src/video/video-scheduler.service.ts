@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoNotificationService } from './video-notification.service';
 import { HmsService } from './hms.service';
@@ -19,8 +20,8 @@ export class VideoSchedulerService {
 
   /**
    * Daily 9am IST: send reminders for tomorrow's sessions
-   * @Cron('0 9 * * *') — applied in video.module.ts
    */
+  @Cron('0 9 * * *')
   async send24HourReminders(): Promise<void> {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -50,8 +51,8 @@ export class VideoSchedulerService {
 
   /**
    * Every 15 min: send reminders for sessions starting in 55-65 min
-   * @Cron('*\/15 * * * *')
    */
+  @Cron('*/15 * * * *')
   async send1HourReminders(): Promise<void> {
     const now = new Date();
     const from = new Date(now.getTime() + 55 * 60 * 1000);
@@ -75,8 +76,8 @@ export class VideoSchedulerService {
 
   /**
    * Every 5 min: create rooms for sessions starting in 0-5 min
-   * @Cron('*\/5 * * * *')
    */
+  @Cron('*/5 * * * *')
   async createRoomsForUpcomingSessions(): Promise<void> {
     const now = new Date();
     const fiveMinFromNow = new Date(now.getTime() + 5 * 60 * 1000);
@@ -103,8 +104,8 @@ export class VideoSchedulerService {
    * Every minute: check for doctor no-shows
    * 3 min after scheduledStartTime, doctor hasn't joined -> URGENT admin alert
    * 5 min after scheduledStartTime, doctor still hasn't joined -> patient apology, mark NO_SHOW_DOCTOR
-   * @Cron('* * * * *')
    */
+  @Cron('* * * * *')
   async checkDoctorNoShow(): Promise<void> {
     const now = new Date();
     // Find sessions that should have started (scheduled time is in the past)

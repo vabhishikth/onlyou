@@ -12,6 +12,8 @@ import { VideoNotificationService } from './video-notification.service';
 import { HmsService } from './hms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConsultationStatus, VideoSessionStatus } from '@prisma/client';
+import { Reflector } from '@nestjs/core';
+import { SCHEDULE_CRON_OPTIONS } from '@nestjs/schedule';
 
 const mockPrisma = {
   videoSession: {
@@ -226,6 +228,41 @@ describe('VideoSchedulerService', () => {
         where: { id: 'consult-1' },
         data: { status: ConsultationStatus.AWAITING_LABS },
       });
+    });
+  });
+
+  // Spec: Cron decorators must be applied to scheduler methods
+  describe('@Cron decorators', () => {
+    it('should have @Cron on send24HourReminders', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.send24HourReminders,
+      );
+      expect(metadata).toBeDefined();
+    });
+
+    it('should have @Cron on send1HourReminders', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.send1HourReminders,
+      );
+      expect(metadata).toBeDefined();
+    });
+
+    it('should have @Cron on createRoomsForUpcomingSessions', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.createRoomsForUpcomingSessions,
+      );
+      expect(metadata).toBeDefined();
+    });
+
+    it('should have @Cron on checkDoctorNoShow', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.checkDoctorNoShow,
+      );
+      expect(metadata).toBeDefined();
     });
   });
 });

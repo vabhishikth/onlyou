@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -24,7 +25,6 @@ import RecordingConsentModal from '@/components/video/RecordingConsentModal';
 
 type ScreenState = 'PRE_CALL' | 'CONSENT' | 'WAITING' | 'IN_CALL' | 'POST_CALL';
 
-// Simple query to get session info (reuses the same data shape)
 const GET_VIDEO_SESSION_QUERY = gql`
     query GetVideoSession($videoSessionId: String!) {
         videoSession(videoSessionId: $videoSessionId) {
@@ -41,26 +41,35 @@ const GET_VIDEO_SESSION_QUERY = gql`
     }
 `;
 
+// Join window: allow joining 2 minutes before scheduled time
+const JOIN_WINDOW_MS = 2 * 60 * 1000;
+
 export default function VideoSessionScreen() {
     const router = useRouter();
     const { videoSessionId } = useLocalSearchParams<{ videoSessionId: string }>();
 
     const [screenState, setScreenState] = useState<ScreenState>('PRE_CALL');
     const [callDuration, setCallDuration] = useState(0);
+    const [secondsUntilStart, setSecondsUntilStart] = useState<number | null>(null);
+    const [waitingElapsed, setWaitingElapsed] = useState(0);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
 
     const hms = useHMS();
+
+    // Poll in PRE_CALL to detect "doctor is waiting" status, and in WAITING for status changes
+    const shouldPoll = screenState === 'PRE_CALL' || screenState === 'WAITING';
 
     const { data, loading, refetch } = useQuery(GET_VIDEO_SESSION_QUERY, {
         variables: { videoSessionId },
         skip: !videoSessionId,
-        pollInterval: screenState === 'WAITING' ? 3000 : 0,
+        pollInterval: shouldPoll ? 3000 : 0,
     });
 
     const session: VideoSession | null = data?.videoSession || null;
 
     const [joinSession] = useMutation(JOIN_VIDEO_SESSION, {
         onCompleted: async (result) => {
-            const { roomId, token } = result.joinVideoSession;
+            const { token } = result.joinVideoSession;
             setScreenState('WAITING');
             try {
                 await hms.join(token, 'patient');
@@ -75,6 +84,22 @@ export default function VideoSessionScreen() {
         },
     });
 
+    // Countdown timer to scheduled start
+    useEffect(() => {
+        if (!session?.scheduledStartTime || screenState !== 'PRE_CALL') return;
+
+        const updateCountdown = () => {
+            const now = Date.now();
+            const start = new Date(session.scheduledStartTime).getTime();
+            const diff = Math.floor((start - now) / 1000);
+            setSecondsUntilStart(diff);
+        };
+
+        updateCountdown();
+        const timer = setInterval(updateCountdown, 1000);
+        return () => clearInterval(timer);
+    }, [session?.scheduledStartTime, screenState]);
+
     // Call duration timer
     useEffect(() => {
         let timer: ReturnType<typeof setInterval>;
@@ -88,10 +113,53 @@ export default function VideoSessionScreen() {
         };
     }, [screenState]);
 
+    // Waiting elapsed timer
+    useEffect(() => {
+        let timer: ReturnType<typeof setInterval>;
+        if (screenState === 'WAITING') {
+            setWaitingElapsed(0);
+            timer = setInterval(() => {
+                setWaitingElapsed((prev) => prev + 1);
+            }, 1000);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [screenState]);
+
+    // Pulse animation for "Doctor is waiting" indicator
+    useEffect(() => {
+        if (session?.status === 'WAITING_FOR_PATIENT') {
+            const pulse = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                ]),
+            );
+            pulse.start();
+            return () => pulse.stop();
+        }
+    }, [session?.status, pulseAnim]);
+
+    const isDoctorWaiting = session?.status === 'WAITING_FOR_PATIENT';
+    const canJoin = secondsUntilStart !== null && secondsUntilStart <= JOIN_WINDOW_MS / 1000;
+
     const formatDuration = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const formatCountdown = (seconds: number) => {
+        if (seconds <= 0) return 'Now';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        if (m > 60) {
+            const h = Math.floor(m / 60);
+            const rm = m % 60;
+            return `${h}h ${rm}m`;
+        }
+        return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
     const formatScheduledTime = (isoStr: string) => {
@@ -106,13 +174,20 @@ export default function VideoSessionScreen() {
     const handleJoinCall = useCallback(() => {
         if (!session) return;
 
+        // Always allow consent flow regardless of time
         if (!session.recordingConsentGiven) {
             setScreenState('CONSENT');
             return;
         }
 
+        // After consent, check time window
+        if (!canJoin && !isDoctorWaiting) {
+            Alert.alert('Too Early', 'You can join 2 minutes before the scheduled time.');
+            return;
+        }
+
         joinSession({ variables: { videoSessionId } });
-    }, [session, videoSessionId, joinSession]);
+    }, [session, videoSessionId, joinSession, canJoin, isDoctorWaiting]);
 
     const handleConsentGiven = useCallback(() => {
         setScreenState('PRE_CALL');
@@ -180,12 +255,32 @@ export default function VideoSessionScreen() {
                         </View>
                     </View>
 
+                    {/* Doctor is waiting banner */}
+                    {isDoctorWaiting && (
+                        <Animated.View style={[styles.doctorWaitingBanner, { opacity: pulseAnim }]}>
+                            <Text style={styles.doctorWaitingText}>
+                                Your doctor is waiting — Join now!
+                            </Text>
+                        </Animated.View>
+                    )}
+
                     {session && (
                         <View style={styles.scheduleInfo}>
-                            <Text style={styles.scheduleLabel}>Scheduled</Text>
-                            <Text style={styles.scheduleTime}>
-                                {formatScheduledTime(session.scheduledStartTime)}
-                            </Text>
+                            {secondsUntilStart !== null && secondsUntilStart > 0 ? (
+                                <>
+                                    <Text style={styles.scheduleLabel}>Starts in</Text>
+                                    <Text style={styles.countdownText}>
+                                        {formatCountdown(secondsUntilStart)}
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={styles.scheduleLabel}>Scheduled</Text>
+                                    <Text style={styles.scheduleTime}>
+                                        {formatScheduledTime(session.scheduledStartTime)}
+                                    </Text>
+                                </>
+                            )}
                         </View>
                     )}
 
@@ -218,11 +313,26 @@ export default function VideoSessionScreen() {
                     </View>
 
                     <TouchableOpacity
-                        style={styles.joinButton}
+                        testID="join-button"
+                        style={[
+                            styles.joinButton,
+                            !canJoin && !isDoctorWaiting && session?.recordingConsentGiven && styles.joinButtonDisabled,
+                        ]}
                         onPress={handleJoinCall}
                     >
-                        <Text style={styles.joinButtonText}>Join Call</Text>
+                        <Text style={[
+                            styles.joinButtonText,
+                            !canJoin && !isDoctorWaiting && session?.recordingConsentGiven && styles.joinButtonTextDisabled,
+                        ]}>
+                            Join Call
+                        </Text>
                     </TouchableOpacity>
+
+                    {!canJoin && !isDoctorWaiting && (
+                        <Text style={styles.joinHint}>
+                            Join opens 2 minutes before scheduled time
+                        </Text>
+                    )}
                 </View>
             )}
 
@@ -249,9 +359,15 @@ export default function VideoSessionScreen() {
             {screenState === 'WAITING' && (
                 <View style={styles.centerContent}>
                     <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.waitingTitle}>Connecting...</Text>
+                    <Text style={styles.waitingTitle}>
+                        {hms.connectionState === 'CONNECTED'
+                            ? 'Waiting for doctor...'
+                            : 'Connecting...'}
+                    </Text>
                     <Text style={styles.waitingText}>
-                        Your doctor will join shortly
+                        {hms.connectionState === 'CONNECTED'
+                            ? `Waiting ${formatDuration(waitingElapsed)}`
+                            : 'Setting up your connection'}
                     </Text>
                     <TouchableOpacity
                         style={styles.leaveButton}
@@ -398,6 +514,19 @@ const styles = StyleSheet.create({
         ...typography.bodySmall,
         color: '#888',
     },
+    doctorWaitingBanner: {
+        backgroundColor: '#059669',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
+        alignItems: 'center',
+    },
+    doctorWaitingText: {
+        ...typography.bodySmall,
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
     scheduleInfo: {
         flexDirection: 'row',
         justifyContent: 'center',
@@ -413,6 +542,11 @@ const styles = StyleSheet.create({
         ...typography.bodySmall,
         fontWeight: '600',
         color: colors.text,
+    },
+    countdownText: {
+        ...typography.headingSmall,
+        fontWeight: '700',
+        color: colors.primary,
     },
     controlsRow: {
         flexDirection: 'row',
@@ -442,9 +576,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         ...shadows.md,
     },
+    joinButtonDisabled: {
+        backgroundColor: '#D1D5DB',
+    },
     joinButtonText: {
         ...typography.button,
         color: '#FFFFFF',
+    },
+    joinButtonTextDisabled: {
+        color: '#9CA3AF',
+    },
+    joinHint: {
+        ...typography.label,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginTop: spacing.sm,
     },
     // WAITING
     waitingTitle: {
