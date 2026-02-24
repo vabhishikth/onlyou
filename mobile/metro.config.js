@@ -4,10 +4,10 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Stub out native modules ONLY when running with Expo Go (set EXPO_GO=1)
-// In EAS development builds, the real native SDKs are available
-// Usage: EXPO_GO=1 npx expo start  (for Expo Go testing without native modules)
-if (process.env.EXPO_GO === '1') {
+// Stub out native modules during local development (metro bundler on dev machine).
+// During EAS builds, EAS_BUILD=true is set and real native SDKs are compiled in.
+// This prevents crashes when the dev client binary doesn't include a native module.
+if (!process.env.EAS_BUILD) {
     const nativeModuleStubs = {
         '@100mslive/react-native-hms': path.resolve(__dirname, 'src/stubs/100ms-hms.ts'),
         'react-native-razorpay': path.resolve(__dirname, 'src/stubs/razorpay.ts'),

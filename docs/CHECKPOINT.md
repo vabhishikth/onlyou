@@ -1,8 +1,8 @@
 # CHECKPOINT — Last Updated: 2026-02-24
 
-## Current Phase: E2E Testing — Video Flow + Doctor Join + EAS Build Setup
-## Current Task: EAS Build configuration for native development builds
-## Status: COMPLETE (build config ready — user runs `eas build` interactively)
+## Current Phase: E2E Testing — Real-time Updates + Missing Resolvers + iOS Dev Build
+## Current Task: Backend video resolvers + polling + doctor UX
+## Status: COMPLETE
 
 ## Completed Work:
 
@@ -264,15 +264,63 @@ cd mobile && npx eas-cli build --platform ios --profile development
 cd mobile && npx expo start --dev-client
 ```
 
+### E2E Fixes — Session 3 (2026-02-24) — COMPLETE
+
+#### Fix 13: Metro Config — Stub Native Modules in Local Dev
+- [x] Changed `metro.config.js` to stub native modules when `!process.env.EAS_BUILD` (was `EXPO_GO === '1'`)
+- [x] During EAS cloud builds, `EAS_BUILD=true` is set — real native SDKs compiled in
+- [x] During local dev, stubs prevent crash when native binary doesn't include HMS/Razorpay
+- [x] iOS dev build succeeded: Expo SDK 54, build time 5m 19s, fingerprint be67733
+
+#### Fix 14: Real-Time Status Updates — Polling
+- [x] Mobile activity screen: Added `pollInterval: 10000` (10s) to both `GET_ACTIVE_TRACKING` and `GET_MY_CONSULTATIONS` queries
+- [x] Mobile home screen: Added `pollInterval: 15000` (15s) to `GET_MY_CONSULTATIONS` query
+- [x] Doctor case detail page: Added `pollInterval: 10000` (10s) to `CASE_DETAIL` query
+- [x] Status changes now appear automatically without manual pull-to-refresh
+
+#### Fix 15: Doctor Dashboard — "Waiting for Patient" State
+- [x] Split `DOCTOR_REVIEWING` action buttons into two states based on `videoRequested`:
+  - **Before request**: Shows "Request Video Call", "Request Info", "Reject", "Prescribe"
+  - **After request** (`videoRequested = true`): Shows amber "Waiting for patient to book video slot..." banner with pulsing icon
+- [x] Updated both desktop header and mobile action bar
+- [x] `videoRequested` field already in GraphQL query and TypeScript interface
+
+#### Fix 16: Missing `videoSession` Query Resolver (Backend)
+- [x] Added `@Query videoSession(videoSessionId: String!)` to `VideoResolver`
+- [x] Returns `VideoSessionType` — patient's mobile session screen needs this to load session data
+- [x] Access control: only the patient or doctor on the session can access it
+- [x] Throws `NotFoundException` / `ForbiddenException` as appropriate
+- [x] **Root cause of mobile "Join Call does nothing" bug**: session was null → `handleJoinCall` silently returned
+
+#### Fix 17: Missing `doctorVideoSessions` Query Resolver (Backend)
+- [x] Added `@Query doctorVideoSessions` to `VideoResolver` — returns `DoctorVideoSessionType[]`
+- [x] Added `DoctorVideoSessionType` DTO (id, consultationId, patientName, patientId, status, scheduledStartTime, scheduledEndTime, recordingConsentGiven)
+- [x] Queries `VideoSession` with status `IN ['SCHEDULED', 'IN_PROGRESS']`, includes patient profile for name
+- [x] Falls back to "Patient" when `patientProfile.fullName` is null
+- [x] Role-restricted: only `DOCTOR` role can call
+- [x] **Root cause of doctor "video sessions page empty" bug**: the query had no backend resolver
+
+#### Tests (8 new, TDD)
+- [x] `video.resolver.spec.ts`: "getVideoSession — should return session for the patient" — verifies access + correct data
+- [x] `video.resolver.spec.ts`: "getVideoSession — should return session for the doctor" — verifies doctor access
+- [x] `video.resolver.spec.ts`: "getVideoSession — should throw NotFoundException if session does not exist"
+- [x] `video.resolver.spec.ts`: "getVideoSession — should throw ForbiddenException if user is not patient or doctor"
+- [x] `video.resolver.spec.ts`: "getDoctorVideoSessions — should return sessions with patient names" — verifies Prisma query + name mapping
+- [x] `video.resolver.spec.ts`: "getDoctorVideoSessions — should default patient name when profile is missing"
+- [x] `video.resolver.spec.ts`: "getDoctorVideoSessions — should reject non-doctor role"
+- [x] `video.resolver.spec.ts`: "getDoctorVideoSessions — should return empty array when no sessions exist"
+- [x] All 27 video resolver tests pass (8 new + 19 existing)
+
 ## Test Counts:
-- Backend: 2,785 tests (87 test suites)
+- Backend: 2,793 tests (87 test suites)
 - Mobile: 635 tests (55 test suites)
 - Web: 285 tests (38 test suites)
 - **Total: 3,705 tests**
 
 ## Recent Commits:
 ```
-<pending> fix(e2e): doctor video join + Apollo fix + EAS build setup
+<pending> fix(e2e): real-time polling + missing video resolvers + doctor UX
+8bfb02e feat(e2e): doctor video join flow + Apollo fix + EAS build setup
 38855df feat(doctor): video request flow + Q-mapping fix + dashboard workflow improvements
 a5c875a fix(admin): doctor onboarding + admin portal E2E fixes
 e257942 fix(mobile): move useAnimatedStyle before conditional return (Rules of Hooks)

@@ -115,10 +115,12 @@ export default function ActivityScreen() {
 
     const { data, loading, refetch } = useQuery<ActiveTrackingResponse>(GET_ACTIVE_TRACKING, {
         fetchPolicy: 'cache-and-network',
+        pollInterval: 10000, // Auto-refresh every 10s for real-time status updates
     });
 
     const { data: consultData, refetch: refetchConsultations } = useQuery<{ myConsultations: Consultation[] }>(GET_MY_CONSULTATIONS, {
         fetchPolicy: 'cache-and-network',
+        pollInterval: 10000, // Auto-refresh every 10s for real-time status updates
     });
 
     const onRefresh = useCallback(async () => {

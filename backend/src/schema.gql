@@ -806,6 +806,17 @@ type DoctorStats {
   seniorDoctor: Boolean!
 }
 
+type DoctorVideoSessionType {
+  consultationId: String!
+  id: String!
+  patientId: String!
+  patientName: String!
+  recordingConsentGiven: Boolean!
+  scheduledEndTime: DateTime!
+  scheduledStartTime: DateTime!
+  status: VideoSessionStatus!
+}
+
 """User gender"""
 enum Gender {
   FEMALE
@@ -1702,6 +1713,7 @@ type Query {
   doctorPrescriptions(filters: DoctorPrescriptionsFilterInput): [DoctorPrescriptionItem!]!
   doctorQueue(filters: QueueFiltersInput): QueueResponse!
   doctorStats(id: String!): DoctorStats!
+  doctorVideoSessions: [DoctorVideoSessionType!]!
   doctors(isAvailable: Boolean, vertical: HealthVertical): [DoctorProfileType!]!
   getAssessment(consultationId: String!): AIPreAssessmentType
   labCompletedSamples: [LabSampleSummary!]!
@@ -1774,6 +1786,7 @@ type Query {
   unreadNotifications: [NotificationType!]!
   validatePaymentBeforeOrder(consultationId: String!, patientId: String!): JSON!
   validatePricing(amountPaise: Int!, planType: String!, vertical: String!): PricingValidationResponse!
+  videoSession(videoSessionId: String!): VideoSessionType!
   walletBalance(userId: String!): WalletBalanceType!
 }
 

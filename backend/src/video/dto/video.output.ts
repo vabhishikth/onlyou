@@ -175,6 +175,33 @@ export class VideoSessionType {
 }
 
 @ObjectType()
+export class DoctorVideoSessionType {
+  @Field()
+  id: string;
+
+  @Field()
+  consultationId: string;
+
+  @Field()
+  patientName: string;
+
+  @Field()
+  patientId: string;
+
+  @Field(() => VideoSessionStatus)
+  status: VideoSessionStatus;
+
+  @Field()
+  scheduledStartTime: Date;
+
+  @Field()
+  scheduledEndTime: Date;
+
+  @Field()
+  recordingConsentGiven: boolean;
+}
+
+@ObjectType()
 export class BookingResponse {
   @Field(() => BookedSlotType)
   bookedSlot: BookedSlotType;

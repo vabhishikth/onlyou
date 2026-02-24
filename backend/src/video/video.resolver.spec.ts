@@ -7,7 +7,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { VideoResolver } from './video.resolver';
 import { AvailabilityService } from './availability.service';
 import { SlotBookingService, CONNECTIVITY_WARNING } from './slot-booking.service';
@@ -254,6 +254,165 @@ describe('VideoResolver', () => {
   // ============================================================
   // Doctor endpoints
   // ============================================================
+
+  // ============================================================
+  // videoSession query
+  // ============================================================
+
+  describe('Patient: getVideoSession', () => {
+    it('should return session for the patient', async () => {
+      const mockSession = {
+        id: 'vs-1',
+        consultationId: 'consult-1',
+        doctorId: 'doctor-1',
+        patientId: 'patient-1',
+        status: VideoSessionStatus.SCHEDULED,
+        scheduledStartTime: new Date(),
+        scheduledEndTime: new Date(),
+        recordingConsentGiven: false,
+        roomId: 'room-1',
+      };
+      mockPrisma.videoSession.findUnique.mockResolvedValue(mockSession);
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      const result = await resolver.getVideoSession(user, 'vs-1');
+
+      expect(result.id).toBe('vs-1');
+      expect(result.consultationId).toBe('consult-1');
+      expect(mockPrisma.videoSession.findUnique).toHaveBeenCalledWith({
+        where: { id: 'vs-1' },
+      });
+    });
+
+    it('should return session for the doctor', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        status: VideoSessionStatus.SCHEDULED,
+      });
+
+      const user = { id: 'doctor-1', role: 'DOCTOR' };
+      const result = await resolver.getVideoSession(user, 'vs-1');
+
+      expect(result.id).toBe('vs-1');
+    });
+
+    it('should throw NotFoundException if session does not exist', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue(null);
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+
+      await expect(
+        resolver.getVideoSession(user, 'nonexistent'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user is not patient or doctor on session', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-2',
+        doctorId: 'doctor-2',
+      });
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+
+      await expect(
+        resolver.getVideoSession(user, 'vs-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ============================================================
+  // doctorVideoSessions query
+  // ============================================================
+
+  describe('Doctor: getDoctorVideoSessions', () => {
+    it('should return sessions with patient names', async () => {
+      mockPrisma.videoSession.findMany.mockResolvedValue([
+        {
+          id: 'vs-1',
+          consultationId: 'consult-1',
+          patientId: 'patient-1',
+          status: VideoSessionStatus.SCHEDULED,
+          scheduledStartTime: new Date('2026-03-01T10:00:00Z'),
+          scheduledEndTime: new Date('2026-03-01T10:15:00Z'),
+          recordingConsentGiven: false,
+          patient: {
+            patientProfile: { fullName: 'Rahul Sharma' },
+          },
+        },
+        {
+          id: 'vs-2',
+          consultationId: 'consult-2',
+          patientId: 'patient-2',
+          status: VideoSessionStatus.IN_PROGRESS,
+          scheduledStartTime: new Date('2026-03-01T10:15:00Z'),
+          scheduledEndTime: new Date('2026-03-01T10:30:00Z'),
+          recordingConsentGiven: true,
+          patient: {
+            patientProfile: { fullName: 'Priya Patel' },
+          },
+        },
+      ]);
+
+      const user = { id: 'doctor-1', role: 'DOCTOR' };
+      const result = await resolver.getDoctorVideoSessions(user);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].patientName).toBe('Rahul Sharma');
+      expect(result[1].patientName).toBe('Priya Patel');
+      expect(result[0].status).toBe(VideoSessionStatus.SCHEDULED);
+      expect(result[1].recordingConsentGiven).toBe(true);
+      expect(mockPrisma.videoSession.findMany).toHaveBeenCalledWith({
+        where: {
+          doctorId: 'doctor-1',
+          status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
+        },
+        include: {
+          patient: { include: { patientProfile: true } },
+        },
+        orderBy: { scheduledStartTime: 'asc' },
+      });
+    });
+
+    it('should default patient name when profile is missing', async () => {
+      mockPrisma.videoSession.findMany.mockResolvedValue([
+        {
+          id: 'vs-1',
+          consultationId: 'consult-1',
+          patientId: 'patient-1',
+          status: VideoSessionStatus.SCHEDULED,
+          scheduledStartTime: new Date(),
+          scheduledEndTime: new Date(),
+          recordingConsentGiven: false,
+          patient: { patientProfile: null },
+        },
+      ]);
+
+      const user = { id: 'doctor-1', role: 'DOCTOR' };
+      const result = await resolver.getDoctorVideoSessions(user);
+
+      expect(result[0].patientName).toBe('Patient');
+    });
+
+    it('should reject non-doctor role', async () => {
+      const user = { id: 'patient-1', role: 'PATIENT' };
+
+      await expect(
+        resolver.getDoctorVideoSessions(user),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return empty array when no sessions exist', async () => {
+      mockPrisma.videoSession.findMany.mockResolvedValue([]);
+
+      const user = { id: 'doctor-1', role: 'DOCTOR' };
+      const result = await resolver.getDoctorVideoSessions(user);
+
+      expect(result).toHaveLength(0);
+    });
+  });
 
   describe('Doctor: setMyAvailability', () => {
     it('should set slots', async () => {

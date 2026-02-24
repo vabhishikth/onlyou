@@ -168,6 +168,9 @@ importers:
 
   mobile:
     dependencies:
+      '@100mslive/react-native-hms':
+        specifier: ^1.12.0
+        version: 1.12.0(@types/react@19.1.17)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@apollo/client':
         specifier: ^3.14.0
         version: 3.14.0(@types/react@19.1.17)(graphql-ws@5.16.0(graphql@16.12.0))(graphql@16.12.0)(react-dom@18.3.1(react@19.1.0))(react@19.1.0)(subscriptions-transport-ws@0.11.0(graphql@16.12.0))
@@ -463,6 +466,12 @@ packages:
     peerDependenciesMeta:
       graphql:
         optional: true
+
+  '@100mslive/react-native-hms@1.12.0':
+    resolution: {integrity: sha512-64opwOxw1wvRikh1ytq0FHpzg0JsFsNvjU3WPix3TweRoh9/FGzNBE2iu2qtQ+zsEoOh7iDOiNczoKvazWf4ow==}
+    peerDependencies:
+      react: '*'
+      react-native: '>=0.77.3'
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
@@ -8438,6 +8447,21 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zustand@4.5.7:
+    resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
+    engines: {node: '>=12.7.0'}
+    peerDependencies:
+      '@types/react': '>=16.8'
+      immer: '>=9.0.6'
+      react: '>=16.8'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+
   zustand@5.0.11:
     resolution: {integrity: sha512-fdZY+dk7zn/vbWNCYmzZULHRrss0jx5pPFiOuMZ/5HJN6Yv3u+1Wswy/4MpZEkEGhtNH+pwxZB8OKgUBPzYAGg==}
     engines: {node: '>=12.20.0'}
@@ -8461,6 +8485,15 @@ snapshots:
   '@0no-co/graphql.web@1.2.0(graphql@16.12.0)':
     optionalDependencies:
       graphql: 16.12.0
+
+  '@100mslive/react-native-hms@1.12.0(@types/react@19.1.17)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
+      zustand: 4.5.7(@types/react@19.1.17)(react@19.1.0)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
 
   '@adobe/css-tools@4.4.4': {}
 
@@ -18459,6 +18492,13 @@ snapshots:
   zen-observable@0.8.15: {}
 
   zod@3.25.76: {}
+
+  zustand@4.5.7(@types/react@19.1.17)(react@19.1.0):
+    dependencies:
+      use-sync-external-store: 1.6.0(react@19.1.0)
+    optionalDependencies:
+      '@types/react': 19.1.17
+      react: 19.1.0
 
   zustand@5.0.11(@types/react@19.1.17)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0)):
     optionalDependencies:

@@ -133,6 +133,7 @@ export default function HomeScreen() {
         refetch: refetchConsultations,
     } = useQuery<{ myConsultations: Consultation[] }>(GET_MY_CONSULTATIONS, {
         fetchPolicy: 'cache-and-network',
+        pollInterval: 15000, // Auto-refresh every 15s for status updates on home screen
     });
 
     const verticals = verticalsData?.availableVerticals || DEFAULT_VERTICALS;

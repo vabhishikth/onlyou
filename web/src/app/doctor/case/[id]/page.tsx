@@ -101,6 +101,7 @@ export default function CaseDetailPage() {
     const { data, loading, error, refetch } = useQuery<CaseDetailResponse>(CASE_DETAIL, {
         variables: { consultationId },
         fetchPolicy: 'cache-and-network',
+        pollInterval: 10000, // Auto-refresh every 10s for real-time status updates
     });
 
     const [updateStatus, { loading: updating }] = useMutation(UPDATE_CONSULTATION_STATUS, {
@@ -270,7 +271,7 @@ export default function CaseDetailPage() {
                                 </Button>
                             </div>
                         )}
-                        {consultation.status === 'DOCTOR_REVIEWING' && (
+                        {consultation.status === 'DOCTOR_REVIEWING' && !consultation.videoRequested && (
                             <div className="hidden lg:flex items-center gap-2">
                                 <Button
                                     variant="outline"
@@ -299,6 +300,20 @@ export default function CaseDetailPage() {
                                 </Button>
                                 <Link href={`/doctor/case/${consultationId}/prescribe`}>
                                     <Button disabled={updating}>
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Create Prescription
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
+                        {consultation.status === 'DOCTOR_REVIEWING' && consultation.videoRequested && (
+                            <div className="hidden lg:flex items-center gap-2">
+                                <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                                    <Video className="w-4 h-4 text-amber-600 animate-pulse" />
+                                    <span className="text-sm font-medium text-amber-700">Waiting for patient to book video slot...</span>
+                                </div>
+                                <Link href={`/doctor/case/${consultationId}/prescribe`}>
+                                    <Button variant="outline" disabled={updating}>
                                         <CheckCircle className="w-4 h-4 mr-2" />
                                         Create Prescription
                                     </Button>
@@ -419,7 +434,7 @@ export default function CaseDetailPage() {
                     </Button>
                 </div>
             )}
-            {consultation.status === 'DOCTOR_REVIEWING' && (
+            {consultation.status === 'DOCTOR_REVIEWING' && !consultation.videoRequested && (
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
                     <div className="flex gap-2">
                         <Button
@@ -451,6 +466,21 @@ export default function CaseDetailPage() {
                         <Link href={`/doctor/case/${consultationId}/prescribe`} className="flex-1">
                             <Button size="sm" className="w-full" disabled={updating}>
                                 Prescribe
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            )}
+            {consultation.status === 'DOCTOR_REVIEWING' && consultation.videoRequested && (
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-30">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                            <Video className="w-4 h-4 text-amber-600 animate-pulse" />
+                            <span className="text-sm font-medium text-amber-700">Waiting for patient to book slot...</span>
+                        </div>
+                        <Link href={`/doctor/case/${consultationId}/prescribe`}>
+                            <Button size="sm" variant="outline" className="w-full" disabled={updating}>
+                                Create Prescription
                             </Button>
                         </Link>
                     </div>

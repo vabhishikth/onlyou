@@ -26,6 +26,7 @@ import {
   AvailabilitySlotType,
   NoShowResultType,
   VideoSessionType,
+  DoctorVideoSessionType,
   BookedSlotType,
 } from './dto/video.output';
 
@@ -106,6 +107,28 @@ export class VideoResolver {
     return this.slotBookingService.getUpcomingBookings(user.id, user.role);
   }
 
+  @Query(() => VideoSessionType, { name: 'videoSession' })
+  @UseGuards(JwtAuthGuard)
+  async getVideoSession(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
+    const session = await this.prisma.videoSession.findUnique({
+      where: { id: videoSessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Video session not found');
+    }
+
+    // Access control: user must be the patient or doctor on this session
+    if (session.patientId !== user.id && session.doctorId !== user.id) {
+      throw new ForbiddenException('You do not have access to this video session');
+    }
+
+    return session;
+  }
+
   @Mutation(() => JoinSessionResponse, { name: 'joinVideoSession' })
   @UseGuards(JwtAuthGuard)
   async joinVideoSession(
@@ -168,6 +191,40 @@ export class VideoResolver {
   // ============================================================
   // Doctor endpoints
   // ============================================================
+
+  @Query(() => [DoctorVideoSessionType], { name: 'doctorVideoSessions' })
+  @UseGuards(JwtAuthGuard)
+  async getDoctorVideoSessions(@CurrentUser() user: any) {
+    if (user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can view their video sessions');
+    }
+
+    const sessions = await this.prisma.videoSession.findMany({
+      where: {
+        doctorId: user.id,
+        status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
+      },
+      include: {
+        patient: {
+          include: {
+            patientProfile: true,
+          },
+        },
+      },
+      orderBy: { scheduledStartTime: 'asc' },
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      consultationId: s.consultationId,
+      patientName: s.patient?.patientProfile?.fullName || 'Patient',
+      patientId: s.patientId,
+      status: s.status,
+      scheduledStartTime: s.scheduledStartTime,
+      scheduledEndTime: s.scheduledEndTime,
+      recordingConsentGiven: s.recordingConsentGiven,
+    }));
+  }
 
   @Mutation(() => [AvailabilitySlotType], { name: 'setMyAvailability' })
   @UseGuards(JwtAuthGuard)
