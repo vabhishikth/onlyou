@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { createHash } from 'crypto';
 
 // Spec: master spec Section 3.1, Section 14
 describe('AuthService', () => {
@@ -189,6 +190,23 @@ describe('AuthService', () => {
       expect(tokens.refreshToken.length).toBeGreaterThan(0);
     });
 
+    it('should store SHA-256 hash of refresh token in DB, not raw token', async () => {
+      // Spec: Section 14 (Security) — refresh tokens must be hashed before storage
+      prismaService.refreshToken.create.mockResolvedValue({} as any);
+
+      const tokens = await service.generateTokens(mockUser);
+
+      // The raw token returned to user
+      const rawToken = tokens.refreshToken;
+      // The expected hash that should be stored in DB
+      const expectedHash = createHash('sha256').update(rawToken).digest('hex');
+
+      // Verify the DB received the hash, not the raw token
+      const createCall = prismaService.refreshToken.create.mock.calls[0][0];
+      expect(createCall.data.token).toBe(expectedHash);
+      expect(createCall.data.token).not.toBe(rawToken);
+    });
+
     it('should throw error if JWT_ACCESS_SECRET is not configured', async () => {
       configService.get.mockReturnValue(undefined);
 
@@ -199,11 +217,38 @@ describe('AuthService', () => {
   });
 
   describe('refreshAccessToken', () => {
-    it('should return new tokens for valid refresh token', async () => {
+    it('should hash incoming token before DB lookup', async () => {
+      // Spec: Section 14 (Security) — tokens are hashed before comparison
+      const rawToken = 'valid-refresh-token';
+      const hashedToken = createHash('sha256').update(rawToken).digest('hex');
       const storedToken = {
         id: 'token-123',
         userId: mockUser.id,
-        token: 'valid-refresh-token',
+        token: hashedToken,
+        expiresAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
+        user: mockUser,
+      };
+      prismaService.refreshToken.findUnique.mockResolvedValue(storedToken);
+      prismaService.refreshToken.delete.mockResolvedValue({} as any);
+      prismaService.refreshToken.create.mockResolvedValue({} as any);
+
+      await service.refreshAccessToken(rawToken);
+
+      // The DB lookup should use the hashed token
+      expect(prismaService.refreshToken.findUnique).toHaveBeenCalledWith({
+        where: { token: hashedToken },
+        include: { user: true },
+      });
+    });
+
+    it('should return new tokens for valid refresh token', async () => {
+      const rawToken = 'valid-refresh-token';
+      const hashedToken = createHash('sha256').update(rawToken).digest('hex');
+      const storedToken = {
+        id: 'token-123',
+        userId: mockUser.id,
+        token: hashedToken,
         expiresAt: new Date(Date.now() + 86400000), // 1 day from now
         createdAt: new Date(),
         user: mockUser,
@@ -212,7 +257,7 @@ describe('AuthService', () => {
       prismaService.refreshToken.delete.mockResolvedValue({} as any);
       prismaService.refreshToken.create.mockResolvedValue({} as any);
 
-      const result = await service.refreshAccessToken('valid-refresh-token');
+      const result = await service.refreshAccessToken(rawToken);
 
       expect(result.success).toBe(true);
       expect(result.tokens).toBeDefined();
@@ -230,17 +275,19 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException and delete expired refresh token', async () => {
+      const rawToken = 'expired-token';
+      const hashedToken = createHash('sha256').update(rawToken).digest('hex');
       const expiredToken = {
         id: 'token-123',
         userId: mockUser.id,
-        token: 'expired-token',
+        token: hashedToken,
         expiresAt: new Date(Date.now() - 86400000), // 1 day ago
         createdAt: new Date(),
         user: mockUser,
       };
       prismaService.refreshToken.findUnique.mockResolvedValue(expiredToken);
 
-      await expect(service.refreshAccessToken('expired-token')).rejects.toThrow(
+      await expect(service.refreshAccessToken(rawToken)).rejects.toThrow(
         UnauthorizedException
       );
       expect(prismaService.refreshToken.delete).toHaveBeenCalledWith({
@@ -250,13 +297,16 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should delete specific refresh token when provided', async () => {
+    it('should hash specific refresh token before deleting from DB', async () => {
+      // Spec: Section 14 (Security) — hash tokens for logout comparison
+      const rawToken = 'specific-token';
+      const hashedToken = createHash('sha256').update(rawToken).digest('hex');
       prismaService.refreshToken.deleteMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.logout('user-123', 'specific-token');
+      const result = await service.logout('user-123', rawToken);
 
       expect(prismaService.refreshToken.deleteMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123', token: 'specific-token' },
+        where: { userId: 'user-123', token: hashedToken },
       });
       expect(result.success).toBe(true);
     });
