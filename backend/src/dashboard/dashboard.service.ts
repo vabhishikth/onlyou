@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadService } from '../upload/upload.service';
 import { ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
 
 // Spec: master spec Section 5 (Doctor Dashboard)
@@ -126,7 +127,10 @@ export interface QueueStats {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   /**
    * Map ConsultationStatus to DashboardStatus
@@ -478,8 +482,8 @@ export class DashboardService {
       throw new ForbiddenException('You do not have access to this case');
     }
 
-    // Get patient photos
-    const photos = await this.prisma.patientPhoto.findMany({
+    // Get patient photos with presigned read URLs
+    const rawPhotos = await this.prisma.patientPhoto.findMany({
       where: {
         patientProfileId: consultation.intakeResponse.patientProfileId,
       },
@@ -489,6 +493,13 @@ export class DashboardService {
         url: true,
       },
     });
+
+    const photos = await Promise.all(
+      rawPhotos.map(async (photo) => ({
+        ...photo,
+        url: await this.uploadService.getPresignedReadUrl(photo.url),
+      })),
+    );
 
     const bookedSlot = (consultation as any).bookedSlots?.[0] || null;
 

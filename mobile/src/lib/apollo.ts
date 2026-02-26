@@ -136,7 +136,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 // Apollo Client instance
 export const apolloClient = new ApolloClient({
     link: from([errorLink, authLink, httpLink]),
-    cache: new InMemoryCache(),
+    cache: new InMemoryCache({ canonizeResults: false }),
     defaultOptions: {
         watchQuery: {
             fetchPolicy: 'cache-and-network',

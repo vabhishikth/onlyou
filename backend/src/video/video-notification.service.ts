@@ -22,7 +22,7 @@ export class VideoNotificationService {
       recipientId: slot.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'VIDEO_SLOT_BOOKED',
+      eventType: 'VIDEO_BOOKING_CONFIRMED',
       title: 'Video Consultation Booked',
       body: `Your video consultation is scheduled for ${slot.slotDate.toLocaleDateString('en-IN')}`,
     });
@@ -31,7 +31,7 @@ export class VideoNotificationService {
       recipientId: slot.doctorId,
       recipientRole: 'DOCTOR',
       channel: 'IN_APP',
-      eventType: 'VIDEO_SLOT_BOOKED',
+      eventType: 'VIDEO_BOOKING_CONFIRMED',
       title: 'New Video Consultation',
       body: `Video consultation scheduled for ${slot.slotDate.toLocaleDateString('en-IN')}`,
     });
@@ -88,7 +88,7 @@ export class VideoNotificationService {
       recipientId: session.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'VIDEO_ROOM_READY',
+      eventType: 'VIDEO_SESSION_STARTED',
       title: 'Join Your Video Consultation',
       body: 'Your doctor is ready. Tap to join the video consultation now.',
     });
@@ -97,7 +97,7 @@ export class VideoNotificationService {
       recipientId: session.doctorId,
       recipientRole: 'DOCTOR',
       channel: 'PUSH',
-      eventType: 'VIDEO_ROOM_READY',
+      eventType: 'VIDEO_SESSION_STARTED',
       title: 'Join Video Consultation',
       body: 'The consultation room is ready. Your patient has been notified.',
     });
@@ -140,7 +140,7 @@ export class VideoNotificationService {
         recipientId: admin.id,
         recipientRole: 'ADMIN',
         channel: 'IN_APP',
-        eventType: 'VIDEO_DOCTOR_NO_SHOW',
+        eventType: 'VIDEO_NO_SHOW_DOCTOR',
         title: `URGENT: Doctor No-Show (${minutesLate} min)`,
         body: `Doctor has not joined video session. Patient is waiting.`,
       });
@@ -157,7 +157,7 @@ export class VideoNotificationService {
       recipientId: session.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'VIDEO_DOCTOR_NO_SHOW_APOLOGY',
+      eventType: 'VIDEO_NO_SHOW_DOCTOR',
       title: 'We Apologize',
       body: 'Your doctor was unable to join. We are arranging a new consultation for you.',
     });
@@ -174,7 +174,7 @@ export class VideoNotificationService {
       recipientId: slot.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'VIDEO_CANCELLED',
+      eventType: 'VIDEO_BOOKING_CANCELLED',
       title: 'Video Consultation Cancelled',
       body: 'Your video consultation has been cancelled. You can rebook a new slot.',
     });
@@ -207,7 +207,7 @@ export class VideoNotificationService {
       recipientId: session.patientId,
       recipientRole: 'PATIENT',
       channel: 'PUSH',
-      eventType: 'VIDEO_REJOIN',
+      eventType: 'VIDEO_RECONNECT_NEEDED',
       title: 'Rejoin Video Consultation',
       body: 'Connection was interrupted. Tap to rejoin the consultation.',
       data: { newRoomId },
@@ -217,7 +217,7 @@ export class VideoNotificationService {
       recipientId: session.doctorId,
       recipientRole: 'DOCTOR',
       channel: 'PUSH',
-      eventType: 'VIDEO_REJOIN',
+      eventType: 'VIDEO_RECONNECT_NEEDED',
       title: 'Rejoin Video Consultation',
       body: 'Connection was interrupted. A new room has been created.',
       data: { newRoomId },

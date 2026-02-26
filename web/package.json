@@ -14,6 +14,7 @@
         "test:cov": "jest --coverage"
     },
     "dependencies": {
+        "@100mslive/react-sdk": "^0.11.2",
         "@apollo/client": "^3.11.0",
         "@hookform/resolvers": "^5.2.2",
         "@onlyou/shared": "workspace:*",

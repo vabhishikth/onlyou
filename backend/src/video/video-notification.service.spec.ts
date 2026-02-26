@@ -116,7 +116,7 @@ describe('VideoNotificationService', () => {
       expect(mockNotificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'VIDEO_ROOM_READY',
+          eventType: 'VIDEO_SESSION_STARTED',
           title: expect.stringContaining('Join'),
         }),
       );
@@ -170,7 +170,7 @@ describe('VideoNotificationService', () => {
       expect(mockNotificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'admin-1',
-          eventType: 'VIDEO_DOCTOR_NO_SHOW',
+          eventType: 'VIDEO_NO_SHOW_DOCTOR',
         }),
       );
     });
@@ -189,7 +189,7 @@ describe('VideoNotificationService', () => {
       expect(mockNotificationService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           recipientId: 'patient-1',
-          eventType: 'VIDEO_DOCTOR_NO_SHOW_APOLOGY',
+          eventType: 'VIDEO_NO_SHOW_DOCTOR',
         }),
       );
     });
@@ -241,7 +241,7 @@ describe('VideoNotificationService', () => {
 
       expect(mockNotificationService.sendNotification).toHaveBeenCalledTimes(2);
       const calls = mockNotificationService.sendNotification.mock.calls;
-      expect(calls[0][0].eventType).toBe('VIDEO_REJOIN');
+      expect(calls[0][0].eventType).toBe('VIDEO_RECONNECT_NEEDED');
     });
   });
 });

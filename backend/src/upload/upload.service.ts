@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 
@@ -90,6 +90,24 @@ export class UploadService {
             fileUrl,
             key,
         };
+    }
+
+    /**
+     * Generate a presigned URL for reading a private S3 object.
+     * Extracts the S3 key from a stored URL or accepts a key directly.
+     * Returns a 1-hour presigned read URL.
+     */
+    async getPresignedReadUrl(urlOrKey: string): Promise<string> {
+        // Extract key from full S3 URL if needed
+        const prefix = `https://${this.bucket}.s3.${this.region}.amazonaws.com/`;
+        const key = urlOrKey.startsWith('http') ? urlOrKey.replace(prefix, '') : urlOrKey;
+
+        const command = new GetObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+        });
+
+        return getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
     }
 
     // Spec: master spec Section 14 — Image resolution validation

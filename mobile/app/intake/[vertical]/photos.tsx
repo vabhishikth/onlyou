@@ -192,11 +192,12 @@ export default function PhotosScreen() {
 
     const handleContinue = () => {
         // Collect uploaded photos
-        const uploadedPhotos: PhotoInput[] = Object.entries(photos)
+        const uploadedPhotos = Object.entries(photos)
             .filter(([_, photo]) => photo.uploadedUrl)
             .map(([type, photo]) => ({
                 type,
                 url: photo.uploadedUrl!,
+                localUri: photo.localUri,
             }));
 
         router.push({

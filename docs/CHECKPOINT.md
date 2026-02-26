@@ -1,132 +1,66 @@
 # CHECKPOINT — Last Updated: 2026-02-26
 
-## Current Phase: Code Review Remediation + Video Rewrite
-## Current Task: Video workflow rewrite (Phase 1 backend hardening)
-## Status: IN PROGRESS
+## Current Phase: Video Consultation Workflow Rewrite
+## Current Task: ALL 13 TASKS COMPLETE
+## Status: COMPLETE
 
-## Code Review Remediation — ALL COMPLETE
+## Video Workflow Rewrite — ALL COMPLETE
 
-### P0 — Critical Security (all complete)
-- [x] Payment stub bypass gated behind NODE_ENV (#1) — `payment.service.ts`
-- [x] OTP generation uses crypto.randomInt instead of Math.random (#2) — `otp.service.ts`, `order.service.ts`
-- [x] JWT strategy checks user verified status and role mismatch (#5) — `jwt.strategy.ts`
+### Phase 1: Backend Hardening
+- [x] Task 1.1: Webhook REST endpoint (`video-webhook.controller.ts`) — 10 tests
+- [x] Task 1.2: Status transition state machine (`video-state-machine.ts`) — 35 tests
+- [x] Task 1.3: Session timeout + idempotent crons — 8 tests
+- [x] Task 1.4: Recording lifecycle (start/stop/S3) — tests in hms.service.spec.ts
+- [x] Task 1.5: Reconnection flow (handleDisconnect wired up)
 
-### P1 — Security (all complete)
-- [x] Refresh tokens hashed with SHA-256 before DB storage (#3) — `auth.service.ts`
-- [x] Rate limiting added to refresh token endpoint (#6) — `auth.resolver.ts`
-- [x] Consultation storeAIAssessment wrapped in Prisma $transaction (#11) — `consultation.service.ts`
-- [x] OTP store migrated from in-memory Map to Redis (#13) — `otp.service.ts`
+### Phase 2: Mobile Video
+- [x] Task 2.1: useHMS hook rewrite with event listeners + peer tracking
+- [x] Task 2.2: Real video rendering with HmsView + auto-transition
+- [x] Task 2.3: Patient reconnection UI (auto + manual rejoin)
 
-### P2 — Architecture (all complete)
-- [x] Razorpay secret via ConfigService, no hardcoded fallback (#8) — `payment.service.ts`, `payment.module.ts`
-- [x] Duplicate OrderStatus enum removed, using @prisma/client (#10) — `order.service.ts`
-- [x] Unread message count uses prisma.count() instead of findMany().length (#14) — `messaging.service.ts`
-- [x] Environment validation for 6 additional production vars (#15) — `env.validation.ts`
-- [x] Apollo token refresh on mobile (#26) — `mobile/src/lib/apollo.ts`
-- [x] Web middleware validates JWT format and expiry (#27) — `web/src/middleware.ts`
-- [x] Web tokens moved to HttpOnly cookies (#4) — `auth-cookies.ts`, `jwt.strategy.ts`, `auth.resolver.ts`, `providers.tsx`, `use-auth.ts`
-- [x] CSRF protection (#7) — `csrf.guard.ts`, `main.ts`, `providers.tsx`
-- [x] Replace `any` types with proper DTOs (#9) — 8 service files updated with Prisma model types
-- [x] Pagination on list queries (#12) — `pagination.dto.ts` + 16 resolvers/services
-- [x] Audit logging (#25) — `audit.service.ts`, `audit.module.ts`, `auth.resolver.ts`
-- [x] GraphQL input validation (#28) — `video.input.ts`, `lab-portal.dto.ts`
+### Phase 3: Doctor Web
+- [x] Task 3.1: Room edge cases — disconnect banner, 40-min warning, beforeunload — 5 tests
+- [x] Task 3.2: Session list — 5s polling, pulse badge, Today/All filter — 5 tests
 
-### P3 — Code Quality (all complete)
-- [x] Redis KEYS replaced with SCAN (#16) — `redis.service.ts`
-- [x] Cross-platform port killer in main.ts (#17) — `main.ts`
-- [x] console.log replaced with __DEV__-guarded console.warn (#19) — `mobile/src/lib/apollo.ts`
-- [x] Hardcoded IP removed from mobile Apollo client (#20) — `mobile/src/lib/apollo.ts`
-- [x] Shiprocket removed from .env.example (#21) — `.env.example`
-- [x] S3 credential logging gated behind dev-only check (#23) — `upload.service.ts`
+### Phase 4: Post-Call
+- [x] Task 4.1: Post-call summary (doctor name, duration, recording flag) — 5 backend + 5 mobile tests
+- [x] Task 4.2: SOAP structured notes (Chief Complaint, Observations, Assessment, Plan) — 1 test
 
-### Code Review New/Updated Files:
-- `backend/src/auth/auth-cookies.ts` — HttpOnly cookie helpers
-- `backend/src/common/guards/csrf.guard.ts` — CSRF protection guard
-- `backend/src/common/dto/pagination.dto.ts` — PaginationInput DTO
-- `backend/src/audit/audit.service.ts` — Audit logging service
-- `backend/src/audit/audit.module.ts` — Global audit module
-- `backend/src/audit/audit.service.spec.ts` — 3 tests
+### Phase 5: Integration
+- [x] Task 5.1: Full lifecycle integration tests — 6 scenarios (happy path, consent, disconnect, cancel, summary, lazy room)
 
-### Commit Log (Phase 1 — 19 atomic commits via parallel agents):
-1. `fix(auth): use crypto.randomInt for OTP generation`
-2. `fix(auth): add verified status and role mismatch checks to JWT strategy`
-3. `fix(auth): add rate limiting to refresh token endpoint`
-4. `fix(auth): hash refresh tokens with SHA-256 before storing in DB`
-5. `fix(auth): move OTP store from in-memory Map to Redis`
-6. `fix(payment): gate stub payment bypass behind NODE_ENV, inject ConfigService for secrets`
-7. `fix(order): replace Math.random() with crypto.randomInt for delivery OTP`
-8. `fix(order): remove duplicate OrderStatus enum, import from @prisma/client`
-9. `fix(consultation): wrap storeAIAssessment in Prisma $transaction for atomicity`
-10. `fix(messaging): use prisma.count() instead of findMany() for unread count`
-11. `fix(config): add production-only env var validation for external services`
-12. `fix(redis): replace KEYS command with SCAN-based iteration`
-13. `fix(main): replace Windows-only port killer with cross-platform approach`
-14. `fix(upload): guard AWS credential logging behind dev-only check`
-15. `chore: remove Shiprocket vars from .env.example`
-16. `fix(mobile): remove hardcoded IP from Apollo client`
-17. `fix(mobile): replace console.log with __DEV__-guarded console.warn in Apollo client`
-18. `feat(mobile): add automatic token refresh in Apollo error link`
-19. `fix(web): add JWT format validation in middleware for protected routes`
+### Commit Log (Video Rewrite — 10 commits):
+1. `8eb6cac` — feat(video): add status transition state machine with audit logging
+2. `5666260` — feat(video): add session timeout crons + idempotent reminders
+3. `3e42518` — feat(video): recording lifecycle + reconnection flow (Tasks 1.4 & 1.5)
+4. `600db99` — feat(mobile): add event listeners + peer tracking to useHMS hook (Task 2.1)
+5. `cc3b987` — feat(mobile): real video rendering with HmsView + auto-transition (Task 2.2)
+6. `7ad4406` — feat(mobile): patient reconnection UI with auto-recover (Task 2.3)
+7. `8244dd8` — feat(web): doctor room edge cases — disconnect banner, duration warning, beforeunload (Task 3.1)
+8. `20025d4` — feat(web): doctor session list — 5s polling, pulse badge, today/all filter (Task 3.2)
+9. `955d7fe` — feat(video): post-call summary with doctor name, duration, recording flag (Task 4.1)
+10. `004ae0f` — feat(web): SOAP structured notes in doctor complete form (Task 4.2)
+11. `f99ffa2` — test(video): full lifecycle integration tests (Task 5.1)
 
-### Commit Log (Phase 2 — 6 sequential commits):
-20. `fix(auth): move web tokens from localStorage to HttpOnly cookies`
-21. `fix(security): add CSRF protection for cookie-based auth`
-22. `fix(validation): add missing class-validator decorators to GraphQL DTOs`
-23. `feat(audit): add audit logging service with auth event tracking`
-24. `feat(api): add pagination to all unbounded list queries (#12)`
-25. `fix(types): replace any with proper types in service methods (#9)`
+## Code Review Remediation — ALL COMPLETE (25 fixes)
+See git log for full commit history (19 parallel + 6 sequential commits).
 
-#### 100ms Real API Integration
-- [x] Installed `jsonwebtoken` + `@types/jsonwebtoken` on backend
-- [x] Configured 100ms keys in `.env`: `HMS_ACCESS_KEY`, `HMS_APP_SECRET`, `HMS_TEMPLATE_ID`
-- [x] `createRoom()` — real mode calls `POST https://api.100ms.live/v2/rooms` with management token
-- [x] `generateToken()` — real mode signs JWT auth token (HS256) with room_id, user_id, role claims
-- [x] Added `generateManagementToken()` private method (JWT type=management, version=2)
-- [x] Added `generateAuthToken()` private method (JWT type=app, room_id, user_id, role)
-- [x] Mock mode preserved for dev/test (when HMS_ACCESS_KEY is empty)
-- [x] All 18 existing HmsService tests still pass
-
-## Video Workflow Rewrite — IN PROGRESS
-
-### Task 1.1: Webhook REST Endpoint — COMPLETE
-- [x] `video-webhook.controller.ts` — REST endpoint for 100ms webhooks
-- [x] `video-webhook.controller.spec.ts` — 10 tests
-- [x] Registered in `video.module.ts`, enabled rawBody in `main.ts`
-
-### Task 1.2: Video State Machine — COMPLETE
-- [x] `video-state-machine.ts` — VALID_TRANSITIONS map + transitionStatus()
-- [x] `video-state-machine.spec.ts` — 35 tests
-- [x] Integrated into hms.service.ts
-
-### Task 1.3: Session Timeout + Idempotent Crons — COMPLETE
-- [x] `checkStaleInProgress()` + `checkStaleWaiting()` crons
-- [x] Idempotent reminders via lastReminderSentAt
-- [x] 8 new tests in video-scheduler.service.spec.ts
-
-### Task 1.4: Recording Lifecycle — IN PROGRESS
-- [x] Tests written for startRecording/stopRecording (RED phase)
-- [ ] Implementation pending
-
-### Remaining Tasks:
-- [ ] Task 1.5: Reconnection flow
-- [ ] Task 2.1-2.3: Mobile video rendering
-- [ ] Task 3.1-3.2: Doctor web hardening
-- [ ] Task 4.1-4.2: Post-call features
-- [ ] Task 5.1: Integration tests
-
----
-
-## Previous Work (Phases 1-17) — ALL COMPLETE
+## Previous Work (Phases 1-12) — ALL COMPLETE
 See git log for full history.
 
 ## Test Counts (as of last full run):
-- Backend: 2,793+ tests
-- Mobile: 635 tests
-- Web: 285 tests
-- **Total: 3,705+ tests**
+- Backend: 2,905 passing (14 pre-existing failures in 6 suites)
+- Mobile: 659 passing (perfect — 0 failures)
+- Web: 285 passing (10 pre-existing failures in 3 suites)
+- **Total: 3,849 passing**
 
 ## Known Issues:
-- Pre-existing Prisma schema drift causes typecheck failures (video/wallet models not generated)
+- 14 pre-existing backend test failures (Prisma schema drift — video/wallet models not generated in CI)
+- 10 pre-existing web test failures (Apollo MockedProvider `addTypename` deprecation in admin/doctors tests)
 - Redis connection warning on startup if Redis not available (by design)
+
+## Next Up:
+- Code review deferred by user ("not now, but later")
+- No remaining tasks in the video rewrite plan
 
 *Checkpoint updated per CLAUDE.md context protection rules.*

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardService, DashboardStatus, DASHBOARD_STATUS_BADGES } from './dashboard.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadService } from '../upload/upload.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
 
@@ -90,6 +91,7 @@ describe('DashboardService', () => {
       providers: [
         DashboardService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: UploadService, useValue: { getPresignedReadUrl: jest.fn().mockImplementation((url: string) => Promise.resolve(url + '?signed=true')) } },
       ],
     }).compile();
 
