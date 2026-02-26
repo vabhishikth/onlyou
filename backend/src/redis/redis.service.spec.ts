@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
 
-// Mock ioredis
+// Mock ioredis — capture event handlers so we can simulate connect/error
+const eventHandlers: Record<string, (...args: any[]) => void> = {};
 const mockRedisInstance = {
     get: jest.fn(),
     set: jest.fn(),
@@ -13,7 +14,9 @@ const mockRedisInstance = {
     scan: jest.fn(),
     ping: jest.fn(),
     quit: jest.fn(),
-    on: jest.fn(),
+    on: jest.fn((event: string, handler: (...args: any[]) => void) => {
+        eventHandlers[event] = handler;
+    }),
     connect: jest.fn().mockResolvedValue(undefined),
 };
 
@@ -43,6 +46,11 @@ describe('RedisService', () => {
         }).compile();
 
         service = module.get<RedisService>(RedisService);
+
+        // Simulate Redis connecting successfully so tests use the Redis path
+        if (eventHandlers['connect']) {
+            eventHandlers['connect']();
+        }
     });
 
     it('should create Redis client with URL from config', () => {
@@ -153,6 +161,59 @@ describe('RedisService', () => {
             const result = await service.keys('nonexistent:*');
 
             expect(result).toEqual([]);
+        });
+    });
+
+    describe('in-memory fallback (when Redis is disconnected)', () => {
+        beforeEach(() => {
+            // Simulate Redis going down
+            if (eventHandlers['error']) {
+                eventHandlers['error'](new Error('Connection refused'));
+            }
+        });
+
+        it('should fall back to in-memory store for set/get', async () => {
+            const setResult = await service.set('mem-key', 'mem-value');
+            expect(setResult).toBe(true);
+
+            const getResult = await service.get('mem-key');
+            expect(getResult).toBe('mem-value');
+        });
+
+        it('should support TTL in memory fallback', async () => {
+            // Set with very short TTL (we'll test expiry concept, not actual timing)
+            await service.set('ttl-key', 'ttl-value', 1);
+            const result = await service.get('ttl-key');
+            expect(result).toBe('ttl-value');
+        });
+
+        it('should support incr in memory fallback', async () => {
+            const first = await service.incr('counter');
+            expect(first).toBe(1);
+            const second = await service.incr('counter');
+            expect(second).toBe(2);
+        });
+
+        it('should support del in memory fallback', async () => {
+            await service.set('del-key', 'value');
+            await service.del('del-key');
+            const result = await service.get('del-key');
+            expect(result).toBeNull();
+        });
+
+        it('should return true from ping when using fallback', async () => {
+            const result = await service.ping();
+            expect(result).toBe(true);
+        });
+
+        it('should support keys pattern matching in memory fallback', async () => {
+            await service.set('prefix:a', '1');
+            await service.set('prefix:b', '2');
+            await service.set('other:c', '3');
+
+            const result = await service.keys('prefix:*');
+            expect(result).toEqual(expect.arrayContaining(['prefix:a', 'prefix:b']));
+            expect(result).not.toContain('other:c');
         });
     });
 });

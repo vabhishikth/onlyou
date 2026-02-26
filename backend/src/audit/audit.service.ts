@@ -27,7 +27,7 @@ export class AuditService {
                     action,
                     resource,
                     resourceId,
-                    details: details ?? undefined,
+                    details: (details ?? undefined) as any,
                     ipAddress: ctx.ipAddress,
                     userAgent: ctx.userAgent,
                 },

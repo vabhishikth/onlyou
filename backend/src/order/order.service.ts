@@ -89,7 +89,7 @@ export interface RateDeliveryInput {
 }
 
 // Statuses that allow cancellation
-const CANCELLABLE_STATUSES = [
+const CANCELLABLE_STATUSES: OrderStatus[] = [
   OrderStatus.PRESCRIPTION_CREATED,
   OrderStatus.SENT_TO_PHARMACY,
   OrderStatus.PHARMACY_PREPARING,

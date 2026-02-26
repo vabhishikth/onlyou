@@ -1155,6 +1155,7 @@ type Mutation {
   registerPhlebotomist(input: JSON!): JSON!
   rejectOrder(pharmacyOrderId: String!, reason: String!): JSON!
   rejectSubstitution(pharmacyOrderId: String!, reason: String!): JSON!
+  rejoinVideoSession(videoSessionId: String!): JoinSessionResponse!
   removeDeviceToken(token: String!): JSON!
   reportDamagedOrder(description: String!, pharmacyOrderId: String!, photos: [String!]!): JSON!
   reportDeliveryFailure(pharmacyOrderId: String!, reason: String!): JSON!
@@ -1434,6 +1435,11 @@ input OverrideLabOrderStatusInput {
   reason: String!
 }
 
+input PaginationInput {
+  skip: Int! = 0
+  take: Int! = 20
+}
+
 type PartnerMutationResponse {
   message: String!
   success: Boolean!
@@ -1687,7 +1693,7 @@ type Query {
   adminLabOrders(filter: AdminLabOrdersFilterInput): AdminLabOrdersResponse!
   adminPatientDetail(patientId: String!): AdminPatientDetail
   adminPatients(filter: AdminPatientsFilterInput): AdminPatientsResponse!
-  adminQueue(filters: QueueFiltersInput): QueueResponse!
+  adminQueue(filters: QueueFiltersInput, pagination: PaginationInput): QueueResponse!
   allPharmacyOrders: JSON!
   availableActions(itemId: String!, type: String!): [String!]!
   availableLabSlots(city: String!, endDate: String!, pincode: String!, requiresFasting: Boolean, startDate: String!): JSON!
@@ -1703,18 +1709,18 @@ type Query {
   checkBloodWorkPayment(labOrderId: String!, patientId: String!): JSON!
   checkContraindications(input: CheckContraindicationsInput!): CheckContraindicationsResponse!
   collectTodaySummary: CollectTodaySummary!
-  consultationMessages(consultationId: String!): [MessageType!]!
+  consultationMessages(consultationId: String!, pagination: PaginationInput): [MessageType!]!
   deliveryOrderDetail(pharmacyOrderId: String!): JSON!
   deliveryOrderProgress(orderId: String!): ProgressResponse!
   diagnosticCentres(city: String, page: Float, pageSize: Float, search: String): DiagnosticCentresResponse!
   doctorById(id: String!): DoctorProfileType!
-  doctorConversations: [ConversationSummaryType!]!
-  doctorLabOrders(filters: DoctorLabOrdersFilterInput): [DoctorLabOrderItem!]!
-  doctorPrescriptions(filters: DoctorPrescriptionsFilterInput): [DoctorPrescriptionItem!]!
-  doctorQueue(filters: QueueFiltersInput): QueueResponse!
+  doctorConversations(pagination: PaginationInput): [ConversationSummaryType!]!
+  doctorLabOrders(filters: DoctorLabOrdersFilterInput, pagination: PaginationInput): [DoctorLabOrderItem!]!
+  doctorPrescriptions(filters: DoctorPrescriptionsFilterInput, pagination: PaginationInput): [DoctorPrescriptionItem!]!
+  doctorQueue(filters: QueueFiltersInput, pagination: PaginationInput): QueueResponse!
   doctorStats(id: String!): DoctorStats!
   doctorVideoSessions: [DoctorVideoSessionType!]!
-  doctors(isAvailable: Boolean, vertical: HealthVertical): [DoctorProfileType!]!
+  doctors(isAvailable: Boolean, pagination: PaginationInput, vertical: HealthVertical): [DoctorProfileType!]!
   getAssessment(consultationId: String!): AIPreAssessmentType
   labCompletedSamples: [LabSampleSummary!]!
   labInProgressSamples: [LabSampleSummary!]!
@@ -1723,8 +1729,8 @@ type Query {
   labOrder(id: String!): LabOrderType
   labOrderProgress(labOrderId: String!): ProgressResponse!
   labOrderSummary(labOrderId: String!): JSON!
-  labOrdersByConsultation(consultationId: String!): [LabOrderType!]!
-  labOrdersForReview(doctorId: String!): [LabOrderType!]!
+  labOrdersByConsultation(consultationId: String!, pagination: PaginationInput): [LabOrderType!]!
+  labOrdersForReview(doctorId: String!, pagination: PaginationInput): [LabOrderType!]!
   labTodaySummary: LabTodaySummary!
   listPartnerLabs(city: String, status: String): JSON!
   lookupPincode(pincode: String!): PincodeLookupResponse!
@@ -1735,28 +1741,28 @@ type Query {
   myAvailability: [AvailabilitySlotType!]!
   myBiomarkerHistory: JSON!
   myBiomarkerTrend(testCode: String!): JSON!
-  myConsultations: [ConsultationType!]!
+  myConsultations(pagination: PaginationInput): [ConsultationType!]!
   myCriticalValues: JSON!
   myDailyRoster(date: String!): JSON!
   myIntakeByVertical(vertical: HealthVertical!): IntakeResponseType
-  myIntakes: [IntakeResponseType!]!
-  myLabOrders: [LabOrderType!]!
+  myIntakes(pagination: PaginationInput): [IntakeResponseType!]!
+  myLabOrders(pagination: PaginationInput): [LabOrderType!]!
   myLatestLabResults: JSON!
   myPayments(status: String): [PaymentType!]!
   myPharmacyDetails: JSON!
   myPharmacyOrderStatus(pharmacyOrderId: String!): JSON!
   myPharmacyOrders: JSON!
-  myPrescriptions: [PatientPrescriptionItem!]!
+  myPrescriptions(pagination: PaginationInput): [PatientPrescriptionItem!]!
   mySubscriptions: [SubscriptionType!]!
   myUpcomingVideoSessions: [BookedSlotType!]!
   nearbyLabs: [NearbyLab!]!
   notificationPreferences: NotificationPreferenceType!
   notifications(channel: NotificationChannel, eventType: NotificationEventType, limit: Int! = 20, page: Int! = 1): NotificationHistoryResponse!
   order(id: String!): OrderMutationResponse!
-  ordersByPatient(patientId: String!): [OrderType!]!
-  ordersDueForReorder: [OrderType!]!
+  ordersByPatient(pagination: PaginationInput, patientId: String!): [OrderType!]!
+  ordersDueForReorder(pagination: PaginationInput): [OrderType!]!
   partnerLabById(labId: String!): JSON!
-  pendingDeliveries: [OrderType!]!
+  pendingDeliveries(pagination: PaginationInput): [OrderType!]!
   pendingSubstitutionApprovals: JSON!
   pharmacies(city: String, status: String): JSON!
   pharmacyById(id: String!): JSON!
@@ -1780,13 +1786,14 @@ type Query {
   todayAssignments: [TodayAssignment!]!
   trackingHomeBanner: HomeBannerResponse!
   transactionHistory(userId: String!): [WalletTransactionType!]!
-  unassignedCases(filters: QueueFiltersInput): QueueResponse!
+  unassignedCases(filters: QueueFiltersInput, pagination: PaginationInput): QueueResponse!
   unreadMessageCount(consultationId: String!): Int!
   unreadNotificationCount: Int!
   unreadNotifications: [NotificationType!]!
   validatePaymentBeforeOrder(consultationId: String!, patientId: String!): JSON!
   validatePricing(amountPaise: Int!, planType: String!, vertical: String!): PricingValidationResponse!
   videoSession(videoSessionId: String!): VideoSessionType!
+  videoSessionSummary(videoSessionId: String!): VideoSessionSummaryType!
   walletBalance(userId: String!): WalletBalanceType!
 }
 
@@ -2241,6 +2248,14 @@ enum VideoSessionStatus {
   SCHEDULED
   WAITING_FOR_DOCTOR
   WAITING_FOR_PATIENT
+}
+
+type VideoSessionSummaryType {
+  doctorName: String!
+  durationSeconds: Int
+  notes: String
+  recordingAvailable: Boolean!
+  status: VideoSessionStatus!
 }
 
 type VideoSessionType {

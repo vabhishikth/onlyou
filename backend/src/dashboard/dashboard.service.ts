@@ -298,7 +298,7 @@ export class DashboardService {
     return {
       id: consultation.id as string,
       patientName: (patient?.name as string) || 'Unknown',
-      patientAge: this.calculateAge(patientProfile?.dateOfBirth as Date | undefined),
+      patientAge: this.calculateAge((patientProfile?.dateOfBirth as Date) || null),
       patientSex: (patientProfile?.gender as string) || null,
       vertical: consultation.vertical as HealthVertical,
       createdAt: consultation.createdAt as Date,
@@ -528,15 +528,15 @@ export class DashboardService {
         phone: consultation.patient.phone,
       },
       questionnaire: {
-        responses: consultation.intakeResponse.responses,
-        template: consultation.intakeResponse.questionnaireTemplate.schema,
+        responses: consultation.intakeResponse.responses as Record<string, unknown>,
+        template: consultation.intakeResponse.questionnaireTemplate.schema as Record<string, unknown>,
       },
       aiAssessment: consultation.aiAssessment
         ? {
             summary: consultation.aiAssessment.summary,
             riskLevel: consultation.aiAssessment.riskLevel,
             flags: consultation.aiAssessment.flags,
-            rawResponse: consultation.aiAssessment.rawResponse,
+            rawResponse: consultation.aiAssessment.rawResponse as Record<string, unknown> | undefined,
           }
         : null,
       photos,
@@ -546,7 +546,14 @@ export class DashboardService {
         senderId: m.senderId,
         createdAt: m.createdAt,
       })),
-      prescription: consultation.prescription,
+      prescription: consultation.prescription ? {
+        id: consultation.prescription.id,
+        medications: consultation.prescription.medications,
+        validUntil: consultation.prescription.validUntil,
+        issuedAt: consultation.prescription.issuedAt,
+        pdfUrl: consultation.prescription.pdfUrl ?? undefined,
+        instructions: consultation.prescription.instructions ?? undefined,
+      } : null,
       labOrders: (consultation.labOrders || []).map((lo) => ({
         id: lo.id,
         testPanel: lo.testPanel,

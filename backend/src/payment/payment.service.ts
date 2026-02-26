@@ -83,7 +83,7 @@ export class PaymentService {
    * Create a Razorpay order for payment
    * Spec: Section 12 — Create order → checkout
    */
-  async createPaymentOrder(input: CreatePaymentOrderInput): Promise<Payment> {
+  async createPaymentOrder(input: CreatePaymentOrderInput): Promise<any> {
     // Validate user exists
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
@@ -102,7 +102,7 @@ export class PaymentService {
     const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // Create Razorpay order
-    const razorpayOrder = await this.razorpay.orders.create({
+    const razorpayOrder = await (this.razorpay as any).orders.create({
       amount: input.amountPaise,
       currency: input.currency || 'INR',
       receipt,
@@ -175,13 +175,13 @@ export class PaymentService {
    * Spec: Webhook → create consultation
    * Idempotency: same webhook received twice → only processes once
    */
-  async processWebhook(input: ProcessWebhookInput): Promise<Payment | null> {
+  async processWebhook(input: ProcessWebhookInput): Promise<any> {
     // Verify webhook signature
     if (!this.verifyWebhookSignature(JSON.stringify(input.payload), input.webhookSignature)) {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    const paymentEntity = input.payload?.payment?.entity;
+    const paymentEntity = (input.payload as any)?.payment?.entity;
     if (!paymentEntity) {
       throw new BadRequestException('Invalid webhook payload');
     }
@@ -252,8 +252,8 @@ export class PaymentService {
    * Handle successful payment
    * Spec: Payment success → create consultation
    */
-  async handlePaymentSuccess(payment: Payment): Promise<Payment> {
-    const metadata = payment.metadata || {};
+  async handlePaymentSuccess(payment: Payment): Promise<any> {
+    const metadata = (payment.metadata || {}) as Record<string, any>;
 
     if (metadata.purpose === 'CONSULTATION') {
       const consultation = await this.prisma.consultation.create({
@@ -299,7 +299,7 @@ export class PaymentService {
    * Handle failed payment
    * Spec: Payment failure → no consultation created
    */
-  async handlePaymentFailure(payment: Payment): Promise<Payment> {
+  async handlePaymentFailure(payment: Payment): Promise<any> {
     // Log for analytics, no consultation created
     return {
       logged: true,

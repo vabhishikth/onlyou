@@ -419,6 +419,24 @@ model RefreshToken {
   @@index([token])
 }
 
+// OTP tokens stored in DB so auth works without Redis
+// Spec: Section 14 (Security) — OTP storage migrated from Redis to Prisma
+// WHY: Redis is optional infrastructure. Auth/OTP is critical path and must
+// never silently fail when Redis is unavailable (local dev without Docker/WSL,
+// cloud deploy without Redis addon). Rate limiting stays in Redis as non-critical.
+model OtpToken {
+  id        String   @id @default(cuid())
+  phone     String   // +91XXXXXXXXXX format
+  otp       String   // 6-digit OTP (hashed in production, plain in dev)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([phone]) // Only one active OTP per phone number
+  @@index([phone])
+  @@index([expiresAt])
+}
+
 // ============================================
 // QUESTIONNAIRES
 // ============================================

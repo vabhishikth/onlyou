@@ -40,7 +40,7 @@ export class LabOrderResolver {
         @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<DoctorLabOrderItem[]> {
         const doctorId = context.req.user.id;
-        return this.labOrderService.getDoctorLabOrders(doctorId, filters ?? undefined, pagination?.take, pagination?.skip);
+        return this.labOrderService.getDoctorLabOrders(doctorId, filters ?? undefined, pagination?.take, pagination?.skip) as any;
     }
 
     /**

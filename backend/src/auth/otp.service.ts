@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
 interface OtpSendResponse {
@@ -14,11 +15,12 @@ interface OtpVerifyResponse {
     message: string;
 }
 
-interface OtpData {
-    otp: string;
-    attempts: number;
-    expiresAt: number;
-}
+// Spec: Section 14 (Security) — OTP storage in Prisma (critical path)
+// WHY: OTP/auth is on the critical login path. Redis is optional infrastructure
+// that may be unavailable in local dev (no Docker/WSL) or cloud environments
+// without a Redis addon. Storing OTPs in PostgreSQL via Prisma ensures login
+// ALWAYS works. Redis is still used for rate limiting (non-critical — if Redis
+// is down, rate limiting is skipped but login still succeeds).
 
 @Injectable()
 export class OtpService {
@@ -26,9 +28,9 @@ export class OtpService {
     private readonly authKey: string;
     private readonly templateId: string;
 
-    // Spec: Section 14 (Security) — OTP storage moved from in-memory Map to Redis
     constructor(
         private readonly config: ConfigService,
+        private readonly prisma: PrismaService,
         private readonly redis: RedisService,
     ) {
         this.authKey = this.config.get<string>('MSG91_AUTH_KEY') || '';
@@ -44,26 +46,41 @@ export class OtpService {
             return { success: false, message: 'Invalid Indian phone number' };
         }
 
-        // Rate limiting check (max 5 per hour) using separate Redis key
+        // Rate limiting check (max 5 per hour) using Redis — non-critical
+        // If Redis is down, rate limiting is skipped but OTP still works
         const rateKey = `otp_rate:${phone}`;
         const rateCount = await this.redis.incr(rateKey);
-        await this.redis.expire(rateKey, 3600); // 1-hour TTL
+        if (rateCount > 0) {
+            await this.redis.expire(rateKey, 3600); // 1-hour TTL
+        }
         if (rateCount > 5) {
             return { success: false, message: 'Too many OTP requests. Please try again later.' };
         }
 
         // Spec: Section 14 (Security) — use cryptographic randomness for OTP
         const otp = randomInt(100000, 999999).toString();
-        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-        // Store OTP data in Redis with key pattern otp:{phone} and 5-minute TTL
-        const otpKey = `otp:${phone}`;
-        const otpData: OtpData = {
-            otp,
-            attempts: rateCount,
-            expiresAt,
-        };
-        await this.redis.set(otpKey, JSON.stringify(otpData), 300);
+        // Store OTP in Prisma (upsert — one active OTP per phone)
+        try {
+            await this.prisma.otpToken.upsert({
+                where: { phone },
+                update: {
+                    otp,
+                    attempts: rateCount > 0 ? rateCount : 1,
+                    expiresAt,
+                },
+                create: {
+                    phone,
+                    otp,
+                    attempts: rateCount > 0 ? rateCount : 1,
+                    expiresAt,
+                },
+            });
+        } catch (err) {
+            this.logger.error(`Failed to store OTP in DB for ${phone}: ${(err as Error).message}`);
+            return { success: false, message: 'SMS service temporarily unavailable. Please try again.' };
+        }
 
         // Development mode: Always succeed and log OTP
         if (this.config.get('NODE_ENV') !== 'production') {
@@ -105,24 +122,24 @@ export class OtpService {
      * Verify OTP
      */
     async verifyOtp(phone: string, otp: string): Promise<OtpVerifyResponse> {
-        const otpKey = `otp:${phone}`;
-        const raw = await this.redis.get(otpKey);
+        // Look up OTP from database
+        const stored = await this.prisma.otpToken.findUnique({
+            where: { phone },
+        });
 
-        if (!raw) {
+        if (!stored) {
             return { success: false, message: 'OTP expired or not requested' };
         }
 
-        const stored: OtpData = JSON.parse(raw);
-
-        if (stored.expiresAt < Date.now()) {
-            await this.redis.del(otpKey);
+        if (stored.expiresAt < new Date()) {
+            await this.prisma.otpToken.delete({ where: { phone } });
             return { success: false, message: 'OTP expired. Please request a new one.' };
         }
 
         // Development mode: Accept any 6-digit OTP or the stored one
-        if (this.config.get('NODE_ENV') === 'development') {
+        if (this.config.get('NODE_ENV') !== 'production') {
             if (otp === stored.otp || otp === '123456') {
-                await this.redis.del(otpKey);
+                await this.prisma.otpToken.delete({ where: { phone } });
                 return { success: true, message: 'OTP verified successfully' };
             }
         }
@@ -132,7 +149,7 @@ export class OtpService {
         }
 
         // Clear OTP after successful verification
-        await this.redis.del(otpKey);
+        await this.prisma.otpToken.delete({ where: { phone } });
         return { success: true, message: 'OTP verified successfully' };
     }
 }

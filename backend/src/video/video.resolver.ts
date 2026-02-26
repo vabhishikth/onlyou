@@ -237,6 +237,9 @@ export class VideoResolver {
     // Rejoin skips consent check — it was already given during initial join
     // Use reconnect room if available, otherwise fall back to original room
     const roomId = session.reconnectRoomId || session.roomId;
+    if (!roomId) {
+      throw new BadRequestException('No room available for this session');
+    }
     const role = user.role === 'DOCTOR' ? 'doctor' : 'patient';
 
     const token = await this.hmsService.generateToken(roomId, user.id, role);

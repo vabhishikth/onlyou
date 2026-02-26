@@ -31,7 +31,7 @@ export class MessagingResolver {
         @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<ConversationSummaryType[]> {
         const doctorId = context.req.user.id;
-        return this.messagingService.getDoctorConversations(doctorId, pagination?.take, pagination?.skip);
+        return this.messagingService.getDoctorConversations(doctorId, pagination?.take, pagination?.skip) as any;
     }
 
     /**
@@ -129,7 +129,7 @@ export class MessagingResolver {
                 createdAt: result.message.createdAt,
                 readAt: result.message.readAt,
             },
-            consultationStatus: result.consultation.status,
+            consultationStatus: result.consultation.status as string,
         };
     }
 

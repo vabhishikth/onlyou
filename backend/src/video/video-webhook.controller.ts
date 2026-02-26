@@ -24,7 +24,7 @@ export class VideoWebhookController {
     @Body() body: any,
     @Headers('x-100ms-signature') signature: string,
     // Third param only used in unit tests (raw body string pass-through)
-    parsedOverride?: any,
+    _parsedOverride?: any,
   ): Promise<{ success: boolean }> {
     // Validate signature exists
     if (!signature) {

@@ -1,10 +1,48 @@
 # CHECKPOINT — Last Updated: 2026-02-26
 
-## Current Phase: Video Consultation Workflow Rewrite
-## Current Task: ALL 13 TASKS COMPLETE
+## Current Phase: OTP/Redis Architecture Improvement
+## Current Task: OTP migrated to Prisma + Redis in-memory fallback
 ## Status: COMPLETE
 
-## Video Workflow Rewrite — ALL COMPLETE
+## Architecture Decision: OTP Storage & Redis Fallback
+
+### WHY we made these changes
+
+**Problem:** Login was completely broken when Redis was unavailable. On Windows without Docker/WSL, there's no easy way to run Redis locally. The OTP service stored tokens in Redis — when Redis was down, `redis.set()` silently failed, so OTPs were never stored, and every `verifyOtp()` returned "OTP expired or not requested". This made login impossible in local dev.
+
+**Root causes identified:**
+1. OTP (critical auth path) depended on Redis (optional infrastructure)
+2. `redis.set()` returned void — callers couldn't detect failures
+3. NODE_ENV condition mismatch: `sendOtp` checked `!== 'production'` but `verifyOtp` checked `=== 'development'`
+
+### What we did (3-part fix)
+
+**(A) Migrated OTP storage from Redis to Prisma `OtpToken` table:**
+- New `OtpToken` model in Prisma schema (phone, otp, attempts, expiresAt)
+- `otp.service.ts` rewritten to use `prisma.otpToken.upsert()` / `findUnique()` / `delete()`
+- Login now works regardless of Redis availability
+- Rate limiting still uses Redis (non-critical — if Redis is down, rate limiting is skipped)
+
+**(B) Added in-memory fallback to `RedisService`:**
+- When Redis is disconnected, all operations (get/set/del/incr/expire/keys) fall back to a Map-based in-memory store with TTL support
+- Rate limiting, caching, and other Redis features still work without Redis
+- Memory store is cleared when Redis reconnects
+- Periodic cleanup of expired entries every 30 seconds
+
+**(C) Upstash Redis (user guidance):**
+- User should set up free Upstash Redis and update `REDIS_URL` in `.env` for cloud-grade Redis
+- This gives proper Redis in production without self-hosting
+
+### Files changed
+- `backend/prisma/schema.prisma` — Added `OtpToken` model
+- `backend/src/auth/otp.service.ts` — Rewritten: Prisma for OTP, Redis for rate limiting only
+- `backend/src/auth/otp.service.spec.ts` — 15 tests (all passing), including Redis-down scenario
+- `backend/src/redis/redis.service.ts` — Added in-memory fallback with TTL
+- `backend/src/redis/redis.service.spec.ts` — 18 tests (12 original + 6 fallback tests)
+
+---
+
+## Video Consultation Workflow Rewrite — ALL COMPLETE
 
 ### Phase 1: Backend Hardening
 - [x] Task 1.1: Webhook REST endpoint (`video-webhook.controller.ts`) — 10 tests
@@ -27,40 +65,23 @@
 - [x] Task 4.2: SOAP structured notes (Chief Complaint, Observations, Assessment, Plan) — 1 test
 
 ### Phase 5: Integration
-- [x] Task 5.1: Full lifecycle integration tests — 6 scenarios (happy path, consent, disconnect, cancel, summary, lazy room)
-
-### Commit Log (Video Rewrite — 10 commits):
-1. `8eb6cac` — feat(video): add status transition state machine with audit logging
-2. `5666260` — feat(video): add session timeout crons + idempotent reminders
-3. `3e42518` — feat(video): recording lifecycle + reconnection flow (Tasks 1.4 & 1.5)
-4. `600db99` — feat(mobile): add event listeners + peer tracking to useHMS hook (Task 2.1)
-5. `cc3b987` — feat(mobile): real video rendering with HmsView + auto-transition (Task 2.2)
-6. `7ad4406` — feat(mobile): patient reconnection UI with auto-recover (Task 2.3)
-7. `8244dd8` — feat(web): doctor room edge cases — disconnect banner, duration warning, beforeunload (Task 3.1)
-8. `20025d4` — feat(web): doctor session list — 5s polling, pulse badge, today/all filter (Task 3.2)
-9. `955d7fe` — feat(video): post-call summary with doctor name, duration, recording flag (Task 4.1)
-10. `004ae0f` — feat(web): SOAP structured notes in doctor complete form (Task 4.2)
-11. `f99ffa2` — test(video): full lifecycle integration tests (Task 5.1)
-
-## Code Review Remediation — ALL COMPLETE (25 fixes)
-See git log for full commit history (19 parallel + 6 sequential commits).
+- [x] Task 5.1: Full lifecycle integration tests — 6 scenarios
 
 ## Previous Work (Phases 1-12) — ALL COMPLETE
 See git log for full history.
 
 ## Test Counts (as of last full run):
-- Backend: 2,905 passing (14 pre-existing failures in 6 suites)
+- Backend: 2,913 passing (14 pre-existing failures in 6 suites)
 - Mobile: 659 passing (perfect — 0 failures)
 - Web: 285 passing (10 pre-existing failures in 3 suites)
-- **Total: 3,849 passing**
+- **Total: 3,857 passing**
 
 ## Known Issues:
 - 14 pre-existing backend test failures (Prisma schema drift — video/wallet models not generated in CI)
 - 10 pre-existing web test failures (Apollo MockedProvider `addTypename` deprecation in admin/doctors tests)
-- Redis connection warning on startup if Redis not available (by design)
 
 ## Next Up:
-- Code review deferred by user ("not now, but later")
+- Set up Upstash Redis (free tier) for production-grade Redis
 - No remaining tasks in the video rewrite plan
 
 *Checkpoint updated per CLAUDE.md context protection rules.*

@@ -89,8 +89,8 @@ export class AuthResolver {
     @UseGuards(JwtAuthGuard)
     async logout(
         @CurrentUser() user: { userId: string },
-        @Args('refreshToken', { nullable: true }) refreshToken?: string,
         @Context() ctx: { req: Request; res: Response },
+        @Args('refreshToken', { nullable: true }) refreshToken?: string,
     ): Promise<RequestOtpResponse> {
         const token = refreshToken || ctx.req.cookies?.refreshToken;
         await this.authService.logout(user.userId, token);

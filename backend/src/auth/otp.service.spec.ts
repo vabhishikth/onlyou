@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OtpService } from './otp.service';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Mock crypto.randomInt to verify secure OTP generation
 const mockRandomInt = jest.fn().mockReturnValue(456789);
@@ -11,15 +12,20 @@ jest.mock('crypto', () => ({
 }));
 
 // Spec: master spec Section 3.1 (OTP), Section 14 (Security)
+// OTP storage: Prisma (critical path). Rate limiting: Redis (non-critical).
 describe('OtpService', () => {
   let service: OtpService;
   let configService: jest.Mocked<ConfigService>;
   let redisService: jest.Mocked<RedisService>;
+  let prismaService: any;
 
-  // In-memory store to simulate Redis for tests
+  // In-memory store to simulate Prisma OtpToken table
+  let otpStore: Map<string, { phone: string; otp: string; attempts: number; expiresAt: Date }>;
+  // In-memory store for Redis rate limiting
   let redisStore: Map<string, { value: string; ttl?: number }>;
 
   beforeEach(async () => {
+    otpStore = new Map();
     redisStore = new Map();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -37,6 +43,27 @@ describe('OtpService', () => {
           },
         },
         {
+          provide: PrismaService,
+          useValue: {
+            otpToken: {
+              upsert: jest.fn(async ({ where, update, create }: any) => {
+                const phone = where.phone;
+                const data = otpStore.has(phone)
+                  ? { ...otpStore.get(phone)!, ...update }
+                  : { id: `otp-${Date.now()}`, phone, ...create, createdAt: new Date() };
+                otpStore.set(phone, data as any);
+                return data;
+              }),
+              findUnique: jest.fn(async ({ where }: any) => {
+                return otpStore.get(where.phone) || null;
+              }),
+              delete: jest.fn(async ({ where }: any) => {
+                otpStore.delete(where.phone);
+              }),
+            },
+          },
+        },
+        {
           provide: RedisService,
           useValue: {
             get: jest.fn(async (key: string) => {
@@ -45,6 +72,7 @@ describe('OtpService', () => {
             }),
             set: jest.fn(async (key: string, value: string, ttl?: number) => {
               redisStore.set(key, { value, ttl });
+              return true;
             }),
             del: jest.fn(async (key: string) => {
               redisStore.delete(key);
@@ -65,6 +93,7 @@ describe('OtpService', () => {
     service = module.get<OtpService>(OtpService);
     configService = module.get(ConfigService);
     redisService = module.get(RedisService);
+    prismaService = module.get(PrismaService);
 
     // Reset mockRandomInt to default
     mockRandomInt.mockReturnValue(456789);
@@ -110,24 +139,30 @@ describe('OtpService', () => {
       expect(result.requestId).toBe('dev-mode');
     });
 
-    it('should store OTP data in Redis with key pattern otp:{phone}', async () => {
-      // Spec: Section 14 (Security) — use Redis for OTP storage, not in-memory
+    it('should store OTP data in Prisma OtpToken table via upsert', async () => {
+      // Spec: Section 14 (Security) — OTP stored in PostgreSQL, not Redis
       const phone = '+919876543210';
       await service.sendOtp(phone);
 
-      expect(redisService.set).toHaveBeenCalledWith(
-        `otp:${phone}`,
-        expect.any(String),
-        300, // 5 minutes TTL
+      expect(prismaService.otpToken.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { phone },
+          create: expect.objectContaining({
+            phone,
+            otp: expect.stringMatching(/^\d{6}$/),
+            expiresAt: expect.any(Date),
+          }),
+          update: expect.objectContaining({
+            otp: expect.stringMatching(/^\d{6}$/),
+            expiresAt: expect.any(Date),
+          }),
+        }),
       );
 
-      // Verify stored data is valid JSON with otp, attempts, expiresAt
-      const setCall = redisService.set.mock.calls[0];
-      const storedData = JSON.parse(setCall[1]);
-      expect(storedData).toHaveProperty('otp');
-      expect(storedData).toHaveProperty('attempts');
-      expect(storedData).toHaveProperty('expiresAt');
-      expect(storedData.otp).toMatch(/^\d{6}$/);
+      // Verify in-memory store has the entry
+      const stored = otpStore.get(phone);
+      expect(stored).toBeDefined();
+      expect(stored!.otp).toMatch(/^\d{6}$/);
     });
 
     it('should use Redis rate limit key otp_rate:{phone} with 1-hour TTL', async () => {
@@ -169,6 +204,15 @@ describe('OtpService', () => {
       expect(mathRandomSpy).not.toHaveBeenCalled();
 
       mathRandomSpy.mockRestore();
+    });
+
+    it('should return failure if Prisma upsert fails', async () => {
+      prismaService.otpToken.upsert.mockRejectedValueOnce(new Error('DB connection lost'));
+
+      const result = await service.sendOtp('+919876543210');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('SMS service temporarily unavailable. Please try again.');
     });
   });
 
@@ -216,33 +260,47 @@ describe('OtpService', () => {
       expect(result.message).toBe('Invalid OTP');
     });
 
-    it('should clear OTP from Redis after successful verification', async () => {
+    it('should clear OTP from database after successful verification', async () => {
       const phone = '+919876543210';
       mockRandomInt.mockReturnValue(456789);
       await service.sendOtp(phone);
 
       await service.verifyOtp(phone, '456789');
 
-      // OTP should be deleted from Redis
-      expect(redisService.del).toHaveBeenCalledWith(`otp:${phone}`);
+      // OTP should be deleted from database
+      expect(prismaService.otpToken.delete).toHaveBeenCalledWith({ where: { phone } });
+      // Verify it's gone from the in-memory store
+      expect(otpStore.has(phone)).toBe(false);
     });
 
     it('should return failure for expired OTP', async () => {
       const phone = '+919876543210';
       mockRandomInt.mockReturnValue(456789);
 
-      // Store an already-expired OTP directly in the mock Redis
-      const expiredData = JSON.stringify({
+      // Store an already-expired OTP directly in the mock store
+      otpStore.set(phone, {
+        phone,
         otp: '456789',
         attempts: 1,
-        expiresAt: Date.now() - 1000, // 1 second ago
+        expiresAt: new Date(Date.now() - 1000), // 1 second ago
       });
-      redisStore.set(`otp:${phone}`, { value: expiredData });
 
       const result = await service.verifyOtp(phone, '456789');
 
       expect(result.success).toBe(false);
       expect(result.message).toBe('OTP expired. Please request a new one.');
+    });
+
+    it('should still work when Redis is completely down (rate limit returns 0)', async () => {
+      // Simulate Redis being down — incr returns 0 (error fallback)
+      redisService.incr.mockResolvedValue(0);
+
+      const phone = '+919876543210';
+      const sendResult = await service.sendOtp(phone);
+      expect(sendResult.success).toBe(true);
+
+      const verifyResult = await service.verifyOtp(phone, '456789');
+      expect(verifyResult.success).toBe(true);
     });
   });
 });

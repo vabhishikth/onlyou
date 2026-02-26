@@ -46,7 +46,7 @@ export class PrescriptionResolver {
     @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<DoctorPrescriptionItem[]> {
     const doctorId = context.req.user.id;
-    return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined, pagination?.take, pagination?.skip);
+    return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined, pagination?.take, pagination?.skip) as any;
   }
 
   /**
@@ -60,7 +60,7 @@ export class PrescriptionResolver {
     @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<PatientPrescriptionItem[]> {
     const patientId = context.req.user.id;
-    return this.prescriptionService.getPatientPrescriptions(patientId, pagination?.take, pagination?.skip);
+    return this.prescriptionService.getPatientPrescriptions(patientId, pagination?.take, pagination?.skip) as any;
   }
 
   /**

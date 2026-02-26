@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VideoNotificationService } from './video-notification.service';
 import { HmsService } from './hms.service';
 import { ConsultationStatus, VideoSessionStatus } from '@prisma/client';
-import { transitionStatus, validateTransition } from './video-state-machine';
+import { transitionStatus } from './video-state-machine';
 
 // Spec: Phase 13+14 — Cron-based video consultation automation
 // Includes: reminders, room pre-creation, no-show, stale session cleanup
