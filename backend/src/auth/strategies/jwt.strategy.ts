@@ -27,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
+    // Spec: Section 14 (Security) — validate user status and role on every request
     async validate(payload: JwtPayload) {
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
@@ -34,6 +35,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
         if (!user) {
             throw new UnauthorizedException('User not found');
+        }
+
+        if (!user.isVerified) {
+            throw new UnauthorizedException('Account not verified');
+        }
+
+        if (user.role !== payload.role) {
+            throw new UnauthorizedException('Token role mismatch');
         }
 
         return user;
