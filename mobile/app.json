@@ -59,7 +59,7 @@
             "kotlinVersion": "1.9.25"
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.0"
           }
         }
       ]
