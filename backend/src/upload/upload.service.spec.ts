@@ -243,6 +243,59 @@ describe('UploadService', () => {
       expect(result.success).toBe(false);
       expect(result.message).toContain('S3 test failed');
     });
+
+    it('should NOT log credentials in production', async () => {
+      // Create a production-configured service
+      const { Test: NestTest } = require('@nestjs/testing');
+      const prodModule = await NestTest.createTestingModule({
+        providers: [
+          UploadService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                const config: Record<string, string> = {
+                  AWS_S3_REGION: 'ap-south-1',
+                  AWS_S3_BUCKET: 'onlyou-uploads',
+                  AWS_ACCESS_KEY_ID: 'AKIAIOSFODNN7EXAMPLE',
+                  AWS_SECRET_ACCESS_KEY: 'wJalrXUtnFEMI/EXAMPLEKEY',
+                  NODE_ENV: 'production',
+                };
+                return config[key];
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const prodService = prodModule.get<UploadService>(UploadService);
+      const logSpy = jest.spyOn((prodService as any).logger, 'log');
+
+      await prodService.testS3Upload();
+
+      // Ensure no log call contains credential substring
+      for (const call of logSpy.mock.calls) {
+        const message = call[0] as string;
+        expect(message).not.toContain('Using credentials');
+        expect(message).not.toContain('AKIAIОСF');
+      }
+
+      logSpy.mockRestore();
+    });
+
+    it('should log credentials in development', async () => {
+      // The default service in this test suite is dev-configured (NODE_ENV not set → not production)
+      const logSpy = jest.spyOn((service as any).logger, 'log');
+
+      await service.testS3Upload();
+
+      const credentialLogs = logSpy.mock.calls.filter(
+        (call) => (call[0] as string).includes('Using credentials')
+      );
+      expect(credentialLogs.length).toBe(1);
+
+      logSpy.mockRestore();
+    });
   });
 });
 

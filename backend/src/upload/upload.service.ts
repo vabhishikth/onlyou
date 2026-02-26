@@ -182,7 +182,10 @@ export class UploadService {
         const testContent = 'S3 connectivity test - ' + new Date().toISOString();
 
         this.logger.log(`Testing S3 upload to bucket: ${this.bucket}, key: ${testKey}`);
-        this.logger.log(`Using credentials: ${this.config.get('AWS_ACCESS_KEY_ID')?.substring(0, 8)}...`);
+        // Only log partial credentials in non-production environments
+        if (this.config.get('NODE_ENV') !== 'production') {
+            this.logger.log(`Using credentials: ${this.config.get('AWS_ACCESS_KEY_ID')?.substring(0, 8)}...`);
+        }
 
         try {
             // Try to upload a test file
