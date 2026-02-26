@@ -18,7 +18,9 @@ import {
     JOIN_VIDEO_SESSION,
     REJOIN_VIDEO_SESSION,
     GIVE_RECORDING_CONSENT,
+    GET_VIDEO_SESSION_SUMMARY,
     type VideoSession,
+    type VideoSessionSummary,
 } from '@/graphql/video';
 import RecordingConsentModal from '@/components/video/RecordingConsentModal';
 
@@ -40,6 +42,13 @@ const GET_VIDEO_SESSION_QUERY = gql`
             scheduledEndTime
             recordingConsentGiven
             roomId
+        }
+        videoSessionSummary(videoSessionId: $videoSessionId) {
+            doctorName
+            durationSeconds
+            status
+            recordingAvailable
+            notes
         }
     }
 `;
@@ -69,8 +78,16 @@ export default function VideoSessionScreen() {
     });
 
     const session: VideoSession | null = data?.videoSession || null;
+    const summary: VideoSessionSummary | null = data?.videoSessionSummary || null;
 
     const [doctorDisconnected, setDoctorDisconnected] = useState(false);
+
+    // Spec: Task 4.1 — Auto-detect COMPLETED status → POST_CALL
+    useEffect(() => {
+        if (session?.status === 'COMPLETED' && screenState !== 'POST_CALL') {
+            setScreenState('POST_CALL');
+        }
+    }, [session?.status, screenState]);
 
     const [joinSession] = useMutation(JOIN_VIDEO_SESSION, {
         onCompleted: async (result) => {
@@ -575,22 +592,35 @@ export default function VideoSessionScreen() {
                 </View>
             )}
 
-            {/* POST_CALL State */}
+            {/* POST_CALL State — Spec: Task 4.1 enhanced post-call summary */}
             {screenState === 'POST_CALL' && (
                 <View style={styles.centerContent}>
                     <Text style={styles.postCallIcon}>{'\u2705'}</Text>
                     <Text style={styles.postCallTitle}>Call Ended</Text>
+                    {summary?.doctorName && (
+                        <Text style={styles.postCallDoctor}>
+                            with {summary.doctorName}
+                        </Text>
+                    )}
                     <Text style={styles.postCallDuration}>
-                        Duration: {formatDuration(callDuration)}
+                        Duration: {summary?.durationSeconds
+                            ? formatDuration(summary.durationSeconds)
+                            : formatDuration(callDuration)}
                     </Text>
                     <Text style={styles.postCallText}>
-                        Your doctor will review the consultation and share next steps.
+                        Your doctor is reviewing your case and will share next steps soon.
                     </Text>
                     <TouchableOpacity
                         style={styles.homeButton}
                         onPress={() => router.push('/(tabs)' as never)}
                     >
                         <Text style={styles.homeButtonText}>Return Home</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.goBackButton}
+                        onPress={() => router.back()}
+                    >
+                        <Text style={styles.goBackText}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -981,5 +1011,20 @@ const styles = StyleSheet.create({
     homeButtonText: {
         ...typography.button,
         color: colors.primaryText,
+    },
+    postCallDoctor: {
+        ...typography.bodySmall,
+        color: colors.textSecondary,
+        marginBottom: spacing.sm,
+    },
+    goBackButton: {
+        marginTop: spacing.md,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+    },
+    goBackText: {
+        ...typography.bodySmall,
+        color: colors.primary,
+        fontWeight: '600',
     },
 });

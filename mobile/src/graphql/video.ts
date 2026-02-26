@@ -212,6 +212,27 @@ export const REJOIN_VIDEO_SESSION = gql`
     }
 `;
 
+// Spec: Task 4.1 — Post-call summary query
+export interface VideoSessionSummary {
+    doctorName: string;
+    durationSeconds?: number;
+    status: VideoSessionStatus;
+    recordingAvailable: boolean;
+    notes?: string;
+}
+
+export const GET_VIDEO_SESSION_SUMMARY = gql`
+    query GetVideoSessionSummary($videoSessionId: String!) {
+        videoSessionSummary(videoSessionId: $videoSessionId) {
+            doctorName
+            durationSeconds
+            status
+            recordingAvailable
+            notes
+        }
+    }
+`;
+
 // ============================================
 // Patient-friendly status labels
 // ============================================

@@ -252,6 +252,28 @@ export class NoShowResultType {
 }
 
 // ============================================
+// Session summary (Task 4.1)
+// ============================================
+
+@ObjectType()
+export class VideoSessionSummaryType {
+  @Field()
+  doctorName: string;
+
+  @Field(() => Int, { nullable: true })
+  durationSeconds?: number;
+
+  @Field(() => VideoSessionStatus)
+  status: VideoSessionStatus;
+
+  @Field()
+  recordingAvailable: boolean;
+
+  @Field({ nullable: true })
+  notes?: string;
+}
+
+// ============================================
 // Cancel result
 // ============================================
 

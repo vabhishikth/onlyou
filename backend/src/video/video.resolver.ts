@@ -29,6 +29,7 @@ import {
   VideoSessionType,
   DoctorVideoSessionType,
   BookedSlotType,
+  VideoSessionSummaryType,
 } from './dto/video.output';
 
 // Spec: Phase 13 plan — Chunk 7, Phase 14 — Chunk 0 (GraphQL decorators)
@@ -134,6 +135,44 @@ export class VideoResolver {
     }
 
     return session;
+  }
+
+  // Spec: Task 4.1 — Post-call summary for patient
+  @Query(() => VideoSessionSummaryType, { name: 'videoSessionSummary' })
+  @UseGuards(JwtAuthGuard)
+  async videoSessionSummary(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
+    const session = await this.prisma.videoSession.findUnique({
+      where: { id: videoSessionId },
+      include: {
+        doctor: {
+          include: { doctorProfile: true },
+        },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Video session not found');
+    }
+
+    if (session.patientId !== user.id && session.doctorId !== user.id) {
+      throw new ForbiddenException('You do not have access to this video session');
+    }
+
+    const doctorName = (session as any).doctor?.doctorProfile?.fullName || 'Doctor';
+    const recordingAvailable = !!(
+      session.recordingConsentGiven && session.recordingUrl
+    );
+
+    return {
+      doctorName,
+      durationSeconds: session.durationSeconds,
+      status: session.status,
+      recordingAvailable,
+      notes: session.notes,
+    };
   }
 
   @Mutation(() => JoinSessionResponse, { name: 'joinVideoSession' })

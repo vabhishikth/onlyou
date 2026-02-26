@@ -563,4 +563,77 @@ describe('VideoSessionScreen', () => {
             });
         });
     });
+
+    // ============================================================
+    // Task 4.1: Post-call summary for patient
+    // ============================================================
+
+    describe('POST_CALL state', () => {
+        // Helper: get into IN_CALL then transition to POST_CALL via "End Call"
+        const setupPostCallState = () => {
+            mockUseQuery.mockReturnValue({
+                data: {
+                    videoSession: {
+                        ...mockSession,
+                        recordingConsentGiven: true,
+                        status: 'COMPLETED',
+                        scheduledStartTime: new Date(Date.now() - 60000).toISOString(),
+                    },
+                    videoSessionSummary: {
+                        doctorName: 'Dr. Sharma',
+                        durationSeconds: 750,
+                        status: 'COMPLETED',
+                        recordingAvailable: true,
+                        notes: null,
+                    },
+                },
+                loading: false,
+                error: null,
+                refetch: jest.fn(),
+            });
+
+            // useMutation with onCompleted for join flow
+            mockUseMutation.mockImplementation((_mutation: any, options: any) => {
+                const mutate = jest.fn(async () => {
+                    const resultData = { joinVideoSession: { roomId: 'room-1', token: 'test-token' } };
+                    if (options?.onCompleted) {
+                        await options.onCompleted(resultData);
+                    }
+                    return { data: resultData };
+                });
+                return [mutate, { loading: false }];
+            });
+        };
+
+        it('shows POST_CALL screen when session status is COMPLETED', () => {
+            setupPostCallState();
+            const { getByText } = render(<VideoSessionScreen />);
+            expect(getByText(/Call Ended/i)).toBeTruthy();
+        });
+
+        it('shows doctor name in post-call summary', () => {
+            setupPostCallState();
+            const { getByText } = render(<VideoSessionScreen />);
+            expect(getByText(/Dr. Sharma/)).toBeTruthy();
+        });
+
+        it('shows call duration in post-call summary', () => {
+            setupPostCallState();
+            const { getByText } = render(<VideoSessionScreen />);
+            // 750 seconds = 12 min 30 sec → "12:30"
+            expect(getByText(/12:30/)).toBeTruthy();
+        });
+
+        it('shows "Your doctor is reviewing your case" message', () => {
+            setupPostCallState();
+            const { getByText } = render(<VideoSessionScreen />);
+            expect(getByText(/reviewing your case/i)).toBeTruthy();
+        });
+
+        it('shows Go Back button in post-call', () => {
+            setupPostCallState();
+            const { getByText } = render(<VideoSessionScreen />);
+            expect(getByText(/Go Back/i)).toBeTruthy();
+        });
+    });
 });

@@ -672,6 +672,103 @@ describe('VideoResolver', () => {
   });
 
   // ============================================================
+  // Video session summary (Task 4.1)
+  // ============================================================
+
+  describe('Patient: videoSessionSummary', () => {
+    it('should return summary with doctor name, duration, and status', async () => {
+      const startTime = new Date('2026-03-01T10:00:00Z');
+      const endTime = new Date('2026-03-01T10:12:30Z');
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        status: VideoSessionStatus.COMPLETED,
+        actualStartTime: startTime,
+        actualEndTime: endTime,
+        durationSeconds: 750,
+        recordingConsentGiven: true,
+        recordingUrl: 'https://s3.example.com/recordings/vs-1.mp4',
+        notes: 'Follow up in 2 weeks',
+        doctor: {
+          doctorProfile: { fullName: 'Dr. Sharma' },
+        },
+      });
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      const result = await resolver.videoSessionSummary(user, 'vs-1');
+
+      expect(result.doctorName).toBe('Dr. Sharma');
+      expect(result.durationSeconds).toBe(750);
+      expect(result.status).toBe(VideoSessionStatus.COMPLETED);
+      expect(result.recordingAvailable).toBe(true);
+    });
+
+    it('should set recordingAvailable false when no recording URL', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        status: VideoSessionStatus.COMPLETED,
+        actualStartTime: new Date(),
+        actualEndTime: new Date(),
+        durationSeconds: 300,
+        recordingConsentGiven: true,
+        recordingUrl: null,
+        doctor: {
+          doctorProfile: { fullName: 'Dr. Patel' },
+        },
+      });
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      const result = await resolver.videoSessionSummary(user, 'vs-1');
+
+      expect(result.recordingAvailable).toBe(false);
+    });
+
+    it('should set recordingAvailable false when consent not given', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        status: VideoSessionStatus.COMPLETED,
+        recordingConsentGiven: false,
+        recordingUrl: 'https://s3.example.com/recordings/vs-1.mp4',
+        doctor: {
+          doctorProfile: { fullName: 'Dr. Patel' },
+        },
+      });
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      const result = await resolver.videoSessionSummary(user, 'vs-1');
+
+      expect(result.recordingAvailable).toBe(false);
+    });
+
+    it('should throw ForbiddenException for unauthorized user', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1',
+        patientId: 'patient-2',
+        doctorId: 'doctor-1',
+      });
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      await expect(
+        resolver.videoSessionSummary(user, 'vs-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException for missing session', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue(null);
+
+      const user = { id: 'patient-1', role: 'PATIENT' };
+      await expect(
+        resolver.videoSessionSummary(user, 'nonexistent'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ============================================================
   // Webhook
   // ============================================================
 
