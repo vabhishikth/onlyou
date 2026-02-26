@@ -389,4 +389,178 @@ describe('VideoSessionScreen', () => {
             });
         });
     });
+
+    // ============================================================
+    // Task 2.3: Patient Reconnection UI
+    // ============================================================
+
+    describe('Reconnection UI', () => {
+        // Helper: get into IN_CALL state for reconnection tests
+        const setupInCallState = () => {
+            // Session is joinable
+            mockUseQuery.mockReturnValue({
+                data: {
+                    videoSession: {
+                        ...mockSession,
+                        recordingConsentGiven: true,
+                        scheduledStartTime: new Date(Date.now() - 60000).toISOString(),
+                    },
+                },
+                loading: false,
+                error: null,
+                refetch: jest.fn(),
+            });
+
+            // useMutation with onCompleted support
+            mockUseMutation.mockImplementation((_mutation: any, options: any) => {
+                const mutate = jest.fn(async () => {
+                    const resultData = { joinVideoSession: { roomId: 'room-1', token: 'test-token' } };
+                    if (options?.onCompleted) {
+                        await options.onCompleted(resultData);
+                    }
+                    return { data: resultData };
+                });
+                return [mutate, { loading: false }];
+            });
+
+            // Start connected with peers
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+        };
+
+        it('shows RECONNECTING state when HMS connectionState is RECONNECTING', async () => {
+            setupInCallState();
+            const { getByText, rerender } = render(<VideoSessionScreen />);
+
+            // Enter IN_CALL
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            // Simulate HMS reconnecting
+            await act(async () => {
+                mockHMSState.connectionState = 'RECONNECTING';
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByText(/Reconnecting/i)).toBeTruthy();
+            });
+        });
+
+        it('shows spinner during reconnection', async () => {
+            setupInCallState();
+            const { getByText, getByTestId, rerender } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            // Simulate reconnecting
+            await act(async () => {
+                mockHMSState.connectionState = 'RECONNECTING';
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByTestId('reconnecting-spinner')).toBeTruthy();
+            });
+        });
+
+        it('shows manual Reconnect button when in RECONNECTING state', async () => {
+            setupInCallState();
+            const { getByText, rerender } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            // Simulate reconnecting
+            await act(async () => {
+                mockHMSState.connectionState = 'RECONNECTING';
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByText('Reconnect')).toBeTruthy();
+            });
+        });
+
+        it('returns to IN_CALL when HMS auto-reconnects (RECONNECTING → CONNECTED)', async () => {
+            setupInCallState();
+            const { getByText, queryByText, rerender } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            // Enter reconnecting
+            await act(async () => {
+                mockHMSState.connectionState = 'RECONNECTING';
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByText(/Reconnecting/i)).toBeTruthy();
+            });
+
+            // HMS auto-reconnects
+            await act(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                // Should be back in IN_CALL — reconnecting text gone
+                expect(queryByText(/Reconnecting/i)).toBeNull();
+                // Duration badge visible again
+                expect(getByText(/00:0/)).toBeTruthy();
+            });
+        });
+
+        it('shows Leave Call button in RECONNECTING state', async () => {
+            setupInCallState();
+            const { getByText, rerender } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            await act(async () => {
+                mockHMSState.connectionState = 'RECONNECTING';
+            });
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByText('Leave Call')).toBeTruthy();
+            });
+        });
+    });
 });

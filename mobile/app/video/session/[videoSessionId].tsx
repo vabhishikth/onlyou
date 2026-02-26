@@ -16,6 +16,7 @@ import { useHMS } from '@/hooks/useHMS';
 import { HmsView } from '@100mslive/react-native-hms';
 import {
     JOIN_VIDEO_SESSION,
+    REJOIN_VIDEO_SESSION,
     GIVE_RECORDING_CONSENT,
     type VideoSession,
 } from '@/graphql/video';
@@ -23,8 +24,9 @@ import RecordingConsentModal from '@/components/video/RecordingConsentModal';
 
 // Spec: Phase 14 Chunk 6+7 — Multi-state video session screen
 // State machine: PRE_CALL → CONSENT → WAITING → IN_CALL → POST_CALL
+// Task 2.3: Added RECONNECTING state between IN_CALL states
 
-type ScreenState = 'PRE_CALL' | 'CONSENT' | 'WAITING' | 'IN_CALL' | 'POST_CALL';
+type ScreenState = 'PRE_CALL' | 'CONSENT' | 'WAITING' | 'IN_CALL' | 'RECONNECTING' | 'POST_CALL';
 
 const GET_VIDEO_SESSION_QUERY = gql`
     query GetVideoSession($videoSessionId: String!) {
@@ -87,6 +89,28 @@ export default function VideoSessionScreen() {
         },
     });
 
+    // Spec: Task 2.3 — Rejoin mutation for manual reconnection
+    const [rejoinSession] = useMutation(REJOIN_VIDEO_SESSION, {
+        onCompleted: async (result) => {
+            const { token } = result.rejoinVideoSession;
+            try {
+                await hms.leave();
+                await hms.join(token, 'patient');
+                // useEffect handles RECONNECTING → IN_CALL when connection restores
+            } catch {
+                Alert.alert('Reconnection Failed', 'Could not reconnect. Please try again.');
+            }
+        },
+        onError: (error) => {
+            Alert.alert('Reconnection Error', error.message);
+        },
+    });
+
+    const handleManualReconnect = useCallback(() => {
+        if (!videoSessionId) return;
+        rejoinSession({ variables: { videoSessionId } });
+    }, [videoSessionId, rejoinSession]);
+
     // Countdown timer to scheduled start
     useEffect(() => {
         if (!session?.scheduledStartTime || screenState !== 'PRE_CALL') return;
@@ -103,10 +127,10 @@ export default function VideoSessionScreen() {
         return () => clearInterval(timer);
     }, [session?.scheduledStartTime, screenState]);
 
-    // Call duration timer
+    // Call duration timer — keep counting during RECONNECTING
     useEffect(() => {
         let timer: ReturnType<typeof setInterval>;
-        if (screenState === 'IN_CALL') {
+        if (screenState === 'IN_CALL' || screenState === 'RECONNECTING') {
             timer = setInterval(() => {
                 setCallDuration((prev) => prev + 1);
             }, 1000);
@@ -148,6 +172,20 @@ export default function VideoSessionScreen() {
             }
         }
     }, [screenState, hms.remotePeers.length]);
+
+    // Spec: Task 2.3 — Transition to RECONNECTING when HMS SDK reports reconnecting
+    useEffect(() => {
+        if (screenState === 'IN_CALL' && hms.connectionState === 'RECONNECTING') {
+            setScreenState('RECONNECTING');
+        }
+    }, [screenState, hms.connectionState]);
+
+    // Spec: Task 2.3 — Auto-recover from RECONNECTING when HMS SDK reconnects
+    useEffect(() => {
+        if (screenState === 'RECONNECTING' && hms.connectionState === 'CONNECTED') {
+            setScreenState('IN_CALL');
+        }
+    }, [screenState, hms.connectionState]);
 
     // Pulse animation for "Doctor is waiting" indicator
     useEffect(() => {
@@ -224,7 +262,7 @@ export default function VideoSessionScreen() {
     }, [hms]);
 
     const handleBack = useCallback(() => {
-        if (screenState === 'IN_CALL') {
+        if (screenState === 'IN_CALL' || screenState === 'RECONNECTING') {
             Alert.alert('Leave Call', 'Are you sure you want to leave the video call?', [
                 { text: 'Stay', style: 'cancel' },
                 {
@@ -502,6 +540,38 @@ export default function VideoSessionScreen() {
                             <Text style={styles.endCallIcon}>{'\uD83D\uDCDE'}</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+            )}
+
+            {/* RECONNECTING State — Task 2.3 */}
+            {screenState === 'RECONNECTING' && (
+                <View style={styles.reconnectContainer}>
+                    <ActivityIndicator
+                        testID="reconnecting-spinner"
+                        size="large"
+                        color={colors.primary}
+                    />
+                    <Text style={styles.reconnectTitle}>Reconnecting...</Text>
+                    <Text style={styles.reconnectText}>
+                        Your connection was interrupted. Attempting to reconnect automatically.
+                    </Text>
+                    <Text style={styles.reconnectDuration}>
+                        Call time: {formatDuration(callDuration)}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={styles.reconnectButton}
+                        onPress={handleManualReconnect}
+                    >
+                        <Text style={styles.reconnectButtonText}>Reconnect</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.reconnectLeaveButton}
+                        onPress={handleEndCall}
+                    >
+                        <Text style={styles.reconnectLeaveText}>Leave Call</Text>
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -831,6 +901,53 @@ const styles = StyleSheet.create({
     },
     endCallIcon: {
         fontSize: 28,
+    },
+    // RECONNECTING
+    reconnectContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xl,
+        backgroundColor: colors.background,
+    },
+    reconnectTitle: {
+        ...typography.headingSmall,
+        color: colors.text,
+        marginTop: spacing.lg,
+        marginBottom: spacing.sm,
+    },
+    reconnectText: {
+        ...typography.bodySmall,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    reconnectDuration: {
+        ...typography.bodySmall,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: spacing.xl,
+    },
+    reconnectButton: {
+        backgroundColor: colors.primary,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xl,
+        borderRadius: borderRadius.full,
+        marginBottom: spacing.md,
+        ...shadows.md,
+    },
+    reconnectButtonText: {
+        ...typography.button,
+        color: colors.primaryText,
+    },
+    reconnectLeaveButton: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xl,
+    },
+    reconnectLeaveText: {
+        ...typography.button,
+        color: colors.error,
+        fontSize: 14,
     },
     // POST_CALL
     postCallIcon: {

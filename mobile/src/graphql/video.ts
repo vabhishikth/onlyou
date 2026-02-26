@@ -202,6 +202,16 @@ export const GIVE_RECORDING_CONSENT = gql`
     }
 `;
 
+// Spec: Task 2.3 — Rejoin after disconnect (skips consent, uses reconnectRoomId)
+export const REJOIN_VIDEO_SESSION = gql`
+    mutation RejoinVideoSession($videoSessionId: String!) {
+        rejoinVideoSession(videoSessionId: $videoSessionId) {
+            roomId
+            token
+        }
+    }
+`;
+
 // ============================================
 // Patient-friendly status labels
 // ============================================
