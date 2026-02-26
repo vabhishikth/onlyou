@@ -10,10 +10,10 @@ import * as SecureStore from 'expo-secure-store';
 
 // Configure based on environment
 // EXPO_PUBLIC_API_URL is set in .env (root) for dev
-// For physical device: http://YOUR_IP:4000/graphql
-// For simulator: http://localhost:4000/graphql
+// For physical device: set EXPO_PUBLIC_API_URL=http://YOUR_IP:4000/graphql in .env
+// For simulator: localhost works by default
 const API_URL = process.env.EXPO_PUBLIC_API_URL
-    || (__DEV__ ? 'http://192.168.0.104:4000/graphql' : 'https://api.onlyou.life/graphql');
+    || (__DEV__ ? 'http://localhost:4000/graphql' : 'https://api.onlyou.life/graphql');
 
 const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
