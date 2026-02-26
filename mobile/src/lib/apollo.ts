@@ -1,6 +1,7 @@
 import {
     ApolloClient,
     InMemoryCache,
+    Observable,
     createHttpLink,
     from,
 } from '@apollo/client';
@@ -64,15 +65,65 @@ const authLink = setContext(async (_, { headers }) => {
     };
 });
 
-// Error handling link
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+// Error handling link with automatic token refresh on UNAUTHENTICATED errors
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
     if (graphQLErrors) {
         for (const err of graphQLErrors) {
-            // Handle UNAUTHENTICATED error - token expired
             if (err.extensions?.code === 'UNAUTHENTICATED') {
-                if (__DEV__) {
-                    console.warn('Auth error: Token may be expired');
-                }
+                // Attempt automatic token refresh and retry the failed operation
+                return new Observable(observer => {
+                    getRefreshToken()
+                        .then(refreshToken => {
+                            if (!refreshToken) {
+                                observer.error(err);
+                                return;
+                            }
+                            // Call the refresh token mutation directly via fetch
+                            return fetch(API_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    query: `mutation RefreshToken($input: RefreshTokenInput!) {
+                                        refreshToken(input: $input) {
+                                            success accessToken refreshToken
+                                        }
+                                    }`,
+                                    variables: { input: { refreshToken } },
+                                }),
+                            });
+                        })
+                        .then(response => response?.json())
+                        .then(data => {
+                            const result = data?.data?.refreshToken;
+                            if (result?.success && result.accessToken) {
+                                // Store new tokens in SecureStore
+                                setToken(result.accessToken);
+                                if (result.refreshToken) {
+                                    setRefreshToken(result.refreshToken);
+                                }
+                                // Retry the failed operation with the new access token
+                                const oldHeaders = operation.getContext().headers;
+                                operation.setContext({
+                                    headers: {
+                                        ...oldHeaders,
+                                        authorization: `Bearer ${result.accessToken}`,
+                                    },
+                                });
+                                forward(operation).subscribe(observer);
+                            } else {
+                                // Refresh failed — clear tokens so auth context can redirect to login
+                                clearTokens();
+                                observer.error(err);
+                            }
+                        })
+                        .catch(refreshError => {
+                            if (__DEV__) {
+                                console.warn('Token refresh failed:', refreshError);
+                            }
+                            clearTokens();
+                            observer.error(err);
+                        });
+                });
             }
         }
     }
