@@ -14,6 +14,9 @@ import { ToastProvider } from '@/components/ui/toast';
 const httpLink = createHttpLink({
     uri: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/graphql',
     credentials: 'include', // Send HttpOnly cookies with every request
+    headers: {
+        'x-requested-with': 'graphql', // CSRF protection — required by backend for cookie auth
+    },
 });
 
 // Error handling link for auth errors

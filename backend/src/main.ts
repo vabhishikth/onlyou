@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { SentryInterceptor } from './common/sentry/sentry.interceptor';
+import { CsrfGuard } from './common/guards/csrf.guard';
 
 // Spec: Phase 10 — Production Readiness (bootstrap with security hardening)
 
@@ -79,6 +80,9 @@ async function bootstrap() {
 
     // Global error tracking interceptor
     app.useGlobalInterceptors(new SentryInterceptor());
+
+    // CSRF protection for cookie-based auth (requires x-requested-with header)
+    app.useGlobalGuards(new CsrfGuard());
 
     // Global validation pipe
     app.useGlobalPipes(
