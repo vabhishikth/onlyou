@@ -30,7 +30,7 @@ export function useAuth() {
         isAuthenticated: false,
     });
 
-    // Fetch current user on mount
+    // Fetch current user on mount — cookie is sent automatically via credentials: 'include'
     const { data: meData, loading: meLoading, refetch } = useQuery<MeResponse>(ME, {
         skip: typeof window === 'undefined',
         onCompleted: (data) => {
@@ -43,8 +43,6 @@ export function useAuth() {
             }
         },
         onError: () => {
-            // Not authenticated or token expired
-            clearTokens();
             setAuthState({
                 user: null,
                 isLoading: false,
@@ -89,30 +87,17 @@ export function useAuth() {
     );
 
     const verifyOTP = useCallback(
-        async (phone: string, otp: string, rememberDevice = false) => {
+        async (phone: string, otp: string) => {
             const result = await verifyOTPMutation({
                 variables: { phone, otp },
             });
 
             const response = result.data?.verifyOtp;
-            if (response?.success && response.accessToken && response.refreshToken && response.user) {
-                const { accessToken, refreshToken, user } = response;
-
-                // Store tokens
-                localStorage.setItem('accessToken', accessToken);
-
-                if (rememberDevice) {
-                    localStorage.setItem('refreshToken', refreshToken);
-                } else {
-                    sessionStorage.setItem('refreshToken', refreshToken);
-                }
-
-                // Also set as cookie for middleware
-                document.cookie = `accessToken=${accessToken}; path=/; max-age=${rememberDevice ? 604800 : 86400}`;
-
-                // Update state
+            if (response?.success && response.user) {
+                // Tokens are now set as HttpOnly cookies by the backend.
+                // No client-side token storage needed.
                 setAuthState({
-                    user,
+                    user: response.user,
                     isLoading: false,
                     isAuthenticated: true,
                 });
@@ -120,10 +105,9 @@ export function useAuth() {
                 // Refetch user data
                 await refetch();
 
-                return user;
+                return response.user;
             }
 
-            // Return error message if failed
             throw new Error(response?.message || 'Verification failed');
         },
         [verifyOTPMutation, refetch]
@@ -131,14 +115,12 @@ export function useAuth() {
 
     const logout = useCallback(async () => {
         try {
-            const refreshToken =
-                localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
-            await logoutMutation({ variables: { refreshToken } });
+            // Backend clears HttpOnly cookies on logout response
+            await logoutMutation();
         } catch {
             // Ignore errors - we're logging out anyway
         }
 
-        clearTokens();
         setAuthState({
             user: null,
             isLoading: false,
@@ -163,16 +145,6 @@ export function useAuth() {
     };
 }
 
-// Helper to clear all auth tokens
-function clearTokens() {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('refreshToken');
-        document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
-}
-
 // Hook to require auth for a page
 export function useRequireAuth(allowedRoles?: User['role'][]) {
     const router = useRouter();
@@ -183,7 +155,6 @@ export function useRequireAuth(allowedRoles?: User['role'][]) {
             if (!isAuthenticated) {
                 router.push('/login?returnUrl=' + encodeURIComponent(window.location.pathname));
             } else if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-                // User doesn't have required role
                 router.push('/unauthorized');
             }
         }

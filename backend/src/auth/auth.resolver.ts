@@ -1,5 +1,6 @@
-import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
+import { Resolver, Mutation, Args, Query, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { RateLimit } from '../common/decorators/rate-limit.decorator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -12,6 +13,7 @@ import {
     AuthResponse,
     UserType,
 } from './dto/auth.dto';
+import { setAuthCookies, clearAuthCookies } from './auth-cookies';
 
 import { UserService } from '../user/user.service';
 
@@ -31,7 +33,10 @@ export class AuthResolver {
 
     @Mutation(() => AuthResponse)
     @RateLimit(10, 60)
-    async verifyOtp(@Args('input') input: VerifyOtpInput): Promise<AuthResponse> {
+    async verifyOtp(
+        @Args('input') input: VerifyOtpInput,
+        @Context() ctx: { res: Response },
+    ): Promise<AuthResponse> {
         const result = await this.authService.verifyOtpAndLogin(input.phone, input.otp);
         const response: AuthResponse = {
             success: result.success,
@@ -43,13 +48,18 @@ export class AuthResolver {
         if (result.tokens) {
             response.accessToken = result.tokens.accessToken;
             response.refreshToken = result.tokens.refreshToken;
+            // Set HttpOnly cookies for web clients
+            setAuthCookies(ctx.res, result.tokens.accessToken, result.tokens.refreshToken);
         }
         return response;
     }
 
     @Mutation(() => AuthResponse)
     @RateLimit(10, 60)
-    async refreshToken(@Args('input') input: RefreshTokenInput): Promise<AuthResponse> {
+    async refreshToken(
+        @Args('input') input: RefreshTokenInput,
+        @Context() ctx: { res: Response },
+    ): Promise<AuthResponse> {
         const result = await this.authService.refreshAccessToken(input.refreshToken);
         const response: AuthResponse = {
             success: result.success,
@@ -61,6 +71,8 @@ export class AuthResolver {
         if (result.tokens) {
             response.accessToken = result.tokens.accessToken;
             response.refreshToken = result.tokens.refreshToken;
+            // Set HttpOnly cookies for web clients
+            setAuthCookies(ctx.res, result.tokens.accessToken, result.tokens.refreshToken);
         }
         return response;
     }
@@ -70,8 +82,12 @@ export class AuthResolver {
     async logout(
         @CurrentUser() user: { userId: string },
         @Args('refreshToken', { nullable: true }) refreshToken?: string,
+        @Context() ctx: { req: Request; res: Response },
     ): Promise<RequestOtpResponse> {
-        await this.authService.logout(user.userId, refreshToken);
+        // Use refreshToken from argument (mobile) or cookie (web)
+        const token = refreshToken || ctx.req.cookies?.refreshToken;
+        await this.authService.logout(user.userId, token);
+        clearAuthCookies(ctx.res);
         return { success: true, message: 'Logged out successfully' };
     }
 

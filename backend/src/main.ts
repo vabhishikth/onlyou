@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { SentryInterceptor } from './common/sentry/sentry.interceptor';
 
@@ -57,6 +58,9 @@ async function bootstrap() {
     }
 
     const app = await NestFactory.create(AppModule);
+
+    // Cookie parsing (required for HttpOnly auth cookies)
+    app.use(cookieParser());
 
     // Security headers
     app.use(helmet({

@@ -2,12 +2,20 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface JwtPayload {
     sub: string;
     phone: string;
     role: string;
+}
+
+// Extract JWT from HttpOnly cookie first, then Authorization header (mobile fallback)
+function extractJwtFromCookieOrHeader(req: Request): string | null {
+    const fromCookie = req?.cookies?.accessToken;
+    if (fromCookie) return fromCookie;
+    return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
 }
 
 @Injectable()
@@ -21,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             throw new Error('JWT_ACCESS_SECRET must be configured');
         }
         super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: extractJwtFromCookieOrHeader,
             ignoreExpiration: false,
             secretOrKey: secret,
         });
