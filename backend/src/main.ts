@@ -47,7 +47,9 @@ async function bootstrap() {
         killPortHolder(port);
     }
 
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, {
+        rawBody: true, // Enables req.rawBody for webhook HMAC signature verification
+    });
 
     // Security headers
     app.use(helmet({

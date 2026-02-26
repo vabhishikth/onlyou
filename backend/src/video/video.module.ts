@@ -9,12 +9,14 @@ import { HmsService } from './hms.service';
 import { VideoSchedulerService } from './video-scheduler.service';
 import { VideoNotificationService } from './video-notification.service';
 import { VideoResolver } from './video.resolver';
+import { VideoWebhookController } from './video-webhook.controller';
 
 // Spec: Phase 13 plan — Chunk 7
 // Video consultation module
 
 @Module({
   imports: [PrismaModule, NotificationModule, UploadModule, ConfigModule],
+  controllers: [VideoWebhookController],
   providers: [
     AvailabilityService,
     SlotBookingService,
