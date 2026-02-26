@@ -11,6 +11,7 @@ import { AvailabilityService } from './availability.service';
 import { SlotBookingService, CONNECTIVITY_WARNING } from './slot-booking.service';
 import { HmsService } from './hms.service';
 import { VideoSchedulerService } from './video-scheduler.service';
+import { VideoNotificationService } from './video-notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoSessionStatus } from '@prisma/client';
 import { GraphQLJSON } from 'graphql-type-json';
@@ -40,6 +41,7 @@ export class VideoResolver {
     private readonly slotBookingService: SlotBookingService,
     private readonly hmsService: HmsService,
     private readonly schedulerService: VideoSchedulerService,
+    private readonly videoNotificationService: VideoNotificationService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -67,12 +69,17 @@ export class VideoResolver {
     @Args('slotDate') slotDate: string,
     @Args('startTime') startTime: string,
   ) {
-    return this.slotBookingService.bookSlot({
+    const result = await this.slotBookingService.bookSlot({
       consultationId,
       patientId: user.id,
       slotDate: new Date(slotDate),
       startTime,
     });
+
+    // Notify doctor + patient after successful booking
+    this.videoNotificationService.notifySlotBooked(result.bookedSlot.id).catch(() => {});
+
+    return result;
   }
 
   @Mutation(() => CancelBookingResult, { name: 'cancelVideoBooking' })
@@ -162,6 +169,35 @@ export class VideoResolver {
       const created = await this.hmsService.createRoom(videoSessionId);
       roomId = created.roomId;
     }
+    const role = user.role === 'DOCTOR' ? 'doctor' : 'patient';
+
+    const token = await this.hmsService.generateToken(roomId, user.id, role);
+
+    return { roomId, token };
+  }
+
+  @Mutation(() => JoinSessionResponse, { name: 'rejoinVideoSession' })
+  @UseGuards(JwtAuthGuard)
+  async rejoinVideoSession(
+    @CurrentUser() user: any,
+    @Args('videoSessionId') videoSessionId: string,
+  ) {
+    const session = await this.prisma.videoSession.findUnique({
+      where: { id: videoSessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Video session not found');
+    }
+
+    // Access control: user must be the patient or doctor on this session
+    if (session.patientId !== user.id && session.doctorId !== user.id) {
+      throw new ForbiddenException('You do not have access to this video session');
+    }
+
+    // Rejoin skips consent check — it was already given during initial join
+    // Use reconnect room if available, otherwise fall back to original room
+    const roomId = session.reconnectRoomId || session.roomId;
     const role = user.role === 'DOCTOR' ? 'doctor' : 'patient';
 
     const token = await this.hmsService.generateToken(roomId, user.id, role);

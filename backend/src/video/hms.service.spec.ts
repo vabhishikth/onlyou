@@ -48,6 +48,10 @@ describe('HmsService', () => {
 
     service = module.get<HmsService>(HmsService);
 
+    // resetAllMocks clears implementations + Once queues (clearAllMocks does NOT)
+    // This prevents mockResolvedValueOnce leaks between tests
+    mockPrisma.videoSession.findUnique.mockReset();
+    mockPrisma.videoSession.update.mockReset();
     jest.clearAllMocks();
   });
 
@@ -304,6 +308,87 @@ describe('HmsService', () => {
       expect(updateCall.data.status).toBe(VideoSessionStatus.FAILED);
     });
 
+    it('peer.leave: should call handleDisconnect when session is IN_PROGRESS', async () => {
+      const now = new Date();
+      const payload = {
+        event: 'peer.leave',
+        data: {
+          room_id: 'room-1',
+          peer_id: 'patient-1',
+          role: 'patient',
+        },
+      };
+      const signature = signPayload(payload);
+
+      // Call chain: findSessionByRoomId → findUnique(1), handlePeerLeave → findUnique(2), handleDisconnect → findUnique(3)
+      mockPrisma.videoSession.findUnique.mockResolvedValueOnce({
+        id: 'vs-1',
+        roomId: 'room-1',
+      });
+      mockPrisma.videoSession.findUnique.mockResolvedValueOnce({
+        id: 'vs-1',
+        roomId: 'room-1',
+        status: VideoSessionStatus.IN_PROGRESS,
+        actualStartTime: new Date(now.getTime() - 2 * 60 * 1000),
+        disconnectCount: 0,
+      });
+      // handleDisconnect calls findUnique a third time
+      mockPrisma.videoSession.findUnique.mockResolvedValueOnce({
+        id: 'vs-1',
+        roomId: 'room-1',
+        status: VideoSessionStatus.IN_PROGRESS,
+        actualStartTime: new Date(now.getTime() - 2 * 60 * 1000),
+        disconnectCount: 0,
+      });
+      mockPrisma.videoSession.update.mockResolvedValue({
+        id: 'vs-1',
+        reconnectRoomId: 'reconnect-room-vs-1',
+        disconnectCount: 1,
+      });
+
+      await service.handleWebhook({ payload, webhookSignature: signature });
+
+      // handleDisconnect should have been called (creates reconnect room)
+      expect(mockPrisma.videoSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'vs-1' },
+          data: expect.objectContaining({
+            reconnectRoomId: expect.any(String),
+            disconnectCount: 1,
+          }),
+        }),
+      );
+    });
+
+    it('peer.leave: should NOT call handleDisconnect when session is not IN_PROGRESS', async () => {
+      const payload = {
+        event: 'peer.leave',
+        data: {
+          room_id: 'room-1',
+          peer_id: 'doctor-1',
+          role: 'doctor',
+        },
+      };
+      const signature = signPayload(payload);
+
+      // findSessionByRoomId lookup
+      mockPrisma.videoSession.findUnique.mockResolvedValueOnce({
+        id: 'vs-1',
+        roomId: 'room-1',
+      });
+      // Session is SCHEDULED, not IN_PROGRESS
+      mockPrisma.videoSession.findUnique.mockResolvedValueOnce({
+        id: 'vs-1',
+        roomId: 'room-1',
+        status: VideoSessionStatus.SCHEDULED,
+      });
+
+      await service.handleWebhook({ payload, webhookSignature: signature });
+
+      // No update should happen (handleDisconnect not called for non-IN_PROGRESS)
+      expect(mockPrisma.videoSession.update).not.toHaveBeenCalled();
+    });
+
     it('should reject invalid webhook signature', async () => {
       const payload = { event: 'peer.join', data: {} };
 
@@ -424,6 +509,34 @@ describe('HmsService', () => {
         where: { id: videoSessionId },
         data: { recordingUrl: sourceUrl },
       });
+    });
+  });
+
+  // ============================================================
+  // startRecording + stopRecording
+  // ============================================================
+
+  describe('startRecording', () => {
+    it('should succeed in mock mode (no real API call)', async () => {
+      await expect(service.startRecording('mock-room-vs-1')).resolves.not.toThrow();
+    });
+
+    it('should log that recording was started', async () => {
+      const logSpy = jest.spyOn((service as any).logger, 'log');
+      await service.startRecording('mock-room-vs-1');
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('recording'));
+    });
+  });
+
+  describe('stopRecording', () => {
+    it('should succeed in mock mode (no real API call)', async () => {
+      await expect(service.stopRecording('mock-room-vs-1')).resolves.not.toThrow();
+    });
+
+    it('should log that recording was stopped', async () => {
+      const logSpy = jest.spyOn((service as any).logger, 'log');
+      await service.stopRecording('mock-room-vs-1');
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('recording'));
     });
   });
 });

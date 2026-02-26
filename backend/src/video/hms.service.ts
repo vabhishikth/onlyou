@@ -241,6 +241,73 @@ export class HmsService {
   }
 
   /**
+   * Start recording for a 100ms room
+   * Mock mode: logs and returns (no real API call)
+   * Real mode: POST https://api.100ms.live/v2/recordings/room/{roomId}/start
+   * Spec: Phase 13 plan — Task 1.4
+   */
+  async startRecording(roomId: string): Promise<void> {
+    if (this.isMockMode) {
+      this.logger.log(`Mock: started recording for room ${roomId}`);
+      return;
+    }
+
+    const managementToken = this.generateManagementToken();
+    const response = await fetch(
+      `https://api.100ms.live/v2/recordings/room/${roomId}/start`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${managementToken}`,
+        },
+        body: JSON.stringify({ meeting_url: '', resolution: { width: 1280, height: 720 } }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      this.logger.error(`100ms startRecording failed: ${response.status} ${errorBody}`);
+      throw new BadRequestException('Failed to start recording');
+    }
+
+    this.logger.log(`Started recording for room ${roomId}`);
+  }
+
+  /**
+   * Stop recording for a 100ms room
+   * Mock mode: logs and returns (no real API call)
+   * Real mode: POST https://api.100ms.live/v2/recordings/room/{roomId}/stop
+   * Spec: Phase 13 plan — Task 1.4
+   */
+  async stopRecording(roomId: string): Promise<void> {
+    if (this.isMockMode) {
+      this.logger.log(`Mock: stopped recording for room ${roomId}`);
+      return;
+    }
+
+    const managementToken = this.generateManagementToken();
+    const response = await fetch(
+      `https://api.100ms.live/v2/recordings/room/${roomId}/stop`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${managementToken}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      this.logger.error(`100ms stopRecording failed: ${response.status} ${errorBody}`);
+      throw new BadRequestException('Failed to stop recording');
+    }
+
+    this.logger.log(`Stopped recording for room ${roomId}`);
+  }
+
+  /**
    * Store recording URL on the video session
    * In a full implementation, would download from 100ms and upload to S3
    * Stubbed: stores the source URL directly
@@ -293,8 +360,19 @@ export class HmsService {
   }
 
   private async handlePeerLeave(data: any): Promise<void> {
-    // Peer leave is informational — actual session close is handled by session.close event
-    this.logger.log(`Peer left room ${data.room_id}`);
+    const { room_id } = data;
+    this.logger.log(`Peer left room ${room_id}`);
+
+    // Check if session is IN_PROGRESS — trigger reconnection flow
+    const sessionId = await this.findSessionByRoomId(room_id);
+    const session = await this.prisma.videoSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (session?.status === VideoSessionStatus.IN_PROGRESS) {
+      const result = await this.handleDisconnect(sessionId);
+      this.logger.log(`Disconnect handled for ${sessionId}: ${result.action}`);
+    }
   }
 
   private async handleSessionClose(data: any): Promise<void> {
