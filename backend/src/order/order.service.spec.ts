@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { OrderService, OrderStatus, VALID_ORDER_TRANSITIONS } from './order.service';
+import { OrderStatus } from '@prisma/client';
+import { OrderService, VALID_ORDER_TRANSITIONS } from './order.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: master spec Section 8 (Medication Delivery)

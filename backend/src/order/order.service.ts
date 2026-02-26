@@ -5,24 +5,13 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { randomInt } from 'crypto';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: master spec Section 8 (Medication Delivery)
-
-export enum OrderStatus {
-  PRESCRIPTION_CREATED = 'PRESCRIPTION_CREATED',
-  SENT_TO_PHARMACY = 'SENT_TO_PHARMACY',
-  PHARMACY_PREPARING = 'PHARMACY_PREPARING',
-  PHARMACY_READY = 'PHARMACY_READY',
-  PHARMACY_ISSUE = 'PHARMACY_ISSUE',
-  PICKUP_ARRANGED = 'PICKUP_ARRANGED',
-  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
-  DELIVERED = 'DELIVERED',
-  DELIVERY_FAILED = 'DELIVERY_FAILED',
-  RESCHEDULED = 'RESCHEDULED',
-  RETURNED = 'RETURNED',
-  CANCELLED = 'CANCELLED',
-}
+// OrderStatus enum is defined in Prisma schema (prisma/schema.prisma) and imported from @prisma/client.
+// Re-export for backward compatibility with existing consumers.
+export { OrderStatus } from '@prisma/client';
 
 // Spec: Section 8.3 — Valid status transitions
 export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
