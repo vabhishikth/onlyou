@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: master spec Section 8 (Medication Delivery)
@@ -122,9 +123,10 @@ export class OrderService {
 
   /**
    * Generate 4-digit delivery OTP
+   * Security: uses crypto.randomInt for cryptographically secure randomness
    */
   private generateDeliveryOtp(): string {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    return randomInt(1000, 10000).toString();
   }
 
   /**

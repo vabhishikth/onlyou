@@ -373,6 +373,55 @@ describe('OrderService', () => {
       });
     });
 
+    // Security: P0 fix — OTP must use crypto.randomInt, not Math.random()
+    it('should NOT use Math.random for OTP generation (must use crypto)', async () => {
+      const mathRandomSpy = jest.spyOn(Math, 'random');
+      const callCountBefore = mathRandomSpy.mock.calls.length;
+
+      const readyOrder = { ...mockOrder, status: OrderStatus.PHARMACY_READY };
+      mockPrismaService.order.findUnique.mockResolvedValue(readyOrder);
+      mockPrismaService.order.update.mockImplementation(({ data }) => {
+        return Promise.resolve({ ...readyOrder, ...data });
+      });
+
+      await service.arrangePickup({
+        orderId: 'order-1',
+        deliveryPersonName: 'Ravi Kumar',
+        deliveryPersonPhone: '+919555555555',
+        deliveryMethod: 'RAPIDO',
+        estimatedDeliveryTime: '2026-02-12 16:00',
+      });
+
+      // Math.random should NOT have been called for OTP generation
+      // (it is NOT called at all in arrangePickup when using crypto.randomInt)
+      expect(mathRandomSpy.mock.calls.length).toBe(callCountBefore);
+
+      mathRandomSpy.mockRestore();
+    });
+
+    it('should generate OTP in range 1000-9999 consistently', async () => {
+      const readyOrder = { ...mockOrder, status: OrderStatus.PHARMACY_READY };
+      mockPrismaService.order.findUnique.mockResolvedValue(readyOrder);
+
+      // Run multiple times to check range
+      for (let i = 0; i < 20; i++) {
+        mockPrismaService.order.update.mockImplementation(({ data }) => {
+          const otp = parseInt(data.deliveryOtp, 10);
+          expect(otp).toBeGreaterThanOrEqual(1000);
+          expect(otp).toBeLessThanOrEqual(9999);
+          return Promise.resolve({ ...readyOrder, ...data });
+        });
+
+        await service.arrangePickup({
+          orderId: 'order-1',
+          deliveryPersonName: 'Ravi Kumar',
+          deliveryPersonPhone: '+919555555555',
+          deliveryMethod: 'RAPIDO',
+          estimatedDeliveryTime: '2026-02-12 16:00',
+        });
+      }
+    });
+
     it('should throw error if order not ready', async () => {
       const wrongStatusOrder = { ...mockOrder, status: OrderStatus.PHARMACY_PREPARING };
       mockPrismaService.order.findUnique.mockResolvedValue(wrongStatusOrder);
