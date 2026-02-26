@@ -15,6 +15,7 @@ import { AvailabilityService } from './availability.service';
 import { SlotBookingService, CONNECTIVITY_WARNING } from './slot-booking.service';
 import { HmsService } from './hms.service';
 import { VideoSchedulerService } from './video-scheduler.service';
+import { VideoNotificationService } from './video-notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { VideoSessionStatus, BookedSlotStatus, ConsultationStatus } from '@prisma/client';
 
@@ -69,6 +70,7 @@ describe('Video Edge Cases', () => {
         { provide: HmsService, useValue: mockHmsService },
         { provide: VideoSchedulerService, useValue: mockSchedulerService },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: VideoNotificationService, useValue: { notifySlotBooked: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -531,6 +533,161 @@ describe('Video Edge Cases', () => {
         'PATIENT',
         'doctor-1',
       );
+    });
+  });
+
+  // ============================================================
+  // Task 5.1: Full lifecycle integration tests
+  // ============================================================
+
+  describe('Full lifecycle: Happy path', () => {
+    it('Book → Consent → Join (patient) → Join (doctor) → Complete', async () => {
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+      const doctor = { id: 'doctor-1', role: 'DOCTOR' };
+
+      // Step 1: Book slot
+      mockSlotBookingService.bookSlot.mockResolvedValue({
+        bookedSlot: { id: 'bs-1' },
+        videoSession: { id: 'vs-1' },
+        connectivityWarning: CONNECTIVITY_WARNING,
+      });
+      const booking = await resolver.bookVideoSlot(patient, 'consult-1', '2026-03-01', '10:00');
+      expect(booking.bookedSlot.id).toBe('bs-1');
+
+      // Step 2: Patient gives consent
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+      });
+      mockPrisma.videoSession.update.mockResolvedValue({
+        id: 'vs-1', recordingConsentGiven: true,
+      });
+      const consent = await resolver.giveRecordingConsent(patient, 'vs-1');
+      expect(consent.recordingConsentGiven).toBe(true);
+
+      // Step 3: Patient joins
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+        recordingConsentGiven: true, roomId: 'room-1', reconnectRoomId: null,
+      });
+      mockHmsService.generateToken.mockResolvedValue('patient-token');
+      const patientJoin = await resolver.joinVideoSession(patient, 'vs-1');
+      expect(patientJoin.token).toBe('patient-token');
+
+      // Step 4: Doctor joins
+      mockHmsService.generateToken.mockResolvedValue('doctor-token');
+      const doctorJoin = await resolver.joinVideoSession(doctor, 'vs-1');
+      expect(doctorJoin.token).toBe('doctor-token');
+      expect(mockHmsService.generateToken).toHaveBeenCalledWith('room-1', 'doctor-1', 'doctor');
+
+      // Step 5: Doctor completes
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', doctorId: 'doctor-1', status: VideoSessionStatus.IN_PROGRESS,
+        consultationId: 'consult-1',
+      });
+      mockPrisma.videoSession.update.mockResolvedValue({
+        id: 'vs-1', status: VideoSessionStatus.COMPLETED, notes: 'Patient reviewed',
+      });
+      mockSchedulerService.onVideoCompleted.mockResolvedValue(undefined);
+      const completed = await resolver.completeVideoSession(doctor, 'vs-1', 'Patient reviewed');
+      expect(completed.status).toBe(VideoSessionStatus.COMPLETED);
+      expect(mockSchedulerService.onVideoCompleted).toHaveBeenCalled();
+    });
+  });
+
+  describe('Full lifecycle: Recording consent required', () => {
+    it('should reject join without consent', async () => {
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+        recordingConsentGiven: false, roomId: 'room-1',
+      });
+
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+      await expect(
+        resolver.joinVideoSession(patient, 'vs-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Full lifecycle: Disconnect + reconnect', () => {
+    it('Patient rejoins after disconnect using reconnectRoomId', async () => {
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+
+      // Session has a reconnect room (created by webhook handler)
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+        recordingConsentGiven: true, roomId: 'room-1',
+        reconnectRoomId: 'reconnect-room-1',
+        status: VideoSessionStatus.IN_PROGRESS,
+      });
+      mockHmsService.generateToken.mockResolvedValue('reconnect-token');
+
+      // Rejoin skips consent check
+      const result = await resolver.rejoinVideoSession(patient, 'vs-1');
+      expect(result.roomId).toBe('reconnect-room-1');
+      expect(result.token).toBe('reconnect-token');
+    });
+  });
+
+  describe('Full lifecycle: Cancel and rebook', () => {
+    it('Patient cancels slot then rebooks at a new time', async () => {
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+
+      // Cancel existing booking
+      mockSlotBookingService.cancelBooking.mockResolvedValue({
+        id: 'bs-1', status: BookedSlotStatus.CANCELLED,
+      });
+      const cancelled = await resolver.cancelVideoBooking(patient, 'bs-1', 'Changed mind');
+      expect(cancelled.status).toBe(BookedSlotStatus.CANCELLED);
+
+      // Rebook at new time
+      mockSlotBookingService.bookSlot.mockResolvedValue({
+        bookedSlot: { id: 'bs-2' },
+        videoSession: { id: 'vs-2' },
+        connectivityWarning: CONNECTIVITY_WARNING,
+      });
+      const rebooked = await resolver.bookVideoSlot(patient, 'consult-1', '2026-03-02', '14:00');
+      expect(rebooked.bookedSlot.id).toBe('bs-2');
+    });
+  });
+
+  describe('Full lifecycle: Post-call summary', () => {
+    it('Patient retrieves summary after session is completed', async () => {
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+        status: VideoSessionStatus.COMPLETED,
+        durationSeconds: 600,
+        recordingConsentGiven: true,
+        recordingUrl: 'https://s3.example.com/recordings/vs-1.mp4',
+        notes: 'S: Hair loss\nO: Thinning\nA: Androgenic alopecia\nP: Finasteride 1mg',
+        doctor: { doctorProfile: { fullName: 'Dr. Sharma' } },
+      });
+
+      const summary = await resolver.videoSessionSummary(patient, 'vs-1');
+      expect(summary.doctorName).toBe('Dr. Sharma');
+      expect(summary.durationSeconds).toBe(600);
+      expect(summary.status).toBe(VideoSessionStatus.COMPLETED);
+      expect(summary.recordingAvailable).toBe(true);
+      expect(summary.notes).toContain('Finasteride');
+    });
+  });
+
+  describe('Full lifecycle: Lazy room creation', () => {
+    it('Creates room on first join when roomId is null', async () => {
+      const patient = { id: 'patient-1', role: 'PATIENT' };
+
+      mockPrisma.videoSession.findUnique.mockResolvedValue({
+        id: 'vs-1', patientId: 'patient-1', doctorId: 'doctor-1',
+        recordingConsentGiven: true, roomId: null, reconnectRoomId: null,
+      });
+      mockHmsService.createRoom.mockResolvedValue({ roomId: 'new-room' });
+      mockHmsService.generateToken.mockResolvedValue('new-token');
+
+      const result = await resolver.joinVideoSession(patient, 'vs-1');
+      expect(mockHmsService.createRoom).toHaveBeenCalledWith('vs-1');
+      expect(result.roomId).toBe('new-room');
+      expect(result.token).toBe('new-token');
     });
   });
 });
