@@ -48,6 +48,7 @@ export class AuthResolver {
     }
 
     @Mutation(() => AuthResponse)
+    @RateLimit(10, 60)
     async refreshToken(@Args('input') input: RefreshTokenInput): Promise<AuthResponse> {
         const result = await this.authService.refreshAccessToken(input.refreshToken);
         const response: AuthResponse = {
