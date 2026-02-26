@@ -292,19 +292,18 @@ export class MessagingService {
 
   /**
    * Get unread message count for a user in a consultation
+   * Uses prisma.count() instead of findMany() to avoid loading all messages into memory
    */
   async getUnreadCount(consultationId: string, userId: string): Promise<number> {
     await this.verifyConsultationAccess(consultationId, userId);
 
-    const unreadMessages = await this.prisma.message.findMany({
+    return this.prisma.message.count({
       where: {
         consultationId,
         senderId: { not: userId },
         readAt: null,
       },
     });
-
-    return unreadMessages.length;
   }
 
   /**
