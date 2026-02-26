@@ -70,15 +70,15 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
         for (const err of graphQLErrors) {
             // Handle UNAUTHENTICATED error - token expired
             if (err.extensions?.code === 'UNAUTHENTICATED') {
-                // Token refresh should be handled by the auth context
-                // This error will be caught and handled there
-                console.log('Auth error: Token may be expired');
+                if (__DEV__) {
+                    console.warn('Auth error: Token may be expired');
+                }
             }
         }
     }
 
-    if (networkError) {
-        console.log(`[Network error]: ${networkError}`);
+    if (networkError && __DEV__) {
+        console.warn(`[Network error]: ${networkError}`);
     }
 });
 
