@@ -1,5 +1,5 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsEnum, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DayOfWeek } from '@prisma/client';
 
@@ -39,6 +39,7 @@ export class RescheduleVideoBookingInput {
 @InputType()
 export class SetAvailabilitySlotInput {
   @Field(() => DayOfWeek)
+  @IsEnum(DayOfWeek)
   dayOfWeek: DayOfWeek;
 
   @Field()
