@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { VideoSessionStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
+import { transitionStatus, validateTransition } from './video-state-machine';
 
 // Spec: Phase 13 — 100ms Video Integration Service
 // Mock mode when HMS_ACCESS_KEY is empty (dev/test)
@@ -263,46 +264,31 @@ export class HmsService {
   private async handlePeerJoin(data: any): Promise<void> {
     const { room_id, role } = data;
 
+    const sessionId = await this.findSessionByRoomId(room_id);
     const session = await this.prisma.videoSession.findUnique({
-      where: { id: await this.findSessionByRoomId(room_id) },
+      where: { id: sessionId },
     });
 
     if (!session) return;
 
+    let targetStatus: VideoSessionStatus | null = null;
+
     if (role === 'doctor') {
-      // Doctor joined
       if (session.status === VideoSessionStatus.SCHEDULED) {
-        await this.prisma.videoSession.update({
-          where: { id: session.id },
-          data: { status: VideoSessionStatus.WAITING_FOR_PATIENT },
-        });
+        targetStatus = VideoSessionStatus.WAITING_FOR_PATIENT;
       } else if (session.status === VideoSessionStatus.WAITING_FOR_DOCTOR) {
-        // Both now joined
-        await this.prisma.videoSession.update({
-          where: { id: session.id },
-          data: {
-            status: VideoSessionStatus.IN_PROGRESS,
-            actualStartTime: new Date(),
-          },
-        });
+        targetStatus = VideoSessionStatus.IN_PROGRESS;
       }
     } else if (role === 'patient') {
-      // Patient joined
       if (session.status === VideoSessionStatus.SCHEDULED) {
-        await this.prisma.videoSession.update({
-          where: { id: session.id },
-          data: { status: VideoSessionStatus.WAITING_FOR_DOCTOR },
-        });
+        targetStatus = VideoSessionStatus.WAITING_FOR_DOCTOR;
       } else if (session.status === VideoSessionStatus.WAITING_FOR_PATIENT) {
-        // Both now joined
-        await this.prisma.videoSession.update({
-          where: { id: session.id },
-          data: {
-            status: VideoSessionStatus.IN_PROGRESS,
-            actualStartTime: new Date(),
-          },
-        });
+        targetStatus = VideoSessionStatus.IN_PROGRESS;
       }
+    }
+
+    if (targetStatus && validateTransition(session.status, targetStatus)) {
+      await transitionStatus(this.prisma, session.id, targetStatus, `webhook:${role}`);
     }
   }
 
@@ -329,14 +315,17 @@ export class HmsService {
         ? VideoSessionStatus.COMPLETED
         : VideoSessionStatus.FAILED;
 
-    await this.prisma.videoSession.update({
-      where: { id: session.id },
-      data: {
-        status: newStatus,
-        actualEndTime: new Date(),
-        durationSeconds,
-      },
-    });
+    // Only transition if valid (e.g., session might already be COMPLETED by doctor)
+    if (validateTransition(session.status, newStatus)) {
+      await transitionStatus(
+        this.prisma,
+        session.id,
+        newStatus,
+        'webhook:session.close',
+        newStatus === VideoSessionStatus.FAILED ? 'SESSION_TOO_SHORT' : undefined,
+        { durationSeconds },
+      );
+    }
   }
 
   private async handleRecordingSuccess(data: any): Promise<void> {

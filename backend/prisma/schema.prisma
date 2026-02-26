@@ -1308,9 +1308,14 @@ model VideoSession {
   reconnectRoomId      String?            // New room after disconnect
   notes                String?            // Doctor's post-call notes
   noShowMarkedBy       String?            // Who marked the no-show
+  failureReason        String?            // Reason for FAILED status (e.g., SESSION_TIMEOUT, NETWORK_ERROR)
+  statusHistory        Json?              // Audit log: array of {from, to, triggeredBy, timestamp}
   cancellationReason   String?
   cancelledBy          String?
   cancelledAt          DateTime?
+  recordingStoredAt    DateTime?          // When recording was uploaded to S3
+  hmsRoomId            String?            // 100ms internal room ID (different from our roomId)
+  lastReminderSentAt   DateTime?          // Idempotency: last reminder sent timestamp
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
