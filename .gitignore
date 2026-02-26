@@ -73,7 +73,9 @@ coverage/
 secrets/
 
 # Claude Code local settings
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 
 # Windows artifacts
 nul
