@@ -2,6 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OtpService } from './otp.service';
 import { ConfigService } from '@nestjs/config';
 
+// Mock crypto.randomInt to verify secure OTP generation
+const mockRandomInt = jest.fn().mockReturnValue(456789);
+jest.mock('crypto', () => ({
+  ...jest.requireActual('crypto'),
+  randomInt: (...args: any[]) => mockRandomInt(...args),
+}));
+
 // Spec: master spec Section 3.1 (OTP), Section 14 (Security)
 describe('OtpService', () => {
   let service: OtpService;
@@ -84,13 +91,21 @@ describe('OtpService', () => {
       expect(result.message).toBe('Too many OTP requests. Please try again later.');
     });
 
-    it('should generate 6-digit OTP', async () => {
+    it('should generate 6-digit OTP using crypto.randomInt (not Math.random)', async () => {
+      // Spec: Section 14 (Security) — OTP must use cryptographic randomness
+      mockRandomInt.mockClear();
+      mockRandomInt.mockReturnValue(456789);
+      const mathRandomSpy = jest.spyOn(Math, 'random');
+
       const phone = '+919876543210';
       await service.sendOtp(phone);
 
-      // Access internal otpStore to verify OTP format
-      const stored = (service as any).otpStore.get(phone);
-      expect(stored.otp).toMatch(/^\d{6}$/);
+      // crypto.randomInt must be used for secure OTP generation
+      expect(mockRandomInt).toHaveBeenCalledWith(100000, 999999);
+      // Math.random must NOT be used (insecure)
+      expect(mathRandomSpy).not.toHaveBeenCalled();
+
+      mathRandomSpy.mockRestore();
     });
   });
 

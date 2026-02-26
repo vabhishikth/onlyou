@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
 
 interface OtpSendResponse {
     success: boolean;
@@ -41,8 +42,8 @@ export class OtpService {
             return { success: false, message: 'Too many OTP requests. Please try again later.' };
         }
 
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Spec: Section 14 (Security) — use cryptographic randomness for OTP
+        const otp = randomInt(100000, 999999).toString();
         const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
         // Store OTP
