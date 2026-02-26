@@ -39,7 +39,13 @@ function VideoRoomInner() {
     const [session, setSession] = useState<ActiveSession | null>(null);
     const [callDuration, setCallDuration] = useState(0);
     const [showCompleteForm, setShowCompleteForm] = useState(false);
-    const [notes, setNotes] = useState('');
+    // Spec: Task 4.2 — SOAP structured notes
+    const [soapNotes, setSoapNotes] = useState({
+        chiefComplaint: '',
+        observations: '',
+        assessment: '',
+        plan: '',
+    });
     const [callType, setCallType] = useState('VIDEO');
     const [panelOpen, setPanelOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'questionnaire' | 'photos' | 'ai'>('questionnaire');
@@ -161,11 +167,21 @@ function VideoRoomInner() {
         setShowCompleteForm(true);
     };
 
+    // Spec: Task 4.2 — Serialize SOAP notes into single string for backend
+    const serializeSOAPNotes = () => {
+        const parts: string[] = [];
+        if (soapNotes.chiefComplaint) parts.push(`S: ${soapNotes.chiefComplaint}`);
+        if (soapNotes.observations) parts.push(`O: ${soapNotes.observations}`);
+        if (soapNotes.assessment) parts.push(`A: ${soapNotes.assessment}`);
+        if (soapNotes.plan) parts.push(`P: ${soapNotes.plan}`);
+        return parts.join('\n');
+    };
+
     const handleComplete = async () => {
         if (!session) return;
         await hmsActions.leave().catch(() => {});
         completeSession({
-            variables: { videoSessionId: session.id, notes, callType },
+            variables: { videoSessionId: session.id, notes: serializeSOAPNotes(), callType },
         });
     };
 
@@ -484,12 +500,33 @@ function VideoRoomInner() {
                     <div className="bg-white rounded-2xl p-6 w-full max-w-md">
                         <h2 className="text-lg font-semibold text-foreground mb-4">Complete Session</h2>
 
-                        <textarea
-                            placeholder="Session notes &#8212; key observations, diagnosis, plan..."
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm resize-none h-28 mb-3"
-                        />
+                        {/* Spec: Task 4.2 — SOAP structured notes */}
+                        <div className="space-y-2 mb-3">
+                            <input
+                                placeholder="Chief Complaint"
+                                value={soapNotes.chiefComplaint}
+                                onChange={(e) => setSoapNotes(prev => ({ ...prev, chiefComplaint: e.target.value }))}
+                                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                            />
+                            <textarea
+                                placeholder="Observations"
+                                value={soapNotes.observations}
+                                onChange={(e) => setSoapNotes(prev => ({ ...prev, observations: e.target.value }))}
+                                className="w-full px-3 py-2 border border-border rounded-lg text-sm resize-none h-16"
+                            />
+                            <textarea
+                                placeholder="Assessment"
+                                value={soapNotes.assessment}
+                                onChange={(e) => setSoapNotes(prev => ({ ...prev, assessment: e.target.value }))}
+                                className="w-full px-3 py-2 border border-border rounded-lg text-sm resize-none h-16"
+                            />
+                            <textarea
+                                placeholder="Plan"
+                                value={soapNotes.plan}
+                                onChange={(e) => setSoapNotes(prev => ({ ...prev, plan: e.target.value }))}
+                                className="w-full px-3 py-2 border border-border rounded-lg text-sm resize-none h-16"
+                            />
+                        </div>
 
                         <div className="mb-4">
                             <label className="text-xs text-neutral-500 mb-1 block">Call Type</label>

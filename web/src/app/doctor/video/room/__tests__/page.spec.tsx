@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 
 // Stable mock router reference to prevent infinite re-renders
 const mockPush = jest.fn();
@@ -200,6 +200,27 @@ describe('DoctorVideoRoomPage — Edge Cases', () => {
                 expect.any(Function),
             );
             addEventSpy.mockRestore();
+        });
+    });
+
+    // Task 4.2: Structured notes (SOAP format)
+    describe('Structured notes form', () => {
+        it('shows SOAP fields in the complete session form', async () => {
+            render(<DoctorVideoRoomPage />);
+
+            // Click "Session Notes" button to open the form
+            const notesBtn = screen.getByTitle('Session Notes');
+            fireEvent.click(notesBtn);
+
+            await waitFor(() => {
+                expect(screen.getByText('Complete Session')).toBeDefined();
+            });
+
+            // SOAP fields should be present
+            expect(screen.getByPlaceholderText(/Chief Complaint/i)).toBeDefined();
+            expect(screen.getByPlaceholderText(/Observations/i)).toBeDefined();
+            expect(screen.getByPlaceholderText(/Assessment/i)).toBeDefined();
+            expect(screen.getByPlaceholderText(/Plan/i)).toBeDefined();
         });
     });
 });
