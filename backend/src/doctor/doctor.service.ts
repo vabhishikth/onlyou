@@ -236,7 +236,7 @@ export class DoctorService {
       }
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (input.specializations) {
       updateData.specializations = input.specializations;
       updateData.specialization = input.specializations[0]; // Keep legacy field in sync
@@ -301,8 +301,8 @@ export class DoctorService {
    * List doctors with optional filters
    * Spec: Phase 12 — Filterable by vertical, availability
    */
-  async listDoctors(filters?: DoctorListFilters): Promise<DoctorProfile[]> {
-    const where: any = { isActive: true };
+  async listDoctors(filters?: DoctorListFilters, take = 20, skip = 0): Promise<DoctorProfile[]> {
+    const where: Record<string, unknown> = { isActive: true };
 
     if (filters?.vertical) {
       where.verticals = { has: filters.vertical };
@@ -316,6 +316,8 @@ export class DoctorService {
       where,
       include: { user: true },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     });
   }
 

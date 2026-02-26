@@ -71,6 +71,7 @@ describe('MessagingService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -522,34 +523,33 @@ describe('MessagingService', () => {
   });
 
   describe('Unread Count', () => {
-    it('should return count of unread messages for user', async () => {
+    it('should return count of unread messages for user using prisma.count()', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockPatient);
       mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
-      mockPrismaService.message.findMany.mockResolvedValue([
-        { ...mockMessage, readAt: null },
-        { ...mockMessage, id: 'msg-2', readAt: null },
-      ]);
+      mockPrismaService.message.count.mockResolvedValue(2);
 
       const count = await service.getUnreadCount('consultation-1', 'patient-1');
 
       expect(count).toBe(2);
+      // Must use count() instead of findMany() to avoid loading all messages into memory
+      expect(mockPrismaService.message.count).toHaveBeenCalled();
+      expect(mockPrismaService.message.findMany).not.toHaveBeenCalled();
     });
 
     it('should not count messages sent by the user', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(mockDoctor);
       mockPrismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
-      mockPrismaService.message.findMany.mockResolvedValue([]);
+      mockPrismaService.message.count.mockResolvedValue(0);
 
       const count = await service.getUnreadCount('consultation-1', 'doctor-1');
 
-      expect(mockPrismaService.message.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            senderId: { not: 'doctor-1' },
-            readAt: null,
-          }),
-        })
-      );
+      expect(mockPrismaService.message.count).toHaveBeenCalledWith({
+        where: {
+          consultationId: 'consultation-1',
+          senderId: { not: 'doctor-1' },
+          readAt: null,
+        },
+      });
     });
   });
 

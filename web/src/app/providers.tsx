@@ -7,59 +7,30 @@ import {
     createHttpLink,
     from,
 } from '@apollo/client';
-import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { ReactNode, useMemo } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 
 const httpLink = createHttpLink({
     uri: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/graphql',
+    credentials: 'include', // Send HttpOnly cookies with every request
+    headers: {
+        'x-requested-with': 'graphql', // CSRF protection — required by backend for cookie auth
+    },
 });
 
-const authLink = setContext((_, { headers }) => {
-    // Get token from localStorage (client-side only)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-
-    return {
-        headers: {
-            ...headers,
-            authorization: token ? `Bearer ${token}` : '',
-        },
-    };
-});
-
-// Error handling link for token refresh and auth errors
+// Error handling link for auth errors
 const errorLink = onError(({ graphQLErrors }) => {
     if (graphQLErrors) {
         for (const err of graphQLErrors) {
-            // Check for authentication errors
             if (
                 err.extensions?.code === 'UNAUTHENTICATED' ||
                 err.message.includes('Unauthorized') ||
                 err.message.includes('jwt expired')
             ) {
-                // Try to refresh token
-                const refreshToken =
-                    typeof window !== 'undefined'
-                        ? localStorage.getItem('refreshToken') ||
-                          sessionStorage.getItem('refreshToken')
-                        : null;
-
-                if (refreshToken) {
-                    // Note: For a full implementation, you'd want to use fromPromise
-                    // and retry the failed request. For simplicity, we'll redirect to login.
-                    console.warn('Token expired, redirecting to login');
-                }
-
-                // Clear tokens and redirect to login
+                // Redirect to login — cookies are cleared by backend on logout,
+                // or by middleware when expired
                 if (typeof window !== 'undefined') {
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                    sessionStorage.removeItem('refreshToken');
-                    document.cookie =
-                        'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
-                    // Only redirect if not already on login page
                     if (!window.location.pathname.includes('/login')) {
                         window.location.href =
                             '/login?returnUrl=' +
@@ -73,7 +44,7 @@ const errorLink = onError(({ graphQLErrors }) => {
 
 function createApolloClient() {
     return new ApolloClient({
-        link: from([errorLink, authLink, httpLink]),
+        link: from([errorLink, httpLink]),
         cache: new InMemoryCache(),
         defaultOptions: {
             watchQuery: {

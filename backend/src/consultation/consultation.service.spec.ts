@@ -86,6 +86,7 @@ describe('ConsultationService', () => {
             patientPhoto: {
               findMany: jest.fn(),
             },
+            $transaction: jest.fn(),
           },
         },
         {
@@ -372,7 +373,7 @@ describe('ConsultationService', () => {
   });
 
   describe('AI Assessment Storage', () => {
-    it('should store AI assessment result in consultation', async () => {
+    it('should store AI assessment result using a database transaction', async () => {
       const aiAssessmentData = {
         classification: {
           likely_condition: 'androgenetic_alopecia',
@@ -393,15 +394,26 @@ describe('ConsultationService', () => {
 
       prismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
       aiService.calculateAttentionLevel.mockReturnValue('low');
-      prismaService.aIPreAssessment.create.mockResolvedValue(mockAIAssessment);
-      prismaService.consultation.update.mockResolvedValue({
-        ...mockConsultation,
-        status: ConsultationStatus.AI_REVIEWED,
-      });
+
+      // Mock $transaction to execute the callback with a mock transaction client
+      const mockTx = {
+        aIPreAssessment: { create: jest.fn().mockResolvedValue(mockAIAssessment) },
+        consultation: {
+          update: jest.fn().mockResolvedValue({
+            ...mockConsultation,
+            status: ConsultationStatus.AI_REVIEWED,
+          }),
+        },
+      };
+      (prismaService as any).$transaction.mockImplementation(async (cb: any) => cb(mockTx));
 
       const result = await service.storeAIAssessment('consultation-123', aiAssessmentData);
 
-      expect(prismaService.aIPreAssessment.create).toHaveBeenCalledWith({
+      // Verify $transaction was called (atomicity guarantee)
+      expect((prismaService as any).$transaction).toHaveBeenCalled();
+
+      // Verify AI assessment was created via the transaction client
+      expect(mockTx.aIPreAssessment.create).toHaveBeenCalledWith({
         data: {
           consultationId: 'consultation-123',
           summary: 'Typical male pattern baldness.',
@@ -412,17 +424,30 @@ describe('ConsultationService', () => {
           modelVersion: expect.any(String),
         },
       });
+
+      // Verify consultation update was done via the transaction client
+      expect(mockTx.consultation.update).toHaveBeenCalledWith({
+        where: { id: 'consultation-123' },
+        data: { status: ConsultationStatus.AI_REVIEWED },
+      });
+
       expect(result.status).toBe(ConsultationStatus.AI_REVIEWED);
     });
 
     it('should transition to AI_REVIEWED after storing assessment', async () => {
       prismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
       aiService.calculateAttentionLevel.mockReturnValue('low');
-      prismaService.aIPreAssessment.create.mockResolvedValue(mockAIAssessment);
-      prismaService.consultation.update.mockResolvedValue({
-        ...mockConsultation,
-        status: ConsultationStatus.AI_REVIEWED,
-      });
+
+      const mockTx = {
+        aIPreAssessment: { create: jest.fn().mockResolvedValue(mockAIAssessment) },
+        consultation: {
+          update: jest.fn().mockResolvedValue({
+            ...mockConsultation,
+            status: ConsultationStatus.AI_REVIEWED,
+          }),
+        },
+      };
+      (prismaService as any).$transaction.mockImplementation(async (cb: any) => cb(mockTx));
 
       const result = await service.storeAIAssessment('consultation-123', {
         summary: 'Test',
@@ -432,6 +457,23 @@ describe('ConsultationService', () => {
       } as any);
 
       expect(result.status).toBe(ConsultationStatus.AI_REVIEWED);
+    });
+
+    it('should roll back both operations if transaction fails', async () => {
+      prismaService.consultation.findUnique.mockResolvedValue(mockConsultation);
+      aiService.calculateAttentionLevel.mockReturnValue('low');
+
+      // Simulate transaction failure (e.g., consultation update fails)
+      (prismaService as any).$transaction.mockRejectedValue(new Error('Transaction failed'));
+
+      await expect(
+        service.storeAIAssessment('consultation-123', {
+          summary: 'Test',
+          doctor_attention_level: 'low',
+          red_flags: [],
+          recommended_protocol: { primary: 'standard' },
+        } as any)
+      ).rejects.toThrow('Transaction failed');
     });
   });
 

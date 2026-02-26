@@ -4,24 +4,14 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { randomInt } from 'crypto';
+import { Order, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: master spec Section 8 (Medication Delivery)
-
-export enum OrderStatus {
-  PRESCRIPTION_CREATED = 'PRESCRIPTION_CREATED',
-  SENT_TO_PHARMACY = 'SENT_TO_PHARMACY',
-  PHARMACY_PREPARING = 'PHARMACY_PREPARING',
-  PHARMACY_READY = 'PHARMACY_READY',
-  PHARMACY_ISSUE = 'PHARMACY_ISSUE',
-  PICKUP_ARRANGED = 'PICKUP_ARRANGED',
-  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
-  DELIVERED = 'DELIVERED',
-  DELIVERY_FAILED = 'DELIVERY_FAILED',
-  RESCHEDULED = 'RESCHEDULED',
-  RETURNED = 'RETURNED',
-  CANCELLED = 'CANCELLED',
-}
+// OrderStatus enum is defined in Prisma schema (prisma/schema.prisma) and imported from @prisma/client.
+// Re-export for backward compatibility with existing consumers.
+export { OrderStatus } from '@prisma/client';
 
 // Spec: Section 8.3 — Valid status transitions
 export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -122,15 +112,16 @@ export class OrderService {
 
   /**
    * Generate 4-digit delivery OTP
+   * Security: uses crypto.randomInt for cryptographically secure randomness
    */
   private generateDeliveryOtp(): string {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    return randomInt(1000, 10000).toString();
   }
 
   /**
    * Create a new order from prescription
    */
-  async createOrder(input: CreateOrderInput): Promise<any> {
+  async createOrder(input: CreateOrderInput): Promise<Order> {
     const prescription = await this.prisma.prescription.findUnique({
       where: { id: input.prescriptionId },
       include: { consultation: { select: { patientId: true } } },
@@ -164,7 +155,7 @@ export class OrderService {
   /**
    * Get order by ID
    */
-  async getOrder(id: string): Promise<any> {
+  async getOrder(id: string): Promise<Order> {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
@@ -184,7 +175,7 @@ export class OrderService {
    * Send order to pharmacy
    * Spec: Section 8.2 Step 2 — Sent to Pharmacy
    */
-  async sendToPharmacy(input: SendToPharmacyInput): Promise<any> {
+  async sendToPharmacy(input: SendToPharmacyInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.status !== OrderStatus.PRESCRIPTION_CREATED) {
@@ -221,7 +212,7 @@ export class OrderService {
    * Pharmacy starts preparing
    * Spec: Section 8.2 Step 3 — Pharmacy Prepares
    */
-  async startPharmacyPreparing(input: PharmacyActionInput): Promise<any> {
+  async startPharmacyPreparing(input: PharmacyActionInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.pharmacyPartnerId !== input.pharmacyId) {
@@ -250,7 +241,7 @@ export class OrderService {
   /**
    * Mark pharmacy ready
    */
-  async markPharmacyReady(input: PharmacyActionInput): Promise<any> {
+  async markPharmacyReady(input: PharmacyActionInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.pharmacyPartnerId !== input.pharmacyId) {
@@ -275,7 +266,7 @@ export class OrderService {
   /**
    * Report pharmacy issue
    */
-  async reportPharmacyIssue(input: ReportPharmacyIssueInput): Promise<any> {
+  async reportPharmacyIssue(input: ReportPharmacyIssueInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.pharmacyPartnerId !== input.pharmacyId) {
@@ -302,7 +293,7 @@ export class OrderService {
    * Arrange pickup and generate delivery OTP
    * Spec: Section 8.2 Step 4 — Delivery Arranged
    */
-  async arrangePickup(input: ArrangePickupInput): Promise<any> {
+  async arrangePickup(input: ArrangePickupInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     // Allow from PHARMACY_READY or RESCHEDULED
@@ -335,7 +326,7 @@ export class OrderService {
    * Mark out for delivery
    * Spec: Section 8.2 Step 5 — Pickup
    */
-  async markOutForDelivery(orderId: string): Promise<any> {
+  async markOutForDelivery(orderId: string): Promise<Order> {
     const order = await this.getOrder(orderId);
 
     if (order.status !== OrderStatus.PICKUP_ARRANGED) {
@@ -357,7 +348,7 @@ export class OrderService {
    * Confirm delivery with OTP
    * Spec: Section 8.2 Step 6 — Delivery + OTP Confirmation
    */
-  async confirmDelivery(input: ConfirmDeliveryInput): Promise<any> {
+  async confirmDelivery(input: ConfirmDeliveryInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.status !== OrderStatus.OUT_FOR_DELIVERY) {
@@ -382,7 +373,7 @@ export class OrderService {
   /**
    * Mark delivery as failed
    */
-  async markDeliveryFailed(input: MarkDeliveryFailedInput): Promise<any> {
+  async markDeliveryFailed(input: MarkDeliveryFailedInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.status !== OrderStatus.OUT_FOR_DELIVERY) {
@@ -404,7 +395,7 @@ export class OrderService {
   /**
    * Reschedule delivery
    */
-  async rescheduleDelivery(input: RescheduleDeliveryInput): Promise<any> {
+  async rescheduleDelivery(input: RescheduleDeliveryInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (order.status !== OrderStatus.DELIVERY_FAILED) {
@@ -430,7 +421,7 @@ export class OrderService {
   /**
    * Cancel order
    */
-  async cancelOrder(input: CancelOrderInput): Promise<any> {
+  async cancelOrder(input: CancelOrderInput): Promise<Order> {
     const order = await this.getOrder(input.orderId);
 
     if (!CANCELLABLE_STATUSES.includes(order.status as OrderStatus)) {
@@ -452,10 +443,12 @@ export class OrderService {
   /**
    * Get orders for a patient
    */
-  async getOrdersByPatient(patientId: string): Promise<any[]> {
+  async getOrdersByPatient(patientId: string, take = 20, skip = 0): Promise<Order[]> {
     return this.prisma.order.findMany({
       where: { patientId },
       orderBy: { orderedAt: 'desc' },
+      take,
+      skip,
       include: {
         prescription: true,
       },
@@ -465,8 +458,8 @@ export class OrderService {
   /**
    * Get orders for a pharmacy
    */
-  async getOrdersByPharmacy(pharmacyId: string, status?: OrderStatus): Promise<any[]> {
-    const where: any = { pharmacyPartnerId: pharmacyId };
+  async getOrdersByPharmacy(pharmacyId: string, status?: OrderStatus): Promise<Order[]> {
+    const where: Record<string, unknown> = { pharmacyPartnerId: pharmacyId };
     if (status) {
       where.status = status;
     }
@@ -484,7 +477,7 @@ export class OrderService {
   /**
    * Get pending deliveries (for coordinator)
    */
-  async getPendingDeliveries(): Promise<any[]> {
+  async getPendingDeliveries(take = 50, skip = 0): Promise<Order[]> {
     return this.prisma.order.findMany({
       where: {
         status: {
@@ -496,6 +489,8 @@ export class OrderService {
         },
       },
       orderBy: { pharmacyReadyAt: 'asc' },
+      take,
+      skip,
       include: {
         patient: { select: { id: true, name: true, phone: true } },
         prescription: true,
@@ -507,7 +502,7 @@ export class OrderService {
    * Create reorder from previous order
    * Spec: Section 8.5 — Monthly Reorder Flow
    */
-  async createReorder(originalOrderId: string): Promise<any> {
+  async createReorder(originalOrderId: string): Promise<Order> {
     const originalOrder = await this.getOrder(originalOrderId);
 
     if (originalOrder.status !== OrderStatus.DELIVERED) {
@@ -543,7 +538,7 @@ export class OrderService {
   /**
    * Get orders due for monthly reorder
    */
-  async getOrdersDueForReorder(): Promise<any[]> {
+  async getOrdersDueForReorder(take = 50, skip = 0): Promise<Order[]> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -551,9 +546,10 @@ export class OrderService {
       where: {
         status: OrderStatus.DELIVERED,
         deliveredAt: { lte: thirtyDaysAgo },
-        // Only get orders that haven't been reordered yet
         isReorder: false,
       },
+      take,
+      skip,
       include: {
         patient: { select: { id: true, name: true, phone: true } },
         prescription: true,
@@ -564,7 +560,7 @@ export class OrderService {
   /**
    * Rate delivery
    */
-  async rateDelivery(input: RateDeliveryInput): Promise<any> {
+  async rateDelivery(input: RateDeliveryInput): Promise<Order> {
     if (input.rating < 1 || input.rating > 5) {
       throw new BadRequestException('Rating must be between 1 and 5');
     }

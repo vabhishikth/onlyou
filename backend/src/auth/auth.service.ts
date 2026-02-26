@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from './otp.service';
 import { User, UserRole } from '@prisma/client';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 export interface AuthTokens {
     accessToken: string;
@@ -26,6 +26,11 @@ export class AuthService {
         private readonly config: ConfigService,
         private readonly otp: OtpService,
     ) { }
+
+    // Spec: Section 14 (Security) — hash refresh tokens before storage
+    private hashToken(token: string): string {
+        return createHash('sha256').update(token).digest('hex');
+    }
 
     /**
      * Request OTP for phone authentication
@@ -97,13 +102,14 @@ export class AuthService {
         });
 
         const refreshToken = randomBytes(64).toString('hex');
+        const hashedToken = this.hashToken(refreshToken);
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-        // Store refresh token
+        // Store hashed refresh token (raw token returned to user)
         await this.prisma.refreshToken.create({
             data: {
                 userId: user.id,
-                token: refreshToken,
+                token: hashedToken,
                 expiresAt,
             },
         });
@@ -115,8 +121,9 @@ export class AuthService {
      * Refresh access token using refresh token
      */
     async refreshAccessToken(refreshToken: string): Promise<AuthResponse> {
+        const hashedToken = this.hashToken(refreshToken);
         const stored = await this.prisma.refreshToken.findUnique({
-            where: { token: refreshToken },
+            where: { token: hashedToken },
             include: { user: true },
         });
 
@@ -146,7 +153,7 @@ export class AuthService {
     async logout(userId: string, refreshToken?: string): Promise<{ success: boolean }> {
         if (refreshToken) {
             await this.prisma.refreshToken.deleteMany({
-                where: { userId, token: refreshToken },
+                where: { userId, token: this.hashToken(refreshToken) },
             });
         } else {
             // Logout from all devices

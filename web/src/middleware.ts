@@ -65,22 +65,48 @@ export function middleware(request: NextRequest) {
     );
 
     if (isProtectedRoute) {
-        // Check for auth token in cookies
+        // Check for auth token in cookies and validate JWT format
         const token = request.cookies.get('accessToken')?.value;
 
-        if (!token) {
-            // Redirect to login with return URL
+        if (!token || !isValidJwtFormat(token)) {
+            // Clear the invalid/expired cookie and redirect to login
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('returnUrl', url.pathname);
-            return NextResponse.redirect(loginUrl);
+            const response = NextResponse.redirect(loginUrl);
+            response.cookies.delete('accessToken');
+            return response;
         }
 
-        // Note: Role validation happens on the client/API side
-        // The middleware just ensures there's a token present
+        // Note: Full role validation happens on the client/API side
+        // The middleware validates JWT structure and expiry, not signature
     }
 
     // No subdomain or unrecognized subdomain → continue to requested path
     return NextResponse.next();
+}
+
+/**
+ * Basic JWT format validation for middleware.
+ * Checks structure (3 base64url parts), decodability, and expiry.
+ * Does NOT verify the signature — that is handled by the API layer.
+ */
+function isValidJwtFormat(token: string): boolean {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    try {
+        // Check that each part is valid base64url
+        for (const part of parts) {
+            atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+        }
+        // Check if token is expired by reading the payload
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+            return false; // Token expired
+        }
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**

@@ -38,9 +38,6 @@ function createWrapper(mocks: MockedResponse[]) {
 describe('useAuth', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        localStorage.clear();
-        sessionStorage.clear();
-        document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     });
 
     it('should start with loading state', () => {
@@ -124,7 +121,7 @@ describe('useAuth', () => {
             expect(result.current.isLoading).toBe(false);
         });
 
-        let response: any;
+        let response: { success: boolean; message: string } | undefined;
         await act(async () => {
             response = await result.current.requestOTP('9876543210');
         });
@@ -133,7 +130,7 @@ describe('useAuth', () => {
         expect(response?.message).toBe('OTP sent');
     });
 
-    it('should store tokens and set user on successful verify', async () => {
+    it('should set user on successful verify (tokens in HttpOnly cookies)', async () => {
         const meMock: MockedResponse = {
             request: { query: ME },
             result: { data: { me: null } },
@@ -175,10 +172,14 @@ describe('useAuth', () => {
             await result.current.verifyOTP('9876543210', '123456');
         });
 
-        // Tokens stored
-        expect(localStorage.getItem('accessToken')).toBe('access-token-123');
-        // Without rememberDevice, refresh goes to sessionStorage
-        expect(sessionStorage.getItem('refreshToken')).toBe('refresh-token-456');
+        // Tokens are NOT stored in localStorage — they're in HttpOnly cookies set by backend
+        expect(localStorage.getItem('accessToken')).toBeNull();
+        expect(localStorage.getItem('refreshToken')).toBeNull();
+        expect(sessionStorage.getItem('refreshToken')).toBeNull();
+
+        // User state is set from the mutation response
+        expect(result.current.isAuthenticated).toBe(true);
+        expect(result.current.user?.id).toBe('user-1');
     });
 
     it('should throw on failed verification', async () => {
@@ -220,10 +221,7 @@ describe('useAuth', () => {
         ).rejects.toThrow('Invalid OTP');
     });
 
-    it('should clear tokens and redirect on logout', async () => {
-        localStorage.setItem('accessToken', 'old-token');
-        localStorage.setItem('refreshToken', 'old-refresh');
-
+    it('should call logout mutation and redirect', async () => {
         const meMock: MockedResponse = {
             request: { query: ME },
             result: { data: { me: mockUser } },
@@ -232,7 +230,7 @@ describe('useAuth', () => {
         const logoutMock: MockedResponse = {
             request: {
                 query: LOGOUT,
-                variables: { refreshToken: 'old-refresh' },
+                variables: {},
             },
             result: {
                 data: {
@@ -253,8 +251,8 @@ describe('useAuth', () => {
             await result.current.logout();
         });
 
-        expect(localStorage.getItem('accessToken')).toBeNull();
-        expect(localStorage.getItem('refreshToken')).toBeNull();
+        // HttpOnly cookies are cleared by the backend — no localStorage to check
+        expect(result.current.isAuthenticated).toBe(false);
         expect(mockPush).toHaveBeenCalledWith('/login');
     });
 

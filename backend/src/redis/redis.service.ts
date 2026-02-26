@@ -90,11 +90,23 @@ export class RedisService implements OnModuleDestroy {
         }
     }
 
+    /**
+     * Find keys matching a pattern using SCAN (not KEYS).
+     * SCAN is production-safe: it iterates incrementally instead of blocking
+     * Redis while scanning the entire keyspace.
+     */
     async keys(pattern: string): Promise<string[]> {
         try {
-            return await this.client.keys(pattern);
+            const results: string[] = [];
+            let cursor = '0';
+            do {
+                const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+                cursor = nextCursor;
+                results.push(...keys);
+            } while (cursor !== '0');
+            return results;
         } catch (err) {
-            this.logger.error(`Redis KEYS error for pattern "${pattern}": ${(err as Error).message}`);
+            this.logger.error(`Redis SCAN error for pattern "${pattern}": ${(err as Error).message}`);
             return [];
         }
     }

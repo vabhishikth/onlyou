@@ -82,7 +82,7 @@ export class ConsultationService {
       throw new BadRequestException('Rejection reason is required');
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: newStatus,
     };
 
@@ -203,6 +203,8 @@ export class ConsultationService {
   /**
    * Store AI assessment result and transition status
    * Spec: master spec Section 6 — Store in consultation.aiAssessment
+   * Uses $transaction to ensure atomicity: both AI assessment creation
+   * and consultation status update succeed or fail together.
    */
   async storeAIAssessment(
     consultationId: string,
@@ -219,23 +221,26 @@ export class ConsultationService {
     // Calculate attention level
     const attentionLevel = this.aiService.calculateAttentionLevel(assessment);
 
-    // Create AI pre-assessment record
-    await this.prisma.aIPreAssessment.create({
-      data: {
-        consultationId,
-        summary: assessment.summary,
-        riskLevel: attentionLevel.toUpperCase(),
-        recommendedPlan: assessment.recommended_protocol?.primary || null,
-        flags: assessment.red_flags || [],
-        rawResponse: assessment as any,
-        modelVersion: 'claude-3-sonnet-20240229',
-      },
-    });
+    // Wrap in transaction to ensure atomicity
+    return this.prisma.$transaction(async (tx) => {
+      // Create AI pre-assessment record
+      await tx.aIPreAssessment.create({
+        data: {
+          consultationId,
+          summary: assessment.summary,
+          riskLevel: attentionLevel.toUpperCase(),
+          recommendedPlan: assessment.recommended_protocol?.primary || null,
+          flags: assessment.red_flags || [],
+          rawResponse: assessment as any,
+          modelVersion: 'claude-3-sonnet-20240229',
+        },
+      });
 
-    // Transition to AI_REVIEWED
-    return this.prisma.consultation.update({
-      where: { id: consultationId },
-      data: { status: ConsultationStatus.AI_REVIEWED },
+      // Transition to AI_REVIEWED
+      return tx.consultation.update({
+        where: { id: consultationId },
+        data: { status: ConsultationStatus.AI_REVIEWED },
+      });
     });
   }
 
@@ -285,7 +290,7 @@ export class ConsultationService {
     vertical?: HealthVertical,
     attentionLevel?: 'low' | 'medium' | 'high'
   ) {
-    const where: any = {
+    const where: Record<string, unknown> = {
       status: ConsultationStatus.AI_REVIEWED,
       doctorId: null,
     };

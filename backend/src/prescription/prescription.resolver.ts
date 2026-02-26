@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { HealthVertical } from '@prisma/client';
+import { PaginationInput } from '../common/dto/pagination.dto';
 
 // Spec: master spec Section 5.4 (Prescription Builder)
 
@@ -42,9 +43,10 @@ export class PrescriptionResolver {
     @Context() context: any,
     @Args('filters', { type: () => DoctorPrescriptionsFilterInput, nullable: true })
     filters?: DoctorPrescriptionsFilterInput,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<DoctorPrescriptionItem[]> {
     const doctorId = context.req.user.id;
-    return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined);
+    return this.prescriptionService.getDoctorPrescriptions(doctorId, filters ?? undefined, pagination?.take, pagination?.skip);
   }
 
   /**
@@ -55,9 +57,10 @@ export class PrescriptionResolver {
   @UseGuards(JwtAuthGuard)
   async myPrescriptions(
     @Context() context: any,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<PatientPrescriptionItem[]> {
     const patientId = context.req.user.id;
-    return this.prescriptionService.getPatientPrescriptions(patientId);
+    return this.prescriptionService.getPatientPrescriptions(patientId, pagination?.take, pagination?.skip);
   }
 
   /**

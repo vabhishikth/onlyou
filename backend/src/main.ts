@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { SentryInterceptor } from './common/sentry/sentry.interceptor';
+import { CsrfGuard } from './common/guards/csrf.guard';
 
 // Spec: Phase 10 — Production Readiness (bootstrap with security hardening)
 
@@ -18,22 +20,31 @@ const PRODUCTION_ORIGINS = [
 function killPortHolder(port: number | string) {
     try {
         const { execSync } = require('child_process');
-        const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
-            encoding: 'utf8',
-        });
-        const lines = output.trim().split('\n');
-        for (const line of lines) {
-            const pidMatch = line.match(/LISTENING\s+(\d+)/);
-            if (pidMatch) {
-                const pid = Number(pidMatch[1]);
-                if (pid !== process.pid) {
-                    execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
-                    execSync('ping -n 2 127.0.0.1 > NUL', { stdio: 'ignore' });
+        // Try Unix first (Linux/macOS)
+        try {
+            execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null`, { stdio: 'ignore' });
+        } catch {
+            // Try Windows
+            try {
+                const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
+                    encoding: 'utf8',
+                });
+                const lines = output.trim().split('\n');
+                for (const line of lines) {
+                    const pidMatch = line.match(/LISTENING\s+(\d+)/);
+                    if (pidMatch) {
+                        const pid = Number(pidMatch[1]);
+                        if (pid !== process.pid) {
+                            execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+                        }
+                    }
                 }
+            } catch {
+                // Port already free
             }
         }
     } catch {
-        // Silently ignore — port may already be free
+        // Silently ignore
     }
 }
 
@@ -50,6 +61,9 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
         rawBody: true, // Enables req.rawBody for webhook HMAC signature verification
     });
+
+    // Cookie parsing (required for HttpOnly auth cookies)
+    app.use(cookieParser());
 
     // Security headers
     app.use(helmet({
@@ -68,6 +82,9 @@ async function bootstrap() {
 
     // Global error tracking interceptor
     app.useGlobalInterceptors(new SentryInterceptor());
+
+    // CSRF protection for cookie-based auth (requires x-requested-with header)
+    app.useGlobalGuards(new CsrfGuard());
 
     // Global validation pipe
     app.useGlobalPipes(

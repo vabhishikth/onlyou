@@ -2,6 +2,7 @@ import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginationInput } from '../common/dto/pagination.dto';
 import {
   OrderType,
   OrderMutationResponse,
@@ -96,8 +97,9 @@ export class OrderResolver {
   @UseGuards(JwtAuthGuard)
   async ordersByPatient(
     @Args('patientId') patientId: string,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<OrderType[]> {
-    const orders = await this.orderService.getOrdersByPatient(patientId);
+    const orders = await this.orderService.getOrdersByPatient(patientId, pagination?.take, pagination?.skip);
     return orders.map(mapToOrderType);
   }
 
@@ -106,8 +108,10 @@ export class OrderResolver {
    */
   @Query(() => [OrderType])
   @UseGuards(JwtAuthGuard)
-  async pendingDeliveries(): Promise<OrderType[]> {
-    const orders = await this.orderService.getPendingDeliveries();
+  async pendingDeliveries(
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
+  ): Promise<OrderType[]> {
+    const orders = await this.orderService.getPendingDeliveries(pagination?.take, pagination?.skip);
     return orders.map(mapToOrderType);
   }
 
@@ -117,8 +121,10 @@ export class OrderResolver {
    */
   @Query(() => [OrderType])
   @UseGuards(JwtAuthGuard)
-  async ordersDueForReorder(): Promise<OrderType[]> {
-    const orders = await this.orderService.getOrdersDueForReorder();
+  async ordersDueForReorder(
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
+  ): Promise<OrderType[]> {
+    const orders = await this.orderService.getOrdersDueForReorder(pagination?.take, pagination?.skip);
     return orders.map(mapToOrderType);
   }
 

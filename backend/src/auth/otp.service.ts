@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
+import { RedisService } from '../redis/redis.service';
 
 interface OtpSendResponse {
     success: boolean;
@@ -12,16 +14,23 @@ interface OtpVerifyResponse {
     message: string;
 }
 
+interface OtpData {
+    otp: string;
+    attempts: number;
+    expiresAt: number;
+}
+
 @Injectable()
 export class OtpService {
     private readonly logger = new Logger(OtpService.name);
     private readonly authKey: string;
     private readonly templateId: string;
 
-    // In-memory OTP store for development (use Redis in production)
-    private otpStore = new Map<string, { otp: string; attempts: number; expiresAt: number }>();
-
-    constructor(private readonly config: ConfigService) {
+    // Spec: Section 14 (Security) — OTP storage moved from in-memory Map to Redis
+    constructor(
+        private readonly config: ConfigService,
+        private readonly redis: RedisService,
+    ) {
         this.authKey = this.config.get<string>('MSG91_AUTH_KEY') || '';
         this.templateId = this.config.get<string>('MSG91_TEMPLATE_ID') || '';
     }
@@ -35,27 +44,31 @@ export class OtpService {
             return { success: false, message: 'Invalid Indian phone number' };
         }
 
-        // Rate limiting check (max 5 per hour)
-        const existing = this.otpStore.get(phone);
-        if (existing && existing.attempts >= 5 && existing.expiresAt > Date.now()) {
+        // Rate limiting check (max 5 per hour) using separate Redis key
+        const rateKey = `otp_rate:${phone}`;
+        const rateCount = await this.redis.incr(rateKey);
+        await this.redis.expire(rateKey, 3600); // 1-hour TTL
+        if (rateCount > 5) {
             return { success: false, message: 'Too many OTP requests. Please try again later.' };
         }
 
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Spec: Section 14 (Security) — use cryptographic randomness for OTP
+        const otp = randomInt(100000, 999999).toString();
         const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-        // Store OTP
-        this.otpStore.set(phone, {
+        // Store OTP data in Redis with key pattern otp:{phone} and 5-minute TTL
+        const otpKey = `otp:${phone}`;
+        const otpData: OtpData = {
             otp,
-            attempts: (existing?.attempts || 0) + 1,
+            attempts: rateCount,
             expiresAt,
-        });
+        };
+        await this.redis.set(otpKey, JSON.stringify(otpData), 300);
 
         // Development mode: Always succeed and log OTP
         if (this.config.get('NODE_ENV') !== 'production') {
             this.logger.log(`\n========================================`);
-            this.logger.log(`📱 OTP for ${phone}: ${otp}`);
+            this.logger.log(`OTP for ${phone}: ${otp}`);
             this.logger.log(`========================================\n`);
             return { success: true, message: 'OTP sent successfully', requestId: 'dev-mode' };
         }
@@ -92,21 +105,24 @@ export class OtpService {
      * Verify OTP
      */
     async verifyOtp(phone: string, otp: string): Promise<OtpVerifyResponse> {
-        const stored = this.otpStore.get(phone);
+        const otpKey = `otp:${phone}`;
+        const raw = await this.redis.get(otpKey);
 
-        if (!stored) {
+        if (!raw) {
             return { success: false, message: 'OTP expired or not requested' };
         }
 
+        const stored: OtpData = JSON.parse(raw);
+
         if (stored.expiresAt < Date.now()) {
-            this.otpStore.delete(phone);
+            await this.redis.del(otpKey);
             return { success: false, message: 'OTP expired. Please request a new one.' };
         }
 
         // Development mode: Accept any 6-digit OTP or the stored one
         if (this.config.get('NODE_ENV') === 'development') {
             if (otp === stored.otp || otp === '123456') {
-                this.otpStore.delete(phone);
+                await this.redis.del(otpKey);
                 return { success: true, message: 'OTP verified successfully' };
             }
         }
@@ -116,7 +132,7 @@ export class OtpService {
         }
 
         // Clear OTP after successful verification
-        this.otpStore.delete(phone);
+        await this.redis.del(otpKey);
         return { success: true, message: 'OTP verified successfully' };
     }
 }

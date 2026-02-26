@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { LabOrder } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Spec: master spec Section 7 (Blood Work & Diagnostics)
@@ -140,8 +141,10 @@ export class LabOrderService {
   async getDoctorLabOrders(
     doctorId: string,
     filters?: { status?: string; vertical?: string; search?: string },
-  ): Promise<any[]> {
-    const where: any = {
+    take = 20,
+    skip = 0,
+  ): Promise<Record<string, unknown>[]> {
+    const where: Record<string, unknown> = {
       doctorId,
       ...(filters?.status ? { status: filters.status } : {}),
       ...(filters?.vertical
@@ -159,6 +162,8 @@ export class LabOrderService {
         consultation: { select: { vertical: true } },
       },
       orderBy: { orderedAt: 'desc' },
+      take,
+      skip,
     });
 
     return orders.map((order) => ({
@@ -187,7 +192,7 @@ export class LabOrderService {
    * Create a new lab order
    * Spec: Section 7.2 Step 1 — Doctor Orders
    */
-  async createLabOrder(input: CreateLabOrderInput): Promise<any> {
+  async createLabOrder(input: CreateLabOrderInput): Promise<LabOrder> {
     // Verify consultation exists
     const consultation = await this.prisma.consultation.findUnique({
       where: { id: input.consultationId },
@@ -235,7 +240,7 @@ export class LabOrderService {
     labOrderId: string,
     newStatus: LabOrderStatus,
     options: TransitionOptions = {}
-  ): Promise<any> {
+  ): Promise<LabOrder> {
     const labOrder = await this.prisma.labOrder.findUnique({
       where: { id: labOrderId },
     });
@@ -254,7 +259,7 @@ export class LabOrderService {
 
     // Build update data with the appropriate timestamp
     const timestampField = STATUS_TIMESTAMP_MAP[newStatus];
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, unknown> = {
       status: newStatus,
       [timestampField]: new Date(),
     };
@@ -320,7 +325,7 @@ export class LabOrderService {
    * Create a recollection order after sample issue
    * Spec: Section 7.3 — SAMPLE_ISSUE → auto-new-order → ORDERED
    */
-  async createRecollectionOrder(originalOrderId: string): Promise<any> {
+  async createRecollectionOrder(originalOrderId: string): Promise<LabOrder> {
     const originalOrder = await this.prisma.labOrder.findUnique({
       where: { id: originalOrderId },
     });
@@ -368,7 +373,7 @@ export class LabOrderService {
   async uploadPatientResults(
     labOrderId: string,
     input: UploadPatientResultsInput
-  ): Promise<any> {
+  ): Promise<LabOrder> {
     const labOrder = await this.prisma.labOrder.findUnique({
       where: { id: labOrderId },
     });
@@ -409,7 +414,7 @@ export class LabOrderService {
   async cancelLabOrder(
     labOrderId: string,
     input: CancelLabOrderInput
-  ): Promise<any> {
+  ): Promise<LabOrder> {
     const labOrder = await this.prisma.labOrder.findUnique({
       where: { id: labOrderId },
     });
@@ -495,7 +500,7 @@ export class LabOrderService {
   /**
    * Get a lab order by ID
    */
-  async getLabOrder(labOrderId: string): Promise<any> {
+  async getLabOrder(labOrderId: string): Promise<LabOrder> {
     const labOrder = await this.prisma.labOrder.findUnique({
       where: { id: labOrderId },
       include: {
@@ -516,13 +521,15 @@ export class LabOrderService {
   /**
    * Get all lab orders for a patient
    */
-  async getPatientLabOrders(patientId: string): Promise<any[]> {
+  async getPatientLabOrders(patientId: string, take = 20, skip = 0): Promise<LabOrder[]> {
     const labOrders = await this.prisma.labOrder.findMany({
       where: { patientId },
       orderBy: { orderedAt: 'desc' },
       include: {
         consultation: true,
       },
+      take,
+      skip,
     });
 
     return labOrders;
@@ -531,7 +538,7 @@ export class LabOrderService {
   /**
    * Get lab orders by status
    */
-  async getLabOrdersByStatus(status: LabOrderStatus): Promise<any[]> {
+  async getLabOrdersByStatus(status: LabOrderStatus): Promise<LabOrder[]> {
     const labOrders = await this.prisma.labOrder.findMany({
       where: { status },
       orderBy: { orderedAt: 'desc' },

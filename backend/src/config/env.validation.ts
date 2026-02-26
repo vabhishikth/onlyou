@@ -37,6 +37,24 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
         errors.push(`NODE_ENV must be one of: ${VALID_NODE_ENVS.join(', ')} (got "${nodeEnv}")`);
     }
 
+    // Spec: Phase 10 — Production-only required variables
+    // These are only required in production; in dev/test they can be optional
+    if (nodeEnv === 'production') {
+        const productionRequired: string[] = [
+            'RAZORPAY_KEY_ID',
+            'RAZORPAY_KEY_SECRET',
+            'AWS_ACCESS_KEY_ID',
+            'AWS_SECRET_ACCESS_KEY',
+            'MSG91_AUTH_KEY',
+            'ANTHROPIC_API_KEY',
+        ];
+        for (const key of productionRequired) {
+            if (!config[key]) {
+                errors.push(`${key} is required in production`);
+            }
+        }
+    }
+
     if (errors.length > 0) {
         throw new Error(`Environment validation failed:\n${errors.join('\n')}`);
     }

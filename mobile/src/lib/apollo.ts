@@ -1,6 +1,7 @@
 import {
     ApolloClient,
     InMemoryCache,
+    Observable,
     createHttpLink,
     from,
 } from '@apollo/client';
@@ -10,10 +11,10 @@ import * as SecureStore from 'expo-secure-store';
 
 // Configure based on environment
 // EXPO_PUBLIC_API_URL is set in .env (root) for dev
-// For physical device: http://YOUR_IP:4000/graphql
-// For simulator: http://localhost:4000/graphql
+// For physical device: set EXPO_PUBLIC_API_URL=http://YOUR_IP:4000/graphql in .env
+// For simulator: localhost works by default
 const API_URL = process.env.EXPO_PUBLIC_API_URL
-    || (__DEV__ ? 'http://192.168.0.104:4000/graphql' : 'https://api.onlyou.life/graphql');
+    || (__DEV__ ? 'http://localhost:4000/graphql' : 'https://api.onlyou.life/graphql');
 
 const TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -64,21 +65,71 @@ const authLink = setContext(async (_, { headers }) => {
     };
 });
 
-// Error handling link
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+// Error handling link with automatic token refresh on UNAUTHENTICATED errors
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
     if (graphQLErrors) {
         for (const err of graphQLErrors) {
-            // Handle UNAUTHENTICATED error - token expired
             if (err.extensions?.code === 'UNAUTHENTICATED') {
-                // Token refresh should be handled by the auth context
-                // This error will be caught and handled there
-                console.log('Auth error: Token may be expired');
+                // Attempt automatic token refresh and retry the failed operation
+                return new Observable(observer => {
+                    getRefreshToken()
+                        .then(refreshToken => {
+                            if (!refreshToken) {
+                                observer.error(err);
+                                return;
+                            }
+                            // Call the refresh token mutation directly via fetch
+                            return fetch(API_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    query: `mutation RefreshToken($input: RefreshTokenInput!) {
+                                        refreshToken(input: $input) {
+                                            success accessToken refreshToken
+                                        }
+                                    }`,
+                                    variables: { input: { refreshToken } },
+                                }),
+                            });
+                        })
+                        .then(response => response?.json())
+                        .then(data => {
+                            const result = data?.data?.refreshToken;
+                            if (result?.success && result.accessToken) {
+                                // Store new tokens in SecureStore
+                                setToken(result.accessToken);
+                                if (result.refreshToken) {
+                                    setRefreshToken(result.refreshToken);
+                                }
+                                // Retry the failed operation with the new access token
+                                const oldHeaders = operation.getContext().headers;
+                                operation.setContext({
+                                    headers: {
+                                        ...oldHeaders,
+                                        authorization: `Bearer ${result.accessToken}`,
+                                    },
+                                });
+                                forward(operation).subscribe(observer);
+                            } else {
+                                // Refresh failed — clear tokens so auth context can redirect to login
+                                clearTokens();
+                                observer.error(err);
+                            }
+                        })
+                        .catch(refreshError => {
+                            if (__DEV__) {
+                                console.warn('Token refresh failed:', refreshError);
+                            }
+                            clearTokens();
+                            observer.error(err);
+                        });
+                });
             }
         }
     }
 
-    if (networkError) {
-        console.log(`[Network error]: ${networkError}`);
+    if (networkError && __DEV__) {
+        console.warn(`[Network error]: ${networkError}`);
     }
 });
 

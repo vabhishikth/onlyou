@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
+import { ConsultationStatus, HealthVertical, User, UserRole } from '@prisma/client';
 
 // Spec: master spec Section 5.5 (Messaging)
 // Spec: hair-loss spec Section 7 (Canned Messages)
@@ -100,7 +100,7 @@ export class MessagingService {
   /**
    * Verify user exists
    */
-  private async getUser(userId: string): Promise<any> {
+  private async getUser(userId: string): Promise<User> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
     });
@@ -118,7 +118,7 @@ export class MessagingService {
   private async verifyConsultationAccess(
     consultationId: string,
     userId: string
-  ): Promise<any> {
+  ) {
     const consultation = await this.prisma.consultation.findUnique({
       where: { id: consultationId },
     });
@@ -230,7 +230,7 @@ export class MessagingService {
     consultationId: string,
     doctorId: string,
     message: string
-  ): Promise<{ message: MessageWithReceipts; consultation: any }> {
+  ): Promise<{ message: MessageWithReceipts; consultation: Record<string, unknown> }> {
     const { consultation: _consultation, user } = await this.verifyConsultationAccess(
       consultationId,
       doctorId
@@ -269,7 +269,9 @@ export class MessagingService {
    */
   async getMessages(
     consultationId: string,
-    userId: string
+    userId: string,
+    take = 50,
+    skip = 0,
   ): Promise<MessageWithReceipts[]> {
     await this.verifyConsultationAccess(consultationId, userId);
 
@@ -285,6 +287,8 @@ export class MessagingService {
         },
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return messages as MessageWithReceipts[];
@@ -292,26 +296,25 @@ export class MessagingService {
 
   /**
    * Get unread message count for a user in a consultation
+   * Uses prisma.count() instead of findMany() to avoid loading all messages into memory
    */
   async getUnreadCount(consultationId: string, userId: string): Promise<number> {
     await this.verifyConsultationAccess(consultationId, userId);
 
-    const unreadMessages = await this.prisma.message.findMany({
+    return this.prisma.message.count({
       where: {
         consultationId,
         senderId: { not: userId },
         readAt: null,
       },
     });
-
-    return unreadMessages.length;
   }
 
   /**
    * Get all conversations (consultations with messages) for a doctor
    * Spec: master spec Section 5.5 — Doctor conversations list
    */
-  async getDoctorConversations(doctorId: string): Promise<any[]> {
+  async getDoctorConversations(doctorId: string, take = 20, skip = 0): Promise<Record<string, unknown>[]> {
     const consultations = await this.prisma.consultation.findMany({
       where: {
         doctorId,
@@ -324,6 +327,8 @@ export class MessagingService {
         },
       },
       _count: { select: { messages: true } },
+      take,
+      skip,
     } as any);
 
     const results = consultations.map((consultation: any) => {

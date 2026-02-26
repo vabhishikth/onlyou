@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PaymentService, CreatePaymentOrderInput, VerifyPaymentInput, ProcessWebhookInput } from './payment.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -39,6 +40,17 @@ describe('PaymentService', () => {
     $transaction: jest.fn((callback) => callback(mockPrismaService)),
   };
 
+  // Mock ConfigService — non-production by default for tests
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((key: string) => {
+      const config: Record<string, string> = {
+        RAZORPAY_KEY_SECRET: 'test_razorpay_secret',
+        NODE_ENV: 'test',
+      };
+      return config[key] || '';
+    }),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -47,6 +59,7 @@ describe('PaymentService', () => {
         PaymentService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: 'RAZORPAY_INSTANCE', useValue: mockRazorpay },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -189,6 +202,171 @@ describe('PaymentService', () => {
         'order_123|pay_456',
         expect.any(String), // secret key
       );
+    });
+
+    // Security: stub_pay_ bypass must only work in non-production
+    // Spec: P0 security fix — payment signature bypass must be gated by NODE_ENV
+    it('should accept stub_pay_ prefix in non-production (test) environment', async () => {
+      const stubInput: VerifyPaymentInput = {
+        razorpayOrderId: 'order_test',
+        razorpayPaymentId: 'stub_pay_12345',
+        razorpaySignature: 'any_signature',
+      };
+
+      const result = await service.verifyPaymentSignature(stubInput);
+      expect(result).toBe(true);
+    });
+
+    it('should NOT accept stub_pay_ prefix in production environment', async () => {
+      // Create a production-configured service
+      const productionConfigService = {
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            RAZORPAY_KEY_SECRET: 'real_production_secret',
+            NODE_ENV: 'production',
+          };
+          return config[key] || '';
+        }),
+      };
+
+      const productionModule: TestingModule = await Test.createTestingModule({
+        providers: [
+          PaymentService,
+          { provide: PrismaService, useValue: mockPrismaService },
+          { provide: 'RAZORPAY_INSTANCE', useValue: mockRazorpay },
+          { provide: ConfigService, useValue: productionConfigService },
+        ],
+      }).compile();
+
+      const productionService = productionModule.get<PaymentService>(PaymentService);
+
+      const stubInput: VerifyPaymentInput = {
+        razorpayOrderId: 'order_test',
+        razorpayPaymentId: 'stub_pay_12345',
+        razorpaySignature: 'wrong_signature',
+      };
+
+      const result = await productionService.verifyPaymentSignature(stubInput);
+      // In production, stub_pay_ should NOT bypass — it should verify normally and fail
+      expect(result).toBe(false);
+    });
+  });
+
+  // ==========================================
+  // CONSTRUCTOR / CONFIG SECURITY
+  // Spec: P1 security fix — Razorpay secret must use ConfigService, not process.env
+  // ==========================================
+
+  describe('constructor security', () => {
+    it('should use ConfigService for RAZORPAY_KEY_SECRET (not process.env)', async () => {
+      // The mock ConfigService returns 'test_razorpay_secret' for RAZORPAY_KEY_SECRET
+      // If the service uses ConfigService properly, verifyPaymentSignature should
+      // use 'test_razorpay_secret' as the secret
+      expect(mockConfigService.get).toHaveBeenCalledWith('RAZORPAY_KEY_SECRET');
+    });
+
+    it('should throw error if RAZORPAY_KEY_SECRET is missing in production', async () => {
+      const productionNoSecretConfig = {
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            NODE_ENV: 'production',
+            // RAZORPAY_KEY_SECRET is deliberately missing
+          };
+          return config[key] || '';
+        }),
+      };
+
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            PaymentService,
+            { provide: PrismaService, useValue: mockPrismaService },
+            { provide: 'RAZORPAY_INSTANCE', useValue: mockRazorpay },
+            { provide: ConfigService, useValue: productionNoSecretConfig },
+          ],
+        }).compile(),
+      ).rejects.toThrow('RAZORPAY_KEY_SECRET is required in production');
+    });
+
+    it('should NOT throw error if RAZORPAY_KEY_SECRET is missing in non-production', async () => {
+      const testNoSecretConfig = {
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            NODE_ENV: 'test',
+            // RAZORPAY_KEY_SECRET is deliberately missing
+          };
+          return config[key] || '';
+        }),
+      };
+
+      // Should not throw — empty secret is allowed in non-production
+      const module = await Test.createTestingModule({
+        providers: [
+          PaymentService,
+          { provide: PrismaService, useValue: mockPrismaService },
+          { provide: 'RAZORPAY_INSTANCE', useValue: mockRazorpay },
+          { provide: ConfigService, useValue: testNoSecretConfig },
+        ],
+      }).compile();
+
+      expect(module.get(PaymentService)).toBeDefined();
+    });
+
+    it('should not use hardcoded test_secret fallback', async () => {
+      // Create service with empty RAZORPAY_KEY_SECRET in test mode
+      const emptySecretConfig = {
+        get: jest.fn().mockImplementation((key: string) => {
+          const config: Record<string, string> = {
+            NODE_ENV: 'test',
+            RAZORPAY_KEY_SECRET: '',
+          };
+          return config[key] || '';
+        }),
+      };
+
+      const module = await Test.createTestingModule({
+        providers: [
+          PaymentService,
+          { provide: PrismaService, useValue: mockPrismaService },
+          { provide: 'RAZORPAY_INSTANCE', useValue: mockRazorpay },
+          { provide: ConfigService, useValue: emptySecretConfig },
+        ],
+      }).compile();
+
+      const svc = module.get<PaymentService>(PaymentService);
+
+      // With an empty secret, the HMAC should be computed with empty string
+      // It should NOT fall back to 'test_secret'
+      const input: VerifyPaymentInput = {
+        razorpayOrderId: 'order_x',
+        razorpayPaymentId: 'pay_y',
+        razorpaySignature: 'some_sig',
+      };
+
+      // Compute what signature would be with empty string vs 'test_secret'
+      const crypto = require('crypto');
+      const emptySecretSig = crypto
+        .createHmac('sha256', '')
+        .update('order_x|pay_y')
+        .digest('hex');
+      const testSecretSig = crypto
+        .createHmac('sha256', 'test_secret')
+        .update('order_x|pay_y')
+        .digest('hex');
+
+      // Verify with the empty-secret signature should return true
+      const resultWithEmptySig = await svc.verifyPaymentSignature({
+        ...input,
+        razorpaySignature: emptySecretSig,
+      });
+      expect(resultWithEmptySig).toBe(true);
+
+      // Verify with the old 'test_secret' signature should return false
+      const resultWithTestSecret = await svc.verifyPaymentSignature({
+        ...input,
+        razorpaySignature: testSecretSig,
+      });
+      expect(resultWithTestSecret).toBe(false);
     });
   });
 

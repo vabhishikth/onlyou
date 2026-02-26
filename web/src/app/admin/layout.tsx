@@ -72,11 +72,9 @@ export default function AdminLayout({
     const adminName = user?.name || 'Admin';
 
     const handleLogout = () => {
+        // HttpOnly cookies are cleared by the backend logout mutation.
+        // Redirect to login — middleware will handle unauthenticated state.
         if (typeof window !== 'undefined') {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            sessionStorage.removeItem('refreshToken');
-            document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             window.location.href = '/login?returnUrl=/admin';
         }
     };

@@ -10,6 +10,7 @@ import {
   DashboardStatus,
 } from './dto/dashboard.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginationInput } from '../common/dto/pagination.dto';
 
 // Spec: master spec Section 5 (Doctor Dashboard)
 
@@ -57,10 +58,11 @@ export class DashboardResolver {
   async doctorQueue(
     @Context() context: any,
     @Args('filters', { type: () => QueueFiltersInput, nullable: true })
-    filters?: QueueFiltersInput
+    filters?: QueueFiltersInput,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<QueueResponse> {
     const userId = context.req.user.id;
-    const result = await this.dashboardService.getDoctorQueue(userId, buildFilters(filters));
+    const result = await this.dashboardService.getDoctorQueue(userId, buildFilters(filters), pagination?.take, pagination?.skip);
 
     return {
       cases: result.cases.map(mapCaseCard),
@@ -75,10 +77,11 @@ export class DashboardResolver {
   async adminQueue(
     @Context() context: any,
     @Args('filters', { type: () => QueueFiltersInput, nullable: true })
-    filters?: QueueFiltersInput
+    filters?: QueueFiltersInput,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<QueueResponse> {
     const userId = context.req.user.id;
-    const result = await this.dashboardService.getAdminQueue(userId, buildFilters(filters));
+    const result = await this.dashboardService.getAdminQueue(userId, buildFilters(filters), pagination?.take, pagination?.skip);
 
     return {
       cases: result.cases.map(mapCaseCard),
@@ -93,10 +96,11 @@ export class DashboardResolver {
   async unassignedCases(
     @Context() context: any,
     @Args('filters', { type: () => QueueFiltersInput, nullable: true })
-    filters?: QueueFiltersInput
+    filters?: QueueFiltersInput,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<QueueResponse> {
     const userId = context.req.user.id;
-    const result = await this.dashboardService.getUnassignedCases(userId, buildFilters(filters));
+    const result = await this.dashboardService.getUnassignedCases(userId, buildFilters(filters), pagination?.take, pagination?.skip);
 
     return {
       cases: result.cases.map(mapCaseCard),

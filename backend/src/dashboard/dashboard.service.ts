@@ -73,14 +73,14 @@ export interface CaseDetail {
     phone: string;
   };
   questionnaire: {
-    responses: any;
-    template: any;
+    responses: Record<string, unknown>;
+    template: Record<string, unknown>;
   };
   aiAssessment: {
     summary: string;
     riskLevel: string;
     flags: string[];
-    rawResponse?: any;
+    rawResponse?: Record<string, unknown>;
   } | null;
   photos: Array<{
     id: string;
@@ -93,7 +93,14 @@ export interface CaseDetail {
     senderId: string;
     createdAt: Date;
   }>;
-  prescription: any | null;
+  prescription: {
+    id: string;
+    medications: unknown;
+    validUntil: Date;
+    issuedAt: Date;
+    pdfUrl?: string;
+    instructions?: string;
+  } | null;
   labOrders: Array<{
     id: string;
     testPanel: string[];
@@ -173,7 +180,7 @@ export class DashboardService {
   /**
    * Verify user is a doctor
    */
-  private async verifyDoctor(userId: string): Promise<any> {
+  private async verifyDoctor(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         id: userId,
@@ -192,7 +199,7 @@ export class DashboardService {
   /**
    * Verify user is an admin
    */
-  private async verifyAdmin(userId: string): Promise<any> {
+  private async verifyAdmin(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
     });
@@ -207,7 +214,7 @@ export class DashboardService {
   /**
    * Verify user is a doctor or admin
    */
-  private async verifyDoctorOrAdmin(userId: string): Promise<any> {
+  private async verifyDoctorOrAdmin(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         id: userId,
@@ -228,7 +235,7 @@ export class DashboardService {
   /**
    * Build where clause for status filtering
    */
-  private buildStatusFilter(dashboardStatus?: DashboardStatus): any {
+  private buildStatusFilter(dashboardStatus?: DashboardStatus): Record<string, unknown> {
     if (!dashboardStatus) return {};
 
     switch (dashboardStatus) {
@@ -270,23 +277,28 @@ export class DashboardService {
   /**
    * Transform consultation to case card
    */
-  private toCaseCard(consultation: any): CaseCard {
-    const dashboardStatus = this.mapToDashboardStatus(consultation.status);
+  private toCaseCard(consultation: Record<string, unknown>): CaseCard {
+    const dashboardStatus = this.mapToDashboardStatus(consultation.status as ConsultationStatus);
     // A case is a follow-up if it has any pending (incomplete) follow-up scheduled
-    const isFollowUp = consultation.followUps?.some((fu: any) => !fu.isCompleted) || false;
+    const followUps = consultation.followUps as Array<{ isCompleted: boolean; scheduledAt: Date }> | undefined;
+    const isFollowUp = followUps?.some((fu) => !fu.isCompleted) || false;
     // For dashboard status badge, only show FOLLOW_UP badge if follow-up is due
-    const hasDueFollowUp = consultation.followUps?.some(
-      (fu: any) => !fu.isCompleted && new Date(fu.scheduledAt) <= new Date()
+    const hasDueFollowUp = followUps?.some(
+      (fu) => !fu.isCompleted && new Date(fu.scheduledAt) <= new Date()
     );
 
+    const patient = consultation.patient as Record<string, unknown> | undefined;
+    const patientProfile = (patient?.patientProfile as Record<string, unknown>) || {};
+    const aiAssessment = consultation.aiAssessment as Record<string, unknown> | undefined;
+
     return {
-      id: consultation.id,
-      patientName: consultation.patient?.name || 'Unknown',
-      patientAge: this.calculateAge(consultation.patient?.patientProfile?.dateOfBirth),
-      patientSex: consultation.patient?.patientProfile?.gender || null,
-      vertical: consultation.vertical,
-      createdAt: consultation.createdAt,
-      aiAttentionLevel: consultation.aiAssessment?.riskLevel || null,
+      id: consultation.id as string,
+      patientName: (patient?.name as string) || 'Unknown',
+      patientAge: this.calculateAge(patientProfile?.dateOfBirth as Date | undefined),
+      patientSex: (patientProfile?.gender as string) || null,
+      vertical: consultation.vertical as HealthVertical,
+      createdAt: consultation.createdAt as Date,
+      aiAttentionLevel: (aiAssessment?.riskLevel as string) || null,
       dashboardStatus: hasDueFollowUp ? DashboardStatus.FOLLOW_UP : dashboardStatus,
       statusBadge: this.getBadge(hasDueFollowUp ? DashboardStatus.FOLLOW_UP : dashboardStatus),
       isFollowUp,
@@ -299,11 +311,13 @@ export class DashboardService {
    */
   async getDoctorQueue(
     doctorId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyDoctor(doctorId);
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       doctorId,
       ...this.buildStatusFilter(filters.dashboardStatus),
     };
@@ -324,6 +338,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {
@@ -336,11 +352,13 @@ export class DashboardService {
    */
   async getAdminQueue(
     adminId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyAdmin(adminId);
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       ...this.buildStatusFilter(filters.dashboardStatus),
     };
 
@@ -360,6 +378,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {
@@ -372,11 +392,13 @@ export class DashboardService {
    */
   async getUnassignedCases(
     adminId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyAdmin(adminId);
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       status: ConsultationStatus.AI_REVIEWED,
       doctorId: null,
     };
@@ -401,6 +423,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {
