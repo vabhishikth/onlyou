@@ -19,10 +19,10 @@ import type {
 
 // Spec: Phase 13 — Doctor video session management (no-show, complete, awaiting labs)
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; pulse?: boolean }> = {
     SCHEDULED: { label: 'Scheduled', color: 'text-accent', bgColor: 'bg-accent/10' },
     WAITING_FOR_PATIENT: { label: 'Patient Joining...', color: 'text-amber-600', bgColor: 'bg-amber-50' },
-    WAITING_FOR_DOCTOR: { label: 'Patient Waiting', color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+    WAITING_FOR_DOCTOR: { label: 'Patient is waiting!', color: 'text-emerald-600', bgColor: 'bg-emerald-50', pulse: true },
     IN_PROGRESS: { label: 'In Progress', color: 'text-success', bgColor: 'bg-success/10' },
     COMPLETED: { label: 'Completed', color: 'text-neutral-500', bgColor: 'bg-neutral-100' },
     NO_SHOW: { label: 'No Show', color: 'text-destructive', bgColor: 'bg-destructive/10' },
@@ -134,7 +134,7 @@ function SessionCard({
                         )}
                     </div>
                 </div>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig.color} ${statusConfig.bgColor}`}>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig.color} ${statusConfig.bgColor} ${statusConfig.pulse ? 'animate-pulse' : ''}`}>
                     {statusConfig.label}
                 </span>
             </div>
@@ -254,15 +254,25 @@ function SessionCard({
     );
 }
 
+// Spec: Task 3.2 — Helper to check if a date is today
+function isToday(isoString: string): boolean {
+    const d = new Date(isoString);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+}
+
 export default function VideoSessionsPage() {
     const router = useRouter();
     const [completingId, setCompletingId] = useState<string | null>(null);
     const [notes, setNotes] = useState('');
     const [callType, setCallType] = useState('VIDEO');
+    const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
     const { data, loading, refetch } = useQuery<DoctorVideoSessionsResponse>(
         DOCTOR_VIDEO_SESSIONS,
-        { pollInterval: 10000 }
+        { pollInterval: 5000 }
     );
 
     const [markNoShow] = useMutation(MARK_NO_SHOW, {
@@ -285,9 +295,16 @@ export default function VideoSessionsPage() {
     const [joinSession, { loading: joining }] = useMutation(JOIN_VIDEO_SESSION, {
         onCompleted: (result) => {
             refetch();
-            // Navigate to the in-call room page
-            const sessionId = result.joinVideoSession.roomId;
-            // Use the videoSessionId from the mutation context, redirect to room page
+            // Store HMS token for the room page to use
+            if (typeof window !== 'undefined') {
+                const existing = sessionStorage.getItem('activeVideoSession');
+                if (existing) {
+                    const parsed = JSON.parse(existing);
+                    parsed.hmsToken = result.joinVideoSession.token;
+                    parsed.roomId = result.joinVideoSession.roomId;
+                    sessionStorage.setItem('activeVideoSession', JSON.stringify(parsed));
+                }
+            }
             router.push(`/doctor/video/room?joined=true`);
         },
         onError: (error) => {
@@ -311,7 +328,12 @@ export default function VideoSessionsPage() {
         joinSession({ variables: { videoSessionId: session.id } });
     };
 
-    const sessions = data?.doctorVideoSessions || [];
+    const allSessions = data?.doctorVideoSessions || [];
+
+    // Spec: Task 3.2 — Filter: today's sessions by default, all upcoming on toggle
+    const sessions = showAllUpcoming
+        ? allSessions
+        : allSessions.filter((s) => isToday(s.scheduledStartTime));
 
     const handleComplete = (sessionId: string) => {
         completeSession({
@@ -338,6 +360,29 @@ export default function VideoSessionsPage() {
                 <p className="text-sm text-neutral-500 mt-1">
                     Manage today&apos;s and upcoming video consultations
                 </p>
+                {/* Spec: Task 3.2 — Today / All Upcoming toggle */}
+                <div className="flex gap-2 mt-3">
+                    <button
+                        onClick={() => setShowAllUpcoming(false)}
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                            !showAllUpcoming
+                                ? 'bg-accent text-white'
+                                : 'bg-neutral-100 text-neutral-500 hover:text-neutral-700'
+                        }`}
+                    >
+                        Today
+                    </button>
+                    <button
+                        onClick={() => setShowAllUpcoming(true)}
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                            showAllUpcoming
+                                ? 'bg-accent text-white'
+                                : 'bg-neutral-100 text-neutral-500 hover:text-neutral-700'
+                        }`}
+                    >
+                        All Upcoming
+                    </button>
+                </div>
             </div>
 
             {sessions.length === 0 ? (
