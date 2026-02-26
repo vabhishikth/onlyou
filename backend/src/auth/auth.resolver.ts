@@ -14,6 +14,7 @@ import {
     UserType,
 } from './dto/auth.dto';
 import { setAuthCookies, clearAuthCookies } from './auth-cookies';
+import { AuditService } from '../audit/audit.service';
 
 import { UserService } from '../user/user.service';
 
@@ -22,6 +23,7 @@ export class AuthResolver {
     constructor(
         private readonly authService: AuthService,
         private readonly userService: UserService,
+        private readonly audit: AuditService,
     ) { }
 
     @Mutation(() => RequestOtpResponse)
@@ -35,7 +37,7 @@ export class AuthResolver {
     @RateLimit(10, 60)
     async verifyOtp(
         @Args('input') input: VerifyOtpInput,
-        @Context() ctx: { res: Response },
+        @Context() ctx: { req: Request; res: Response },
     ): Promise<AuthResponse> {
         const result = await this.authService.verifyOtpAndLogin(input.phone, input.otp);
         const response: AuthResponse = {
@@ -44,11 +46,17 @@ export class AuthResolver {
         };
         if (result.user) {
             response.user = await this.mapUser(result.user);
+            this.audit.log(
+                { userId: result.user.id, ipAddress: ctx.req.ip, userAgent: ctx.req.headers['user-agent'] },
+                'LOGIN',
+                'User',
+                result.user.id,
+                { phone: input.phone, role: result.user.role },
+            );
         }
         if (result.tokens) {
             response.accessToken = result.tokens.accessToken;
             response.refreshToken = result.tokens.refreshToken;
-            // Set HttpOnly cookies for web clients
             setAuthCookies(ctx.res, result.tokens.accessToken, result.tokens.refreshToken);
         }
         return response;
@@ -84,10 +92,15 @@ export class AuthResolver {
         @Args('refreshToken', { nullable: true }) refreshToken?: string,
         @Context() ctx: { req: Request; res: Response },
     ): Promise<RequestOtpResponse> {
-        // Use refreshToken from argument (mobile) or cookie (web)
         const token = refreshToken || ctx.req.cookies?.refreshToken;
         await this.authService.logout(user.userId, token);
         clearAuthCookies(ctx.res);
+        this.audit.log(
+            { userId: user.userId, ipAddress: ctx.req.ip, userAgent: ctx.req.headers['user-agent'] },
+            'LOGOUT',
+            'User',
+            user.userId,
+        );
         return { success: true, message: 'Logged out successfully' };
     }
 
