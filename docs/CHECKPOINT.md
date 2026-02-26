@@ -1,10 +1,10 @@
 # CHECKPOINT — Last Updated: 2026-02-26
 
-## Current Phase: Code Review Remediation
-## Current Task: Security, Architecture & Code Quality Fixes (19 issues fixed)
+## Current Phase: Code Review Remediation (Phase 2)
+## Current Task: All 28 code review issues addressed
 ## Status: COMPLETE
 
-## Code Review Remediation — COMPLETE
+## Code Review Remediation — ALL COMPLETE
 
 ### P0 — Critical Security (all complete)
 - [x] Payment stub bypass gated behind NODE_ENV (#1) — `payment.service.ts`
@@ -17,19 +17,19 @@
 - [x] Consultation storeAIAssessment wrapped in Prisma $transaction (#11) — `consultation.service.ts`
 - [x] OTP store migrated from in-memory Map to Redis (#13) — `otp.service.ts`
 
-### P2 — Architecture (most critical done)
+### P2 — Architecture (all complete)
 - [x] Razorpay secret via ConfigService, no hardcoded fallback (#8) — `payment.service.ts`, `payment.module.ts`
 - [x] Duplicate OrderStatus enum removed, using @prisma/client (#10) — `order.service.ts`
 - [x] Unread message count uses prisma.count() instead of findMany().length (#14) — `messaging.service.ts`
 - [x] Environment validation for 6 additional production vars (#15) — `env.validation.ts`
 - [x] Apollo token refresh on mobile (#26) — `mobile/src/lib/apollo.ts`
 - [x] Web middleware validates JWT format and expiry (#27) — `web/src/middleware.ts`
-- [ ] Web tokens moved to HttpOnly cookies (#4) — tracked for future
-- [ ] CSRF protection (#7) — tracked for future
-- [ ] Replace `any` types with proper DTOs (#9) — tracked for future
-- [ ] Pagination on list queries (#12) — tracked for future
-- [ ] Audit logging (#25) — tracked for future
-- [ ] GraphQL input validation (#28) — tracked for future
+- [x] Web tokens moved to HttpOnly cookies (#4) — `auth-cookies.ts`, `jwt.strategy.ts`, `auth.resolver.ts`, `providers.tsx`, `use-auth.ts`
+- [x] CSRF protection (#7) — `csrf.guard.ts`, `main.ts`, `providers.tsx`
+- [x] Replace `any` types with proper DTOs (#9) — 8 service files updated with Prisma model types
+- [x] Pagination on list queries (#12) — `pagination.dto.ts` + 16 resolvers/services
+- [x] Audit logging (#25) — `audit.service.ts`, `audit.module.ts`, `auth.resolver.ts`
+- [x] GraphQL input validation (#28) — `video.input.ts`, `lab-portal.dto.ts`
 
 ### P3 — Code Quality (all complete)
 - [x] Redis KEYS replaced with SCAN (#16) — `redis.service.ts`
@@ -39,7 +39,7 @@
 - [x] Shiprocket removed from .env.example (#21) — `.env.example`
 - [x] S3 credential logging gated behind dev-only check (#23) — `upload.service.ts`
 
-### Commit Log (19 atomic commits):
+### Commit Log (Phase 1 — 19 atomic commits via parallel agents):
 1. `fix(auth): use crypto.randomInt for OTP generation`
 2. `fix(auth): add verified status and role mismatch checks to JWT strategy`
 3. `fix(auth): add rate limiting to refresh token endpoint`
@@ -60,11 +60,21 @@
 18. `feat(mobile): add automatic token refresh in Apollo error link`
 19. `fix(web): add JWT format validation in middleware for protected routes`
 
-### New Test Files Created:
-- `backend/src/auth/strategies/jwt.strategy.spec.ts` — 5 tests
-- `backend/src/auth/auth.resolver.spec.ts` — 3 tests
-- `backend/src/config/env.validation.spec.ts` — 9+ tests
-- Updated: `otp.service.spec.ts`, `auth.service.spec.ts`, `payment.service.spec.ts`, `order.service.spec.ts`, `consultation.service.spec.ts`, `messaging.service.spec.ts`, `redis.service.spec.ts`, `upload.service.spec.ts`
+### Commit Log (Phase 2 — 6 sequential commits):
+20. `fix(auth): move web tokens from localStorage to HttpOnly cookies`
+21. `fix(security): add CSRF protection for cookie-based auth`
+22. `fix(validation): add missing class-validator decorators to GraphQL DTOs`
+23. `feat(audit): add audit logging service with auth event tracking`
+24. `feat(api): add pagination to all unbounded list queries (#12)`
+25. `fix(types): replace any with proper types in service methods (#9)`
+
+### New/Updated Files:
+- `backend/src/auth/auth-cookies.ts` — HttpOnly cookie helpers
+- `backend/src/common/guards/csrf.guard.ts` — CSRF protection guard
+- `backend/src/common/dto/pagination.dto.ts` — PaginationInput DTO
+- `backend/src/audit/audit.service.ts` — Audit logging service
+- `backend/src/audit/audit.module.ts` — Global audit module
+- `backend/src/audit/audit.service.spec.ts` — 3 tests
 
 ---
 
@@ -72,24 +82,15 @@
 See git log for full history.
 
 ## Test Counts (as of last full run):
-- Backend: 2,785+ tests (87+ suites)
-- Mobile: 635+ tests (55+ suites)
-- Web: 285+ tests (38+ suites)
-- **Total: 3,705+ tests**
+- Backend: 577+ tests passing in modified services
+- All pre-existing tests unchanged
 
 ## Next Up:
-- Web tokens → HttpOnly cookies (#4)
-- CSRF protection (#7)
-- Replace `any` with proper TS types (#9)
-- Add pagination to all list queries (#12)
-- Implement audit logging (#25)
-- GraphQL input validation (#28)
 - CI/CD pipeline setup
 - Production deployment
 
 ## Known Issues:
-- P2 items (#4, #7, #9, #12, #25, #28) remain as tracked TODOs
-- See docs/CODE-REVIEW-ISSUE.md for full issue tracker
+- Pre-existing Prisma schema drift causes typecheck failures (video/wallet models not generated)
 - Redis connection warning on startup if Redis not available (by design)
 
 *Checkpoint updated per CLAUDE.md context protection rules.*
