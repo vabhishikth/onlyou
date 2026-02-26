@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { gql, useQuery, useMutation } from '@apollo/client';
 import { colors, spacing, borderRadius, typography, shadows } from '@/theme';
 import { useHMS } from '@/hooks/useHMS';
+import { HmsView } from '@100mslive/react-native-hms';
 import {
     JOIN_VIDEO_SESSION,
     GIVE_RECORDING_CONSENT,
@@ -67,13 +68,15 @@ export default function VideoSessionScreen() {
 
     const session: VideoSession | null = data?.videoSession || null;
 
+    const [doctorDisconnected, setDoctorDisconnected] = useState(false);
+
     const [joinSession] = useMutation(JOIN_VIDEO_SESSION, {
         onCompleted: async (result) => {
             const { token } = result.joinVideoSession;
             setScreenState('WAITING');
             try {
                 await hms.join(token, 'patient');
-                setScreenState('IN_CALL');
+                // Stay in WAITING — useEffect transitions to IN_CALL when remotePeers appear
             } catch {
                 Alert.alert('Connection Error', 'Failed to join the video call. Please try again.');
                 setScreenState('PRE_CALL');
@@ -126,6 +129,25 @@ export default function VideoSessionScreen() {
             if (timer) clearInterval(timer);
         };
     }, [screenState]);
+
+    // Spec: Task 2.2 — Auto-transition from WAITING to IN_CALL when remote peers join
+    useEffect(() => {
+        if (screenState === 'WAITING' && hms.remotePeers.length > 0) {
+            setScreenState('IN_CALL');
+            setDoctorDisconnected(false);
+        }
+    }, [screenState, hms.remotePeers.length]);
+
+    // Spec: Task 2.2 — Detect doctor disconnect during IN_CALL
+    useEffect(() => {
+        if (screenState === 'IN_CALL') {
+            if (hms.remotePeers.length === 0) {
+                setDoctorDisconnected(true);
+            } else {
+                setDoctorDisconnected(false);
+            }
+        }
+    }, [screenState, hms.remotePeers.length]);
 
     // Pulse animation for "Doctor is waiting" indicator
     useEffect(() => {
@@ -265,23 +287,46 @@ export default function VideoSessionScreen() {
                     )}
 
                     {session && (
-                        <View style={styles.scheduleInfo}>
-                            {secondsUntilStart !== null && secondsUntilStart > 0 ? (
-                                <>
-                                    <Text style={styles.scheduleLabel}>Starts in</Text>
-                                    <Text style={styles.countdownText}>
-                                        {formatCountdown(secondsUntilStart)}
-                                    </Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Text style={styles.scheduleLabel}>Scheduled</Text>
-                                    <Text style={styles.scheduleTime}>
-                                        {formatScheduledTime(session.scheduledStartTime)}
-                                    </Text>
-                                </>
-                            )}
-                        </View>
+                        <>
+                            <View style={styles.scheduleInfo}>
+                                {secondsUntilStart !== null && secondsUntilStart > 0 ? (
+                                    <>
+                                        <Text style={styles.scheduleLabel}>Starts in</Text>
+                                        <Text style={styles.countdownText}>
+                                            {formatCountdown(secondsUntilStart)}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={styles.scheduleLabel}>Scheduled</Text>
+                                        <Text style={styles.scheduleTime}>
+                                            {formatScheduledTime(session.scheduledStartTime)}
+                                        </Text>
+                                    </>
+                                )}
+                            </View>
+
+                            {/* Step-by-step instructions */}
+                            <View style={styles.instructionsBox}>
+                                <Text style={styles.instructionsTitle}>How it works</Text>
+                                <View style={styles.instructionStep}>
+                                    <Text style={styles.stepNumber}>1</Text>
+                                    <Text style={styles.stepText}>Tap &quot;Join Call&quot; when the button turns green</Text>
+                                </View>
+                                <View style={styles.instructionStep}>
+                                    <Text style={styles.stepNumber}>2</Text>
+                                    <Text style={styles.stepText}>Allow recording consent (required by law)</Text>
+                                </View>
+                                <View style={styles.instructionStep}>
+                                    <Text style={styles.stepNumber}>3</Text>
+                                    <Text style={styles.stepText}>Wait for your doctor to join the call</Text>
+                                </View>
+                                <View style={styles.instructionStep}>
+                                    <Text style={styles.stepNumber}>4</Text>
+                                    <Text style={styles.stepText}>Ensure good lighting and a quiet space</Text>
+                                </View>
+                            </View>
+                        </>
                     )}
 
                     <View style={styles.controlsRow}>
@@ -381,19 +426,50 @@ export default function VideoSessionScreen() {
             {/* IN_CALL State */}
             {screenState === 'IN_CALL' && (
                 <View style={styles.inCallContainer}>
-                    {/* Doctor feed placeholder */}
-                    <View style={styles.doctorFeed}>
-                        <Text style={styles.feedPlaceholder}>{'\uD83D\uDC68\u200D\u2695\uFE0F'}</Text>
-                        <Text style={styles.feedText}>Doctor Video</Text>
-                    </View>
+                    {/* Doctor video feed — HmsView or avatar fallback */}
+                    {hms.remotePeers.length > 0 && hms.remotePeers[0].videoTrackId ? (
+                        <View testID="doctor-video" style={styles.doctorFeed}>
+                            <HmsView
+                                trackId={hms.remotePeers[0].videoTrackId}
+                                style={styles.fullVideo}
+                            />
+                        </View>
+                    ) : (
+                        <View testID="doctor-avatar" style={styles.doctorFeed}>
+                            <Text style={styles.feedPlaceholder}>{'\uD83D\uDC68\u200D\u2695\uFE0F'}</Text>
+                            <Text style={styles.feedText}>
+                                {hms.remotePeers.length > 0
+                                    ? hms.remotePeers[0].name
+                                    : 'Waiting for doctor...'}
+                            </Text>
+                        </View>
+                    )}
 
-                    {/* Self-view PiP */}
-                    <View style={styles.selfView}>
-                        <Text style={styles.selfViewText}>You</Text>
-                    </View>
+                    {/* Doctor disconnected banner */}
+                    {doctorDisconnected && (
+                        <View style={styles.disconnectBanner}>
+                            <Text style={styles.disconnectText}>
+                                Doctor disconnected — waiting for reconnection...
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Self-view PiP — HmsView or avatar fallback */}
+                    {hms.localVideoTrackId ? (
+                        <View testID="self-video" style={styles.selfView}>
+                            <HmsView
+                                trackId={hms.localVideoTrackId}
+                                style={styles.selfVideo}
+                            />
+                        </View>
+                    ) : (
+                        <View testID="self-avatar" style={styles.selfView}>
+                            <Text style={styles.selfViewText}>You</Text>
+                        </View>
+                    )}
 
                     {/* Duration timer */}
-                    <View style={styles.durationBadge}>
+                    <View testID="duration-badge" style={styles.durationBadge}>
                         <Text style={styles.durationText}>{formatDuration(callDuration)}</Text>
                     </View>
 
@@ -592,6 +668,41 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: spacing.sm,
     },
+    instructionsBox: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    instructionsTitle: {
+        ...typography.bodySmall,
+        fontWeight: '700',
+        color: colors.text,
+        marginBottom: spacing.sm,
+    },
+    instructionStep: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.xs,
+        gap: spacing.sm,
+    },
+    stepNumber: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: colors.primary,
+        color: '#FFFFFF',
+        textAlign: 'center',
+        lineHeight: 22,
+        fontSize: 12,
+        fontWeight: '700',
+        overflow: 'hidden',
+    },
+    stepText: {
+        ...typography.label,
+        color: colors.textSecondary,
+        flex: 1,
+    },
     // WAITING
     waitingTitle: {
         ...typography.headingSmall,
@@ -643,6 +754,32 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.lg,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    fullVideo: {
+        flex: 1,
+        width: '100%',
+    },
+    selfVideo: {
+        flex: 1,
+        width: '100%',
+        borderRadius: borderRadius.lg,
+    },
+    disconnectBanner: {
+        position: 'absolute',
+        top: 60,
+        left: spacing.lg,
+        right: spacing.lg,
+        backgroundColor: 'rgba(239, 68, 68, 0.9)',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    disconnectText: {
+        ...typography.bodySmall,
+        color: '#FFFFFF',
+        fontWeight: '600',
     },
     selfViewText: {
         ...typography.label,

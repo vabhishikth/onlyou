@@ -2,10 +2,11 @@
  * Video Session Screen Tests (Pre-call + Waiting Room + Video Call)
  * Phase 14 Chunk 6+7: Multi-state video session screen
  * Spec: Phase 13 — joinVideoSession, giveRecordingConsent
+ * Task 2.2: Real video rendering with HmsView, auto-transition, disconnect handling
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 const mockUseQuery = require('@apollo/client').useQuery;
 const mockUseMutation = require('@apollo/client').useMutation;
@@ -18,24 +19,32 @@ jest.mock('expo-router', () => ({
     Stack: { Screen: () => null },
 }));
 
-// Mock useHMS hook
+// Mock useHMS hook — mutable state for per-test control
 const mockJoin = jest.fn().mockResolvedValue(undefined);
 const mockLeave = jest.fn().mockResolvedValue(undefined);
 const mockToggleAudio = jest.fn().mockResolvedValue(undefined);
 const mockToggleVideo = jest.fn().mockResolvedValue(undefined);
 
-jest.mock('@/hooks/useHMS', () => ({
-    useHMS: () => ({
+let mockHMSState: any;
+const resetMockHMSState = () => {
+    mockHMSState = {
         join: mockJoin,
         leave: mockLeave,
         toggleAudio: mockToggleAudio,
         toggleVideo: mockToggleVideo,
         peers: [],
+        remotePeers: [],
+        localVideoTrackId: null,
         isAudioMuted: false,
         isVideoMuted: false,
         connectionState: 'DISCONNECTED',
         error: null,
-    }),
+    };
+};
+resetMockHMSState();
+
+jest.mock('@/hooks/useHMS', () => ({
+    useHMS: () => mockHMSState,
 }));
 
 import VideoSessionScreen from '../[videoSessionId]';
@@ -54,6 +63,7 @@ const mockSession = {
 
 beforeEach(() => {
     jest.clearAllMocks();
+    resetMockHMSState();
     mockUseQuery.mockReturnValue({
         data: { videoSession: mockSession },
         loading: false,
@@ -157,6 +167,226 @@ describe('VideoSessionScreen', () => {
             const { getByTestId } = render(<VideoSessionScreen />);
             fireEvent.press(getByTestId('back-button'));
             expect(mockBack).toHaveBeenCalled();
+        });
+    });
+
+    // ============================================================
+    // Task 2.2: IN_CALL rendering with real video
+    // ============================================================
+
+    describe('IN_CALL video rendering', () => {
+        // Helper: set up mocks so pressing Join Call triggers the full join flow
+        const setupJoinableSession = () => {
+            // Session is within join window and consent given
+            mockUseQuery.mockReturnValue({
+                data: {
+                    videoSession: {
+                        ...mockSession,
+                        recordingConsentGiven: true,
+                        scheduledStartTime: new Date(Date.now() - 60000).toISOString(),
+                    },
+                },
+                loading: false,
+                error: null,
+                refetch: jest.fn(),
+            });
+
+            // useMutation calls onCompleted with join result
+            mockUseMutation.mockImplementation((_mutation: any, options: any) => {
+                const mutate = jest.fn(async () => {
+                    const resultData = { joinVideoSession: { roomId: 'room-1', token: 'test-token' } };
+                    if (options?.onCompleted) {
+                        await options.onCompleted(resultData);
+                    }
+                    return { data: resultData };
+                });
+                return [mutate, { loading: false }];
+            });
+        };
+
+        it('transitions from WAITING to IN_CALL when remote peers appear', async () => {
+            setupJoinableSession();
+
+            // When hms.join() resolves, simulate doctor already in room
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1', audioTrackId: 'at-1' },
+                ];
+            });
+
+            const { getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            // Should transition to IN_CALL (showing call duration timer)
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+        });
+
+        it('stays in WAITING when no remote peers after join', async () => {
+            setupJoinableSession();
+
+            // hms.join resolves but no peers yet
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [];
+            });
+
+            const { getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByText('Waiting for doctor...')).toBeTruthy();
+            });
+        });
+
+        it('renders HmsView with doctor video track when remote peer has video', async () => {
+            setupJoinableSession();
+
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'doctor-video-track', audioTrackId: 'at-1' },
+                ];
+            });
+
+            const { getByTestId, getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByTestId('doctor-video')).toBeTruthy();
+            });
+        });
+
+        it('renders doctor avatar fallback when remote peer has no video track', async () => {
+            setupJoinableSession();
+
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith' }, // No videoTrackId
+                ];
+            });
+
+            const { getByTestId, getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByTestId('doctor-avatar')).toBeTruthy();
+            });
+        });
+
+        it('renders self-view PiP with local video track', async () => {
+            setupJoinableSession();
+
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.localVideoTrackId = 'local-video-track';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+
+            const { getByTestId, getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByTestId('self-video')).toBeTruthy();
+            });
+        });
+
+        it('renders self-view placeholder when no local video track', async () => {
+            setupJoinableSession();
+
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.localVideoTrackId = null;
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+
+            const { getByTestId, getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByTestId('self-avatar')).toBeTruthy();
+            });
+        });
+
+        it('shows "Doctor disconnected" banner when remote peers drop to zero during IN_CALL', async () => {
+            setupJoinableSession();
+
+            // Initial join: doctor is present
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+
+            const { getByText, rerender } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            // Verify we're in IN_CALL
+            await waitFor(() => {
+                expect(getByText(/00:00/)).toBeTruthy();
+            });
+
+            // Now simulate doctor leaving
+            await act(async () => {
+                mockHMSState.remotePeers = [];
+            });
+
+            // Re-render to pick up the state change
+            rerender(<VideoSessionScreen />);
+
+            await waitFor(() => {
+                expect(getByText(/Doctor disconnected/i)).toBeTruthy();
+            });
+        });
+
+        it('shows call duration timer in IN_CALL state', async () => {
+            setupJoinableSession();
+
+            mockJoin.mockImplementation(async () => {
+                mockHMSState.connectionState = 'CONNECTED';
+                mockHMSState.remotePeers = [
+                    { id: 'doc-1', name: 'Dr. Smith', videoTrackId: 'vt-1' },
+                ];
+            });
+
+            const { getByTestId, getByText } = render(<VideoSessionScreen />);
+
+            await act(async () => {
+                fireEvent.press(getByText('Join Call'));
+            });
+
+            await waitFor(() => {
+                expect(getByTestId('duration-badge')).toBeTruthy();
+            });
         });
     });
 });
