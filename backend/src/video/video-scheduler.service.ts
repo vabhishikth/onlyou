@@ -4,9 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VideoNotificationService } from './video-notification.service';
 import { HmsService } from './hms.service';
 import { ConsultationStatus, VideoSessionStatus } from '@prisma/client';
+import { transitionStatus, validateTransition } from './video-state-machine';
 
-// Spec: Phase 13 — Cron-based video consultation automation
-// Pattern follows: notification-scheduler.service.ts, sla-timer.service.ts
+// Spec: Phase 13+14 — Cron-based video consultation automation
+// Includes: reminders, room pre-creation, no-show, stale session cleanup
+// All reminders are idempotent (check lastReminderSentAt before sending)
 
 @Injectable()
 export class VideoSchedulerService {
@@ -42,7 +44,17 @@ export class VideoSchedulerService {
 
     for (const session of sessions) {
       try {
+        // Idempotency: skip if reminder was already sent (within last 12 hours)
+        if (session.lastReminderSentAt) {
+          const hoursSinceLast = (Date.now() - new Date(session.lastReminderSentAt).getTime()) / (1000 * 60 * 60);
+          if (hoursSinceLast < 12) continue;
+        }
+
         await this.notifications.notify24HourReminder(session.id);
+        await this.prisma.videoSession.update({
+          where: { id: session.id },
+          data: { lastReminderSentAt: new Date() },
+        });
       } catch (error) {
         this.logger.error(`Failed 24hr reminder for ${session.id}: ${(error as Error).message}`);
       }
@@ -143,6 +155,70 @@ export class VideoSchedulerService {
         }
       } catch (error) {
         this.logger.error(`Failed no-show check for ${session.id}: ${(error as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * Every 5 min: find IN_PROGRESS sessions > 45 min old and auto-complete
+   * Catches sessions where webhook failed or both participants disconnected silently
+   */
+  @Cron('*/5 * * * *')
+  async checkStaleInProgress(): Promise<void> {
+    const cutoff = new Date(Date.now() - 45 * 60 * 1000);
+
+    const sessions = await this.prisma.videoSession.findMany({
+      where: {
+        status: VideoSessionStatus.IN_PROGRESS,
+        actualStartTime: { lte: cutoff },
+      },
+    });
+
+    for (const session of sessions) {
+      try {
+        await transitionStatus(
+          this.prisma,
+          session.id,
+          VideoSessionStatus.COMPLETED,
+          'cron:stale_in_progress',
+          'SESSION_TIMEOUT',
+        );
+        this.logger.warn(`Auto-completed stale session ${session.id} (>45 min)`);
+      } catch (error) {
+        this.logger.error(`Failed stale cleanup for ${session.id}: ${(error as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * Every 2 min: find WAITING_FOR_* sessions > 10 min old and mark FAILED
+   * Catches sessions where one party joined but the other never did
+   */
+  @Cron('*/2 * * * *')
+  async checkStaleWaiting(): Promise<void> {
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+
+    const sessions = await this.prisma.videoSession.findMany({
+      where: {
+        status: {
+          in: [VideoSessionStatus.WAITING_FOR_PATIENT, VideoSessionStatus.WAITING_FOR_DOCTOR],
+        },
+        scheduledStartTime: { lte: cutoff },
+      },
+    });
+
+    for (const session of sessions) {
+      try {
+        await transitionStatus(
+          this.prisma,
+          session.id,
+          VideoSessionStatus.FAILED,
+          'cron:stale_waiting',
+          'WAITING_TIMEOUT',
+        );
+        this.logger.warn(`Timed out waiting session ${session.id} (>10 min)`);
+      } catch (error) {
+        this.logger.error(`Failed waiting timeout for ${session.id}: ${(error as Error).message}`);
       }
     }
   }

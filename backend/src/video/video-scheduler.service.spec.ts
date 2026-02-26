@@ -18,6 +18,7 @@ import { SCHEDULE_CRON_OPTIONS } from '@nestjs/schedule';
 const mockPrisma = {
   videoSession: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     update: jest.fn(),
   },
   consultation: {
@@ -227,6 +228,146 @@ describe('VideoSchedulerService', () => {
       expect(mockPrisma.consultation.update).toHaveBeenCalledWith({
         where: { id: 'consult-1' },
         data: { status: ConsultationStatus.AWAITING_LABS },
+      });
+    });
+  });
+
+  describe('checkStaleInProgress', () => {
+    it('should mark IN_PROGRESS sessions > 45 min as COMPLETED with SESSION_TIMEOUT', async () => {
+      const longAgo = new Date(Date.now() - 50 * 60 * 1000); // 50 min ago
+      const staleSession = {
+        id: 'vs-stale',
+        status: VideoSessionStatus.IN_PROGRESS,
+        actualStartTime: longAgo,
+        statusHistory: [],
+      };
+      mockPrisma.videoSession.findMany.mockResolvedValue([staleSession]);
+      mockPrisma.videoSession.findUnique.mockResolvedValue(staleSession);
+      mockPrisma.videoSession.update.mockResolvedValue({});
+
+      await service.checkStaleInProgress();
+
+      expect(mockPrisma.videoSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'vs-stale' },
+          data: expect.objectContaining({
+            status: VideoSessionStatus.COMPLETED,
+            failureReason: 'SESSION_TIMEOUT',
+          }),
+        }),
+      );
+    });
+
+    it('should not touch IN_PROGRESS sessions < 45 min', async () => {
+      mockPrisma.videoSession.findMany.mockResolvedValue([]);
+
+      await service.checkStaleInProgress();
+
+      expect(mockPrisma.videoSession.update).not.toHaveBeenCalled();
+    });
+
+    it('should have @Cron decorator', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.checkStaleInProgress,
+      );
+      expect(metadata).toBeDefined();
+    });
+  });
+
+  describe('checkStaleWaiting', () => {
+    it('should mark WAITING_FOR_DOCTOR sessions > 10 min as FAILED with WAITING_TIMEOUT', async () => {
+      const longAgo = new Date(Date.now() - 12 * 60 * 1000); // 12 min ago
+      const staleSession = {
+        id: 'vs-stale-wait',
+        status: VideoSessionStatus.WAITING_FOR_DOCTOR,
+        scheduledStartTime: longAgo,
+        statusHistory: [],
+      };
+      mockPrisma.videoSession.findMany.mockResolvedValue([staleSession]);
+      mockPrisma.videoSession.findUnique.mockResolvedValue(staleSession);
+      mockPrisma.videoSession.update.mockResolvedValue({});
+
+      await service.checkStaleWaiting();
+
+      expect(mockPrisma.videoSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'vs-stale-wait' },
+          data: expect.objectContaining({
+            status: VideoSessionStatus.FAILED,
+            failureReason: 'WAITING_TIMEOUT',
+          }),
+        }),
+      );
+    });
+
+    it('should mark WAITING_FOR_PATIENT sessions > 10 min as FAILED', async () => {
+      const longAgo = new Date(Date.now() - 12 * 60 * 1000);
+      const staleSession = {
+        id: 'vs-stale-wait-2',
+        status: VideoSessionStatus.WAITING_FOR_PATIENT,
+        scheduledStartTime: longAgo,
+        statusHistory: [],
+      };
+      mockPrisma.videoSession.findMany.mockResolvedValue([staleSession]);
+      mockPrisma.videoSession.findUnique.mockResolvedValue(staleSession);
+      mockPrisma.videoSession.update.mockResolvedValue({});
+
+      await service.checkStaleWaiting();
+
+      expect(mockPrisma.videoSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'vs-stale-wait-2' },
+          data: expect.objectContaining({
+            status: VideoSessionStatus.FAILED,
+          }),
+        }),
+      );
+    });
+
+    it('should have @Cron decorator', () => {
+      const metadata = Reflect.getMetadata(
+        'SCHEDULE_CRON_OPTIONS',
+        service.checkStaleWaiting,
+      );
+      expect(metadata).toBeDefined();
+    });
+  });
+
+  describe('idempotency', () => {
+    it('should not send duplicate 24hr reminders (skip if lastReminderSentAt is recent)', async () => {
+      const recentlySent = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
+      mockPrisma.videoSession.findMany.mockResolvedValue([
+        {
+          id: 'vs-1',
+          status: VideoSessionStatus.SCHEDULED,
+          lastReminderSentAt: recentlySent,
+        },
+      ]);
+
+      await service.send24HourReminders();
+
+      // Should skip this session because reminder was already sent
+      expect(mockNotifications.notify24HourReminder).not.toHaveBeenCalled();
+    });
+
+    it('should send 24hr reminder if no previous reminder sent', async () => {
+      mockPrisma.videoSession.findMany.mockResolvedValue([
+        {
+          id: 'vs-new',
+          status: VideoSessionStatus.SCHEDULED,
+          lastReminderSentAt: null,
+        },
+      ]);
+      mockPrisma.videoSession.update.mockResolvedValue({});
+
+      await service.send24HourReminders();
+
+      expect(mockNotifications.notify24HourReminder).toHaveBeenCalledWith('vs-new');
+      // Should update lastReminderSentAt
+      expect(mockPrisma.videoSession.update).toHaveBeenCalledWith({
+        where: { id: 'vs-new' },
+        data: { lastReminderSentAt: expect.any(Date) },
       });
     });
   });
