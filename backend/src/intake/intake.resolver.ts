@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { HealthVertical, User, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaginationInput } from '../common/dto/pagination.dto';
 import {
     VerticalInfo,
     QuestionnaireTemplateType,
@@ -65,8 +66,9 @@ export class IntakeResolver {
     @UseGuards(JwtAuthGuard)
     async getMyIntakes(
         @CurrentUser() user: User,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<IntakeResponseType[]> {
-        const intakes = await this.intakeService.getMyIntakes(user.id);
+        const intakes = await this.intakeService.getMyIntakes(user.id, pagination?.take, pagination?.skip);
         return intakes as unknown as IntakeResponseType[];
     }
 
@@ -104,10 +106,13 @@ export class IntakeResolver {
     @UseGuards(JwtAuthGuard)
     async getMyConsultations(
         @CurrentUser() user: User,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<ConsultationType[]> {
         return this.prisma.consultation.findMany({
             where: { patientId: user.id },
             orderBy: { createdAt: 'desc' },
+            take: pagination?.take ?? 20,
+            skip: pagination?.skip ?? 0,
         }) as unknown as ConsultationType[];
     }
 

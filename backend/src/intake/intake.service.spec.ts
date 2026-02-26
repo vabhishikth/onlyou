@@ -295,6 +295,8 @@ describe('IntakeService', () => {
           consultation: true,
         },
         orderBy: { createdAt: 'desc' },
+        take: 20,
+        skip: 0,
       });
       expect(result).toHaveLength(1);
     });

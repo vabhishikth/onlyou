@@ -299,7 +299,9 @@ export class DashboardService {
    */
   async getDoctorQueue(
     doctorId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyDoctor(doctorId);
 
@@ -324,6 +326,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {
@@ -336,7 +340,9 @@ export class DashboardService {
    */
   async getAdminQueue(
     adminId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyAdmin(adminId);
 
@@ -360,6 +366,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {
@@ -372,7 +380,9 @@ export class DashboardService {
    */
   async getUnassignedCases(
     adminId: string,
-    filters: QueueFilters = {}
+    filters: QueueFilters = {},
+    take = 20,
+    skip = 0,
   ): Promise<{ cases: CaseCard[] }> {
     await this.verifyAdmin(adminId);
 
@@ -401,6 +411,8 @@ export class DashboardService {
         followUps: true,
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return {

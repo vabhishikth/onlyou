@@ -9,6 +9,7 @@ import {
 } from './dto/messaging.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PaginationInput } from '../common/dto/pagination.dto';
 
 // Spec: master spec Section 5.5 (Messaging)
 // Frontend mutation shapes: web/src/app/doctor/case/[id]/page.tsx lines 64-73
@@ -27,9 +28,10 @@ export class MessagingResolver {
     @UseGuards(JwtAuthGuard)
     async doctorConversations(
         @Context() context: any,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<ConversationSummaryType[]> {
         const doctorId = context.req.user.id;
-        return this.messagingService.getDoctorConversations(doctorId);
+        return this.messagingService.getDoctorConversations(doctorId, pagination?.take, pagination?.skip);
     }
 
     /**
@@ -139,10 +141,13 @@ export class MessagingResolver {
     async consultationMessages(
         @Args('consultationId') consultationId: string,
         @CurrentUser() user: any,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<MessageType[]> {
         const messages = await this.messagingService.getMessages(
             consultationId,
             user.id,
+            pagination?.take,
+            pagination?.skip,
         );
 
         return messages.map((m) => ({

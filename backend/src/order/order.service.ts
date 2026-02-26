@@ -443,10 +443,12 @@ export class OrderService {
   /**
    * Get orders for a patient
    */
-  async getOrdersByPatient(patientId: string): Promise<any[]> {
+  async getOrdersByPatient(patientId: string, take = 20, skip = 0): Promise<any[]> {
     return this.prisma.order.findMany({
       where: { patientId },
       orderBy: { orderedAt: 'desc' },
+      take,
+      skip,
       include: {
         prescription: true,
       },
@@ -475,7 +477,7 @@ export class OrderService {
   /**
    * Get pending deliveries (for coordinator)
    */
-  async getPendingDeliveries(): Promise<any[]> {
+  async getPendingDeliveries(take = 50, skip = 0): Promise<any[]> {
     return this.prisma.order.findMany({
       where: {
         status: {
@@ -487,6 +489,8 @@ export class OrderService {
         },
       },
       orderBy: { pharmacyReadyAt: 'asc' },
+      take,
+      skip,
       include: {
         patient: { select: { id: true, name: true, phone: true } },
         prescription: true,
@@ -534,7 +538,7 @@ export class OrderService {
   /**
    * Get orders due for monthly reorder
    */
-  async getOrdersDueForReorder(): Promise<any[]> {
+  async getOrdersDueForReorder(take = 50, skip = 0): Promise<any[]> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -542,9 +546,10 @@ export class OrderService {
       where: {
         status: OrderStatus.DELIVERED,
         deliveredAt: { lte: thirtyDaysAgo },
-        // Only get orders that haven't been reordered yet
         isReorder: false,
       },
+      take,
+      skip,
       include: {
         patient: { select: { id: true, name: true, phone: true } },
         prescription: true,

@@ -301,7 +301,7 @@ export class DoctorService {
    * List doctors with optional filters
    * Spec: Phase 12 — Filterable by vertical, availability
    */
-  async listDoctors(filters?: DoctorListFilters): Promise<DoctorProfile[]> {
+  async listDoctors(filters?: DoctorListFilters, take = 20, skip = 0): Promise<DoctorProfile[]> {
     const where: any = { isActive: true };
 
     if (filters?.vertical) {
@@ -316,6 +316,8 @@ export class DoctorService {
       where,
       include: { user: true },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     });
   }
 

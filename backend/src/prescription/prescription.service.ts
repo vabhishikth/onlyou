@@ -220,6 +220,8 @@ export class PrescriptionService {
   async getDoctorPrescriptions(
     doctorId: string,
     filters?: { vertical?: string; search?: string },
+    take = 20,
+    skip = 0,
   ): Promise<any[]> {
     const where: any = {
       consultation: {
@@ -244,6 +246,8 @@ export class PrescriptionService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     });
 
     return prescriptions.map((rx) => ({
@@ -264,7 +268,7 @@ export class PrescriptionService {
    * Get all prescriptions for a patient
    * Spec: Phase 11 — Patient-facing prescription list
    */
-  async getPatientPrescriptions(patientId: string): Promise<any[]> {
+  async getPatientPrescriptions(patientId: string, take = 20, skip = 0): Promise<any[]> {
     const prescriptions = await this.prisma.prescription.findMany({
       where: { consultation: { patientId } },
       include: {
@@ -277,6 +281,8 @@ export class PrescriptionService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     });
 
     return prescriptions.map((rx) => ({

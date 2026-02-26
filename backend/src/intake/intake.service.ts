@@ -84,7 +84,7 @@ export class IntakeService {
     /**
      * Get user's intake responses
      */
-    async getMyIntakes(userId: string) {
+    async getMyIntakes(userId: string, take = 20, skip = 0) {
         const profile = await this.prisma.patientProfile.findUnique({
             where: { userId },
         });
@@ -100,6 +100,8 @@ export class IntakeService {
                 consultation: true,
             },
             orderBy: { createdAt: 'desc' },
+            take,
+            skip,
         });
     }
 

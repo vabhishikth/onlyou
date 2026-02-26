@@ -140,6 +140,8 @@ export class LabOrderService {
   async getDoctorLabOrders(
     doctorId: string,
     filters?: { status?: string; vertical?: string; search?: string },
+    take = 20,
+    skip = 0,
   ): Promise<any[]> {
     const where: any = {
       doctorId,
@@ -159,6 +161,8 @@ export class LabOrderService {
         consultation: { select: { vertical: true } },
       },
       orderBy: { orderedAt: 'desc' },
+      take,
+      skip,
     });
 
     return orders.map((order) => ({
@@ -516,13 +520,15 @@ export class LabOrderService {
   /**
    * Get all lab orders for a patient
    */
-  async getPatientLabOrders(patientId: string): Promise<any[]> {
+  async getPatientLabOrders(patientId: string, take = 20, skip = 0): Promise<any[]> {
     const labOrders = await this.prisma.labOrder.findMany({
       where: { patientId },
       orderBy: { orderedAt: 'desc' },
       include: {
         consultation: true,
       },
+      take,
+      skip,
     });
 
     return labOrders;

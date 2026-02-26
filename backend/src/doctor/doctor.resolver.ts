@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, HealthVertical } from '@prisma/client';
+import { PaginationInput } from '../common/dto/pagination.dto';
 
 // Spec: Phase 12 — Doctor Onboarding Resolver (Admin-only)
 
@@ -145,8 +146,9 @@ export class DoctorResolver {
   async doctors(
     @Args('vertical', { type: () => HealthVertical, nullable: true }) vertical?: HealthVertical,
     @Args('isAvailable', { type: () => Boolean, nullable: true }) isAvailable?: boolean,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<any[]> {
-    return this.doctorService.listDoctors({ vertical, isAvailable });
+    return this.doctorService.listDoctors({ vertical, isAvailable }, pagination?.take, pagination?.skip);
   }
 
   @Query(() => DoctorStats)

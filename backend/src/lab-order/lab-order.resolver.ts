@@ -5,6 +5,7 @@ import { HealthVertical } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PaginationInput } from '../common/dto/pagination.dto';
 import {
     AvailablePanelsResponse,
     CreateLabOrderInput,
@@ -36,9 +37,10 @@ export class LabOrderResolver {
         @Context() context: any,
         @Args('filters', { type: () => DoctorLabOrdersFilterInput, nullable: true })
         filters?: DoctorLabOrdersFilterInput,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<DoctorLabOrderItem[]> {
         const doctorId = context.req.user.id;
-        return this.labOrderService.getDoctorLabOrders(doctorId, filters ?? undefined);
+        return this.labOrderService.getDoctorLabOrders(doctorId, filters ?? undefined, pagination?.take, pagination?.skip);
     }
 
     /**
@@ -49,9 +51,10 @@ export class LabOrderResolver {
     @UseGuards(JwtAuthGuard)
     async myLabOrders(
         @Context() context: any,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<LabOrderType[]> {
         const patientId = context.req.user.id;
-        const orders = await this.labOrderService.getPatientLabOrders(patientId);
+        const orders = await this.labOrderService.getPatientLabOrders(patientId, pagination?.take, pagination?.skip);
         return orders.map(this.mapToLabOrderType);
     }
 
@@ -94,6 +97,7 @@ export class LabOrderResolver {
     @Query(() => [LabOrderType])
     async labOrdersByConsultation(
         @Args('consultationId') consultationId: string,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<LabOrderType[]> {
         const orders = await this.prisma.labOrder.findMany({
             where: { consultationId },
@@ -101,6 +105,8 @@ export class LabOrderResolver {
                 patient: true,
             },
             orderBy: { orderedAt: 'desc' },
+            take: pagination?.take ?? 20,
+            skip: pagination?.skip ?? 0,
         });
 
         return orders.map(this.mapToLabOrderType);
@@ -112,6 +118,7 @@ export class LabOrderResolver {
     @Query(() => [LabOrderType])
     async labOrdersForReview(
         @Args('doctorId') doctorId: string,
+        @Args('pagination', { nullable: true }) pagination?: PaginationInput,
     ): Promise<LabOrderType[]> {
         const orders = await this.prisma.labOrder.findMany({
             where: {
@@ -124,6 +131,8 @@ export class LabOrderResolver {
                 patient: true,
             },
             orderBy: { resultsUploadedAt: 'asc' },
+            take: pagination?.take ?? 20,
+            skip: pagination?.skip ?? 0,
         });
 
         return orders.map(this.mapToLabOrderType);

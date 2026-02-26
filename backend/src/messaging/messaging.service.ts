@@ -269,7 +269,9 @@ export class MessagingService {
    */
   async getMessages(
     consultationId: string,
-    userId: string
+    userId: string,
+    take = 50,
+    skip = 0,
   ): Promise<MessageWithReceipts[]> {
     await this.verifyConsultationAccess(consultationId, userId);
 
@@ -285,6 +287,8 @@ export class MessagingService {
         },
       },
       orderBy: { createdAt: 'asc' },
+      take,
+      skip,
     });
 
     return messages as MessageWithReceipts[];
@@ -310,7 +314,7 @@ export class MessagingService {
    * Get all conversations (consultations with messages) for a doctor
    * Spec: master spec Section 5.5 — Doctor conversations list
    */
-  async getDoctorConversations(doctorId: string): Promise<any[]> {
+  async getDoctorConversations(doctorId: string, take = 20, skip = 0): Promise<any[]> {
     const consultations = await this.prisma.consultation.findMany({
       where: {
         doctorId,
@@ -323,6 +327,8 @@ export class MessagingService {
         },
       },
       _count: { select: { messages: true } },
+      take,
+      skip,
     } as any);
 
     const results = consultations.map((consultation: any) => {
