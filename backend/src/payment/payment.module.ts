@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentService } from './payment.service';
 import { PaymentResolver } from './payment.resolver';
@@ -28,7 +29,7 @@ const razorpayFactory = {
 };
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, ConfigModule],
   providers: [PaymentService, PaymentResolver, razorpayFactory],
   exports: [PaymentService],
 })
