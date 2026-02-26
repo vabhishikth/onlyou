@@ -18,22 +18,31 @@ const PRODUCTION_ORIGINS = [
 function killPortHolder(port: number | string) {
     try {
         const { execSync } = require('child_process');
-        const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
-            encoding: 'utf8',
-        });
-        const lines = output.trim().split('\n');
-        for (const line of lines) {
-            const pidMatch = line.match(/LISTENING\s+(\d+)/);
-            if (pidMatch) {
-                const pid = Number(pidMatch[1]);
-                if (pid !== process.pid) {
-                    execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
-                    execSync('ping -n 2 127.0.0.1 > NUL', { stdio: 'ignore' });
+        // Try Unix first (Linux/macOS)
+        try {
+            execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null`, { stdio: 'ignore' });
+        } catch {
+            // Try Windows
+            try {
+                const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, {
+                    encoding: 'utf8',
+                });
+                const lines = output.trim().split('\n');
+                for (const line of lines) {
+                    const pidMatch = line.match(/LISTENING\s+(\d+)/);
+                    if (pidMatch) {
+                        const pid = Number(pidMatch[1]);
+                        if (pid !== process.pid) {
+                            execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+                        }
+                    }
                 }
+            } catch {
+                // Port already free
             }
         }
     } catch {
-        // Silently ignore — port may already be free
+        // Silently ignore
     }
 }
 
