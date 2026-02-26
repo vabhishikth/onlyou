@@ -82,7 +82,7 @@ export class ConsultationService {
       throw new BadRequestException('Rejection reason is required');
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: newStatus,
     };
 
@@ -290,7 +290,7 @@ export class ConsultationService {
     vertical?: HealthVertical,
     attentionLevel?: 'low' | 'medium' | 'high'
   ) {
-    const where: any = {
+    const where: Record<string, unknown> = {
       status: ConsultationStatus.AI_REVIEWED,
       doctorId: null,
     };

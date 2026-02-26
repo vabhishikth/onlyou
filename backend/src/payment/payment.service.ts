@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Payment } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
 
@@ -16,7 +17,7 @@ export interface CreatePaymentOrderInput {
   amountPaise: number;
   currency: string;
   purpose: 'CONSULTATION' | 'SUBSCRIPTION' | 'LAB_ORDER' | 'ORDER';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface VerifyPaymentInput {
@@ -27,7 +28,7 @@ export interface VerifyPaymentInput {
 
 export interface ProcessWebhookInput {
   event: string;
-  payload: any;
+  payload: Record<string, unknown>;
   webhookSignature: string;
 }
 
@@ -68,7 +69,7 @@ export class PaymentService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject('RAZORPAY_INSTANCE') private readonly razorpay: any,
+    @Inject('RAZORPAY_INSTANCE') private readonly razorpay: Record<string, unknown>,
     private readonly config: ConfigService,
   ) {
     // Security: use ConfigService instead of process.env directly; no hardcoded fallback
@@ -82,7 +83,7 @@ export class PaymentService {
    * Create a Razorpay order for payment
    * Spec: Section 12 — Create order → checkout
    */
-  async createPaymentOrder(input: CreatePaymentOrderInput): Promise<any> {
+  async createPaymentOrder(input: CreatePaymentOrderInput): Promise<Payment> {
     // Validate user exists
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
@@ -174,7 +175,7 @@ export class PaymentService {
    * Spec: Webhook → create consultation
    * Idempotency: same webhook received twice → only processes once
    */
-  async processWebhook(input: ProcessWebhookInput): Promise<any> {
+  async processWebhook(input: ProcessWebhookInput): Promise<Payment | null> {
     // Verify webhook signature
     if (!this.verifyWebhookSignature(JSON.stringify(input.payload), input.webhookSignature)) {
       throw new BadRequestException('Invalid webhook signature');
@@ -251,7 +252,7 @@ export class PaymentService {
    * Handle successful payment
    * Spec: Payment success → create consultation
    */
-  async handlePaymentSuccess(payment: any): Promise<any> {
+  async handlePaymentSuccess(payment: Payment): Promise<Payment> {
     const metadata = payment.metadata || {};
 
     if (metadata.purpose === 'CONSULTATION') {
@@ -298,7 +299,7 @@ export class PaymentService {
    * Handle failed payment
    * Spec: Payment failure → no consultation created
    */
-  async handlePaymentFailure(payment: any): Promise<any> {
+  async handlePaymentFailure(payment: Payment): Promise<Payment> {
     // Log for analytics, no consultation created
     return {
       logged: true,
@@ -340,7 +341,7 @@ export class PaymentService {
   /**
    * Get payment by ID
    */
-  async getPayment(id: string): Promise<any> {
+  async getPayment(id: string): Promise<Payment> {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
     });
@@ -355,7 +356,7 @@ export class PaymentService {
   /**
    * Get payment by Razorpay order ID
    */
-  async getPaymentByRazorpayOrderId(razorpayOrderId: string): Promise<any | null> {
+  async getPaymentByRazorpayOrderId(razorpayOrderId: string): Promise<Payment | null> {
     return this.prisma.payment.findFirst({
       where: { razorpayOrderId },
     });
@@ -364,8 +365,8 @@ export class PaymentService {
   /**
    * Get all payments for a user
    */
-  async getPaymentsByUser(userId: string, status?: string): Promise<any[]> {
-    const where: any = { userId };
+  async getPaymentsByUser(userId: string, status?: string): Promise<Payment[]> {
+    const where: Record<string, unknown> = { userId };
     if (status) {
       where.status = status;
     }

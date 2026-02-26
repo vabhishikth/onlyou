@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
+import { ConsultationStatus, HealthVertical, User, UserRole } from '@prisma/client';
 
 // Spec: master spec Section 5.5 (Messaging)
 // Spec: hair-loss spec Section 7 (Canned Messages)
@@ -100,7 +100,7 @@ export class MessagingService {
   /**
    * Verify user exists
    */
-  private async getUser(userId: string): Promise<any> {
+  private async getUser(userId: string): Promise<User> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
     });
@@ -118,7 +118,7 @@ export class MessagingService {
   private async verifyConsultationAccess(
     consultationId: string,
     userId: string
-  ): Promise<any> {
+  ) {
     const consultation = await this.prisma.consultation.findUnique({
       where: { id: consultationId },
     });
@@ -230,7 +230,7 @@ export class MessagingService {
     consultationId: string,
     doctorId: string,
     message: string
-  ): Promise<{ message: MessageWithReceipts; consultation: any }> {
+  ): Promise<{ message: MessageWithReceipts; consultation: Record<string, unknown> }> {
     const { consultation: _consultation, user } = await this.verifyConsultationAccess(
       consultationId,
       doctorId
@@ -314,7 +314,7 @@ export class MessagingService {
    * Get all conversations (consultations with messages) for a doctor
    * Spec: master spec Section 5.5 — Doctor conversations list
    */
-  async getDoctorConversations(doctorId: string, take = 20, skip = 0): Promise<any[]> {
+  async getDoctorConversations(doctorId: string, take = 20, skip = 0): Promise<Record<string, unknown>[]> {
     const consultations = await this.prisma.consultation.findMany({
       where: {
         doctorId,

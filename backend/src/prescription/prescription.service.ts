@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadService } from '../upload/upload.service';
-import { ConsultationStatus, UserRole, VideoSessionStatus } from '@prisma/client';
+import { ConsultationStatus, Prescription, UserRole, VideoSessionStatus } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit');
 
@@ -222,8 +222,8 @@ export class PrescriptionService {
     filters?: { vertical?: string; search?: string },
     take = 20,
     skip = 0,
-  ): Promise<any[]> {
-    const where: any = {
+  ): Promise<Record<string, unknown>[]> {
+    const where: Record<string, unknown> = {
       consultation: {
         doctorId,
         ...(filters?.vertical ? { vertical: filters.vertical } : {}),
@@ -268,7 +268,7 @@ export class PrescriptionService {
    * Get all prescriptions for a patient
    * Spec: Phase 11 — Patient-facing prescription list
    */
-  async getPatientPrescriptions(patientId: string, take = 20, skip = 0): Promise<any[]> {
+  async getPatientPrescriptions(patientId: string, take = 20, skip = 0): Promise<Record<string, unknown>[]> {
     const prescriptions = await this.prisma.prescription.findMany({
       where: { consultation: { patientId } },
       include: {
@@ -409,7 +409,7 @@ export class PrescriptionService {
   /**
    * Verify doctor
    */
-  private async verifyDoctor(doctorId: string): Promise<any> {
+  private async verifyDoctor(doctorId: string) {
     const doctor = await this.prisma.user.findFirst({
       where: {
         id: doctorId,
@@ -537,8 +537,8 @@ export class PrescriptionService {
    * Spec: master spec Section 5.4 — Prescription Builder
    */
   async createPrescription(input: CreatePrescriptionInput): Promise<{
-    prescription: any;
-    order: any;
+    prescription: Prescription;
+    order: Record<string, unknown>;
   }> {
     const doctor = await this.verifyDoctor(input.doctorId);
 
@@ -900,7 +900,7 @@ export class PrescriptionService {
   /**
    * Get prescription by ID
    */
-  async getPrescription(prescriptionId: string): Promise<any> {
+  async getPrescription(prescriptionId: string): Promise<Prescription> {
     const prescription = await this.prisma.prescription.findUnique({
       where: { id: prescriptionId },
       include: {
@@ -924,7 +924,7 @@ export class PrescriptionService {
   /**
    * Get prescription by consultation ID
    */
-  async getPrescriptionByConsultation(consultationId: string): Promise<any> {
+  async getPrescriptionByConsultation(consultationId: string): Promise<Prescription | null> {
     const prescription = await this.prisma.prescription.findFirst({
       where: { consultationId },
       include: {
