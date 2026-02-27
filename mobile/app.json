@@ -19,7 +19,11 @@
         "NSCameraUsageDescription": "We need camera access for video consultations and photo capture",
         "NSPhotoLibraryUsageDescription": "We need photo library access to upload images for your consultation",
         "NSMicrophoneUsageDescription": "We need microphone access for video consultations with your doctor",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
