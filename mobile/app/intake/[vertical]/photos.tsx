@@ -197,7 +197,6 @@ export default function PhotosScreen() {
             .map(([type, photo]) => ({
                 type,
                 url: photo.uploadedUrl!,
-                localUri: photo.localUri,
             }));
 
         router.push({

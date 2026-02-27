@@ -159,7 +159,7 @@ export default function ReviewScreen() {
                             {photos.map((photo, index) => (
                                 <View key={index} style={styles.photoItem}>
                                     <Image
-                                        source={{ uri: (photo as any).localUri || photo.url }}
+                                        source={{ uri: photo.url }}
                                         style={styles.photoThumbnail}
                                     />
                                     <Text style={styles.photoLabel}>{photo.type}</Text>

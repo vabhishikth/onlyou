@@ -1,7 +1,14 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIService, AIAssessment } from '../ai/ai.service';
-import { Consultation, ConsultationStatus, HealthVertical, UserRole } from '@prisma/client';
+import { Consultation, ConsultationStatus, HealthVertical, UserRole, VideoSessionStatus } from '@prisma/client';
+
+// DEV BYPASS: VIDEO_AUTO_COMPLETE=true skips the entire video consultation flow.
+// When active, assignToDoctor() creates a mock completed VideoSession and sets
+// consultation directly to VIDEO_COMPLETED so we can test prescriptions etc.
+// Explicitly disabled in test environment so unit tests always test the real path.
+const VIDEO_AUTO_COMPLETE =
+  process.env.VIDEO_AUTO_COMPLETE === 'true' && process.env.NODE_ENV !== 'test';
 
 // Spec: master spec Section 3.7 (Consultation Lifecycle)
 
@@ -189,6 +196,31 @@ export class ConsultationService {
 
     if (!doctor) {
       throw new BadRequestException('Invalid doctor');
+    }
+
+    // DEV BYPASS: skip video entirely — create a mock completed session and
+    // jump straight to VIDEO_COMPLETED so prescription flow can be tested.
+    if (VIDEO_AUTO_COMPLETE) {
+      return this.prisma.$transaction(async (tx) => {
+        await tx.videoSession.create({
+          data: {
+            consultationId,
+            doctorId,
+            patientId: consultation.patientId,
+            status: VideoSessionStatus.COMPLETED,
+            scheduledStartTime: new Date(),
+            scheduledEndTime: new Date(),
+            actualStartTime: new Date(),
+            actualEndTime: new Date(),
+            notes: '[Dev bypass] Video consultation auto-completed for testing',
+            callType: 'VIDEO',
+          },
+        });
+        return tx.consultation.update({
+          where: { id: consultationId },
+          data: { doctorId, status: ConsultationStatus.VIDEO_COMPLETED },
+        });
+      });
     }
 
     return this.prisma.consultation.update({
